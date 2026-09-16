@@ -1,10 +1,13 @@
 import React from 'react';
-import { LogOut, Smartphone, Search, X, Sparkles } from 'lucide-react';
+import { LogOut, Smartphone, Search, X, Sparkles, Projector, Wrench } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 
 interface HeaderProps {
   onLogout: () => void;
   onOpenInstallGuide: () => void;
+  onOpenQuickTools: () => void;
+  isSmartboardMode: boolean;
+  onToggleSmartboardMode: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   selectedCategory: string;
@@ -15,6 +18,9 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenInstallGuide,
+  onOpenQuickTools,
+  isSmartboardMode,
+  onToggleSmartboardMode,
   searchQuery,
   setSearchQuery,
   selectedCategory,
@@ -52,22 +58,46 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Right Action buttons */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* PWA / Homescreen button with 44px min touch target */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
+            
+            {/* Smartboard Mode Switch */}
             <button
-              onClick={onOpenInstallGuide}
-              className="min-h-[44px] flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-hbs-blue-soft text-hbs-blue-deep hover:bg-hbs-blue-light border border-hbs-blue/20 text-xs sm:text-sm font-bold shadow-xs hover:shadow active:scale-[0.98] transition-all duration-150 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)] select-none"
-              title="Anleitung: Als App auf iPad oder Smartphone ablegen"
+              onClick={onToggleSmartboardMode}
+              className={`min-h-[44px] flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all duration-150 select-none ${
+                isSmartboardMode
+                  ? 'bg-hbs-amber text-white border-hbs-amber shadow-md shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3)]'
+                  : 'bg-white hover:bg-hbs-amber-light text-hbs-slate-dark hover:text-hbs-amber-dark border-slate-200'
+              }`}
+              title="Smartboard-Präsentationsmodus für den Unterricht"
             >
-              <Smartphone className="w-4 h-4 text-hbs-blue shrink-0" />
-              <span className="hidden sm:inline">Als App installieren</span>
-              <span className="sm:hidden">PWA</span>
+              <Projector className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">Smartboard</span>
             </button>
 
-            {/* Logout button with 44px min touch target */}
+            {/* Quick Tools Drawer Trigger */}
+            <button
+              onClick={onOpenQuickTools}
+              className="min-h-[44px] flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl bg-hbs-blue-soft text-hbs-blue-deep hover:bg-hbs-blue-light border border-hbs-blue/20 text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all duration-150 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)] select-none"
+              title="Unterrichts-Quick-Tools (Timer, Zufall, Lärmampel)"
+            >
+              <Wrench className="w-4 h-4 text-hbs-blue shrink-0" />
+              <span className="hidden sm:inline">Quick-Tools</span>
+            </button>
+
+            {/* PWA / Homescreen button */}
+            <button
+              onClick={onOpenInstallGuide}
+              className="hidden lg:flex min-h-[44px] items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-hbs-slate-dark border border-slate-200 text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all duration-150 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)] select-none"
+              title="Anleitung: Als App auf iPad oder Smartphone ablegen"
+            >
+              <Smartphone className="w-4 h-4 text-hbs-slate-muted shrink-0" />
+              <span>App-Guide</span>
+            </button>
+
+            {/* Logout button */}
             <button
               onClick={onLogout}
-              className="min-h-[44px] min-w-[44px] p-2.5 sm:px-3 sm:py-2.5 rounded-xl text-hbs-slate-muted hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 text-xs sm:text-sm font-semibold active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-1.5 select-none"
+              className="min-h-[44px] min-w-[44px] p-2 sm:px-3 sm:py-2.5 rounded-xl text-hbs-slate-muted hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 text-xs sm:text-sm font-semibold active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-1.5 select-none"
               title="Portal sperren / Abmelden"
               aria-label="Abmelden"
             >

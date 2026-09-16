@@ -13,6 +13,9 @@ export interface SchoolApp {
   isFeaturedStudentQr?: boolean;
   offlineReady?: boolean;
   privacyBadge?: string;
+  pedagogicalValue?: string;
+  quickGuide?: string[];
+  shortcuts?: { label: string; url: string }[];
 }
 
 export interface ExternalLink {
@@ -30,7 +33,6 @@ export const PORTAL_CONFIG = {
   schoolLocation: "Kahla",
   portalTitle: "HBS App-Portal",
   portalSubtitle: "Zentraler Anlaufpunkt für Kollegium, Unterricht und Schulverwaltung",
-  // Standard-Passwort für das Kollegium (kann hier geändert werden)
   portalPassword: "HBS2025!",
   contactEmail: "schulleitung@regelschule-kahla.de"
 };
@@ -50,7 +52,13 @@ export const SCHOOL_APPS: SchoolApp[] = [
     tags: ["Unterricht", "DaZ", "QR-Sofortscan", "Smartphone & iPad"],
     isFeaturedStudentQr: true,
     offlineReady: true,
-    privacyBadge: "DSGVO-optimiert"
+    privacyBadge: "DSGVO-optimiert",
+    pedagogicalValue: "Baut sprachliche Barrieren im Fachunterricht sofort ab und ermöglicht DaZ-Schülern eigenständiges Arbeiten.",
+    quickGuide: [
+      "QR-Code an die Wand projizieren oder Schülern zeigen.",
+      "Schüler scannen den Code mit Schul-iPad oder Smartphone.",
+      "Sprachausgabe und einfache Textübersetzung sofort einsatzbereit."
+    ]
   },
   {
     id: "lehrer-translator",
@@ -65,7 +73,13 @@ export const SCHOOL_APPS: SchoolApp[] = [
     icon: "Headphones",
     tags: ["Elterngespräche", "2-Wege-Audio", "Dolmetscher"],
     offlineReady: true,
-    privacyBadge: "DSGVO-konform"
+    privacyBadge: "DSGVO-konform",
+    pedagogicalValue: "Souveräne, empathische Verständigung mit Eltern bei Entwicklungs- und Schullaufbahngesprächen ohne Sprachbarriere.",
+    quickGuide: [
+      "Zwischen zwei Sprachen wählen (z. B. Deutsch ↔ Ukrainisch/Arabisch).",
+      "Mikrofon-Button antippen und ganz normal sprechen.",
+      "Die KI übersetzt und liest die Übersetzung in natürlicher Stimme vor."
+    ]
   },
   {
     id: "getraenkefundus",
@@ -80,13 +94,19 @@ export const SCHOOL_APPS: SchoolApp[] = [
     icon: "Coffee",
     tags: ["Lehrerzimmer", "Vertrauenskasse", "Guthaben"],
     offlineReady: true,
-    privacyBadge: "Schulintern"
+    privacyBadge: "Schulintern",
+    pedagogicalValue: "Stärkt die Gemeinschaft im Lehrerzimmer durch transparente, faire und unkomplizierte Kaffee- & Snack-Abrechnung.",
+    quickGuide: [
+      "Im Lehrerzimmer aufrufen oder als PWA auf dem Smartphone speichern.",
+      "Getränk oder Snack per Klick auswählen.",
+      "Guthaben aufladen (Bar oder digital) und Kassenstand einsehen."
+    ]
   },
   {
     id: "vertretungsstatistik",
     title: "Vertretungsstatistik & AZV",
-    shortTitle: "Vertretungsstatistik",
     subtitle: "Fehlzeiten, Mehrarbeit & AZV-Konten",
+    shortTitle: "Vertretungsstatistik",
     description: "Dezentrale Erfassung von Ausfall- und Vertretungsstunden für das Kollegium im geschützten Kiosk-Modus und Cockpit für die Schulleitung.",
     url: "https://schlayer1.github.io/Vertretungsstatistik/",
     category: "kollegium",
@@ -95,7 +115,13 @@ export const SCHOOL_APPS: SchoolApp[] = [
     icon: "CalendarDays",
     tags: ["Vertretung", "AZV-Konto", "Kiosk-Modus", "Firebase Cloud"],
     offlineReady: true,
-    privacyBadge: "PIN-geschützt"
+    privacyBadge: "PIN-geschützt",
+    pedagogicalValue: "Transparente und gerechte Dokumentation von Unterrichtsausfall, Mehrbelastung und Arbeitszeitkonten.",
+    quickGuide: [
+      "Lehrkraft wählt den eigenen Namen und gibt die 4-stellige PIN ein.",
+      "Vertretungsstunden oder Abwesenheiten eintragen.",
+      "Schulleitung hat den Gesamtüberblick im Master-Adminbereich."
+    ]
   },
   {
     id: "tag-in-der-praxis",
@@ -110,7 +136,13 @@ export const SCHOOL_APPS: SchoolApp[] = [
     icon: "Briefcase",
     tags: ["Berufsorientierung", "Schüler-Reflexion", "Lehrer-Dashboard"],
     offlineReady: true,
-    privacyBadge: "Cloud-Sync"
+    privacyBadge: "Cloud-Sync",
+    pedagogicalValue: "Fördert die berufliche Selbstreflexion und liefert Lehrkräften fundierte Rückmeldungen aus den Praktikumsbetrieben.",
+    quickGuide: [
+      "Schüler füllen am Praxistag die digitale Reflexion aus.",
+      "KI liefert sofortiges pädagogisches Feedback zur Dokumentation.",
+      "Betreuende Lehrkräfte prüfen die Fortschritte im Lehrer-Dashboard."
+    ]
   },
   {
     id: "projektkompass",
@@ -125,7 +157,13 @@ export const SCHOOL_APPS: SchoolApp[] = [
     icon: "Compass",
     tags: ["100% lokal im Browser", "EduPage-Export", "Gruppenarbeit"],
     offlineReady: true,
-    privacyBadge: "Keine Datenübertragung"
+    privacyBadge: "Keine Datenübertragung",
+    pedagogicalValue: "Trainiert selbstorganisiertes Lernen (SOL), Teamwork und metakognitive Planung bei Projektarbeiten und Referaten.",
+    quickGuide: [
+      "Thema anlegen und mit dem Zauberstab Teilaufgaben generieren.",
+      "Aufgaben im Kanban-Board per Drag & Drop verschieben.",
+      "Am Ende der Stunde Statusbericht kopieren und in EduPage einreichen."
+    ]
   }
 ];
 
