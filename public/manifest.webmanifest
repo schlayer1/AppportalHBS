@@ -1,0 +1,18 @@
+{
+  "name": "HBS App-Portal • Heimbürgeschule Kahla",
+  "short_name": "HBS Apps",
+  "description": "Zentrales App-Portal für Kollegium und Unterricht an der Staatlichen Regelschule Heimbürgeschule Kahla",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F8FBFC",
+  "theme_color": "#0B7BA7",
+  "icons": [
+    {
+      "src": "/Siegel_bunt.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
