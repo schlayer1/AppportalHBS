@@ -19,7 +19,6 @@ export const WIDGET_BASE_DIMENSIONS: Partial<Record<BoardWidgetType, { baseWidth
   'calendar': { baseWidth: 324, baseHeight: 260 },
   'poll': { baseWidth: 324, baseHeight: 260 },
   'timetable': { baseWidth: 344, baseHeight: 320 },
-  'hyperlink': { baseWidth: 344, baseHeight: 220 },
   'qr-code': { baseWidth: 244, baseHeight: 240 }
 };
 

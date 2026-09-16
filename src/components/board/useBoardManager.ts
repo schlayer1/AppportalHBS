@@ -167,9 +167,9 @@ export const useBoardManager = () => {
       h = 360;
       defaultTitle = 'PDF-Dokument';
     } else if (type === 'hyperlink') {
-      w = 360;
-      h = 280;
-      defaultTitle = 'Schnelllinks';
+      w = 520;
+      h = 420;
+      defaultTitle = 'Live-Weblink & Voransicht';
     } else if (type === 'poll') {
       w = 340;
       h = 320;
