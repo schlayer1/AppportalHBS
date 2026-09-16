@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useBoardManager } from './useBoardManager';
 import { BoardWidgetContainer } from './BoardWidgetContainer';
 import { BoardDock } from './BoardDock';
@@ -56,7 +56,8 @@ import {
   BarChart3,
   Sparkles, 
   Trash2, 
-  ArrowLeft 
+  ArrowLeft,
+  RotateCcw
 } from 'lucide-react';
 
 interface ClassroomBoardProps {
@@ -71,6 +72,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
     addWidget,
     removeWidget,
     updateWidgetPosition,
+    updateWidgetSize,
     toggleMinimize,
     bringToFront,
     setBackground,
@@ -80,9 +82,14 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
     loadPreset
   } = useBoardManager();
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isBackgroundPickerOpen, setIsBackgroundPickerOpen] = useState(false);
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const resetScroll = () => {
+    scrollContainerRef.current?.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+  };
 
   // Fullscreen Listener
   useEffect(() => {
@@ -127,16 +134,17 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
       }`}
       style={activeBgPreset.style}
     >
-      {/* Subtle Top Bar with School Branding & Quick Clear */}
-      <div className="absolute top-4 left-6 right-6 flex items-center justify-between pointer-events-none z-30">
-        <div className="flex items-center gap-3 pointer-events-auto">
+      {/* Subtle Top Bar with School Branding, Centering & Quick Clear */}
+      <div className="fixed top-4 left-4 right-4 sm:left-6 sm:right-6 flex items-center justify-between pointer-events-none z-40">
+        <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
           <button
             onClick={onExit}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-full ios-glass text-hbs-slate-dark text-xs font-black shadow-md hover:bg-white transition-all active:scale-95"
             title="Zurück zur Hub-Übersicht"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Zurück zum Portal</span>
+            <span className="hidden xs:inline">Zurück zum Portal</span>
+            <span className="xs:hidden">Zurück</span>
           </button>
 
           <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full ios-glass text-xs font-bold text-hbs-slate-dark/80 shadow-md">
@@ -147,6 +155,16 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
         </div>
 
         <div className="flex items-center gap-2 pointer-events-auto relative">
+          {/* Scroll / Center View Button (especially helpful on mobile phones) */}
+          <button
+            onClick={resetScroll}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-slate-dark hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
+            title="Tafelansicht auf Start zentrieren"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-hbs-blue" />
+            <span className="hidden md:inline">Zentrieren</span>
+          </button>
+
           {/* 1-Click Lesson Presets Button */}
           <div className="relative">
             <button
@@ -204,103 +222,115 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
         </div>
       </div>
 
-      {/* Floating Canvas Widgets Area */}
-      <div className="relative w-full h-full">
-        {activeScreen.widgets.map((widget) => {
-          let widgetIcon = <Sparkles className="w-4 h-4" />;
-          let widgetContent: React.ReactNode = null;
+      {/* Scrollable Canvas Viewport (Allows free scrolling/panning in all directions on iPhone & desktop) */}
+      <div 
+        ref={scrollContainerRef}
+        className="w-full h-full overflow-auto touch-pan-x touch-pan-y overscroll-contain relative scroll-smooth focus:outline-none"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        <div 
+          className={`relative min-w-[max(100vw,2800px)] min-h-[max(100vh,1800px)] transition-colors duration-500 ${
+            activeBgPreset.className || ''
+          }`}
+          style={activeBgPreset.style}
+        >
+          {activeScreen.widgets.map((widget) => {
+            let widgetIcon = <Sparkles className="w-4 h-4" />;
+            let widgetContent: React.ReactNode = null;
 
-          if (widget.type === 'clock') {
-            widgetIcon = <Clock className="w-4 h-4" />;
-            widgetContent = <ClockWidget />;
-          } else if (widget.type === 'timer') {
-            widgetIcon = <Timer className="w-4 h-4" />;
-            widgetContent = <TimerWidget />;
-          } else if (widget.type === 'visual-timer') {
-            widgetIcon = <Hourglass className="w-4 h-4 text-red-500" />;
-            widgetContent = <VisualTimerWidget />;
-          } else if (widget.type === 'stopwatch') {
-            widgetIcon = <Watch className="w-4 h-4 text-hbs-teal-deep" />;
-            widgetContent = <StopwatchWidget />;
-          } else if (widget.type === 'calendar') {
-            widgetIcon = <Calendar className="w-4 h-4 text-hbs-blue" />;
-            widgetContent = <CalendarWidget />;
-          } else if (widget.type === 'event-countdown') {
-            widgetIcon = <CalendarClock className="w-4 h-4 text-amber-500" />;
-            widgetContent = <EventCountdownWidget />;
-          } else if (widget.type === 'timetable') {
-            widgetIcon = <CalendarDays className="w-4 h-4 text-emerald-600" />;
-            widgetContent = <TimetableWidget />;
-          } else if (widget.type === 'traffic-light') {
-            widgetIcon = <TrafficCone className="w-4 h-4 text-red-500" />;
-            widgetContent = <TrafficLightWidget />;
-          } else if (widget.type === 'work-symbols') {
-            widgetIcon = <MessageSquare className="w-4 h-4 text-hbs-blue" />;
-            widgetContent = <WorkSymbolsWidget />;
-          } else if (widget.type === 'sound-level') {
-            widgetIcon = <Volume2 className="w-4 h-4 text-emerald-600" />;
-            widgetContent = <SoundLevelWidget />;
-          } else if (widget.type === 'random-picker') {
-            widgetIcon = <Users className="w-4 h-4 text-hbs-blue" />;
-            widgetContent = <RandomPickerWidget />;
-          } else if (widget.type === 'group-maker') {
-            widgetIcon = <Users2 className="w-4 h-4 text-hbs-teal-deep" />;
-            widgetContent = <GroupMakerWidget />;
-          } else if (widget.type === 'dice') {
-            widgetIcon = <Dices className="w-4 h-4 text-amber-500" />;
-            widgetContent = <DiceWidget />;
-          } else if (widget.type === 'text') {
-            widgetIcon = <FileText className="w-4 h-4 text-hbs-blue" />;
-            widgetContent = <TextWidget />;
-          } else if (widget.type === 'draw') {
-            widgetIcon = <PenTool className="w-4 h-4 text-purple-600" />;
-            widgetContent = <DrawWidget />;
-          } else if (widget.type === 'qr-code') {
-            widgetIcon = <QrCode className="w-4 h-4 text-hbs-slate-dark" />;
-            widgetContent = <QrCodeWidget />;
-          } else if (widget.type === 'image') {
-            widgetIcon = <ImageIcon className="w-4 h-4 text-emerald-600" />;
-            widgetContent = <ImageWidget />;
-          } else if (widget.type === 'stickers') {
-            widgetIcon = <Award className="w-4 h-4 text-amber-500" />;
-            widgetContent = <StickersWidget />;
-          } else if (widget.type === 'scoreboard') {
-            widgetIcon = <Trophy className="w-4 h-4 text-yellow-600" />;
-            widgetContent = <ScoreboardWidget />;
-          } else if (widget.type === 'webcam') {
-            widgetIcon = <Camera className="w-4 h-4 text-blue-500" />;
-            widgetContent = <WebcamWidget />;
-          } else if (widget.type === 'video') {
-            widgetIcon = <Video className="w-4 h-4 text-red-500" />;
-            widgetContent = <VideoWidget />;
-          } else if (widget.type === 'embed') {
-            widgetIcon = <Globe className="w-4 h-4 text-hbs-teal-deep" />;
-            widgetContent = <EmbedWidget />;
-          } else if (widget.type === 'pdf') {
-            widgetIcon = <FileText className="w-4 h-4 text-red-600" />;
-            widgetContent = <PdfViewerWidget />;
-          } else if (widget.type === 'hyperlink') {
-            widgetIcon = <LinkIcon className="w-4 h-4 text-hbs-blue" />;
-            widgetContent = <HyperlinkWidget />;
-          } else if (widget.type === 'poll') {
-            widgetIcon = <BarChart3 className="w-4 h-4 text-purple-600" />;
-            widgetContent = <PollWidget />;
-          }
+            if (widget.type === 'clock') {
+              widgetIcon = <Clock className="w-4 h-4" />;
+              widgetContent = <ClockWidget />;
+            } else if (widget.type === 'timer') {
+              widgetIcon = <Timer className="w-4 h-4" />;
+              widgetContent = <TimerWidget />;
+            } else if (widget.type === 'visual-timer') {
+              widgetIcon = <Hourglass className="w-4 h-4 text-red-500" />;
+              widgetContent = <VisualTimerWidget />;
+            } else if (widget.type === 'stopwatch') {
+              widgetIcon = <Watch className="w-4 h-4 text-hbs-teal-deep" />;
+              widgetContent = <StopwatchWidget />;
+            } else if (widget.type === 'calendar') {
+              widgetIcon = <Calendar className="w-4 h-4 text-hbs-blue" />;
+              widgetContent = <CalendarWidget />;
+            } else if (widget.type === 'event-countdown') {
+              widgetIcon = <CalendarClock className="w-4 h-4 text-amber-500" />;
+              widgetContent = <EventCountdownWidget />;
+            } else if (widget.type === 'timetable') {
+              widgetIcon = <CalendarDays className="w-4 h-4 text-emerald-600" />;
+              widgetContent = <TimetableWidget />;
+            } else if (widget.type === 'traffic-light') {
+              widgetIcon = <TrafficCone className="w-4 h-4 text-red-500" />;
+              widgetContent = <TrafficLightWidget />;
+            } else if (widget.type === 'work-symbols') {
+              widgetIcon = <MessageSquare className="w-4 h-4 text-hbs-blue" />;
+              widgetContent = <WorkSymbolsWidget />;
+            } else if (widget.type === 'sound-level') {
+              widgetIcon = <Volume2 className="w-4 h-4 text-emerald-600" />;
+              widgetContent = <SoundLevelWidget />;
+            } else if (widget.type === 'random-picker') {
+              widgetIcon = <Users className="w-4 h-4 text-hbs-blue" />;
+              widgetContent = <RandomPickerWidget />;
+            } else if (widget.type === 'group-maker') {
+              widgetIcon = <Users2 className="w-4 h-4 text-hbs-teal-deep" />;
+              widgetContent = <GroupMakerWidget />;
+            } else if (widget.type === 'dice') {
+              widgetIcon = <Dices className="w-4 h-4 text-amber-500" />;
+              widgetContent = <DiceWidget />;
+            } else if (widget.type === 'text') {
+              widgetIcon = <FileText className="w-4 h-4 text-hbs-blue" />;
+              widgetContent = <TextWidget />;
+            } else if (widget.type === 'draw') {
+              widgetIcon = <PenTool className="w-4 h-4 text-purple-600" />;
+              widgetContent = <DrawWidget />;
+            } else if (widget.type === 'qr-code') {
+              widgetIcon = <QrCode className="w-4 h-4 text-hbs-slate-dark" />;
+              widgetContent = <QrCodeWidget />;
+            } else if (widget.type === 'image') {
+              widgetIcon = <ImageIcon className="w-4 h-4 text-emerald-600" />;
+              widgetContent = <ImageWidget />;
+            } else if (widget.type === 'stickers') {
+              widgetIcon = <Award className="w-4 h-4 text-amber-500" />;
+              widgetContent = <StickersWidget />;
+            } else if (widget.type === 'scoreboard') {
+              widgetIcon = <Trophy className="w-4 h-4 text-yellow-600" />;
+              widgetContent = <ScoreboardWidget />;
+            } else if (widget.type === 'webcam') {
+              widgetIcon = <Camera className="w-4 h-4 text-blue-500" />;
+              widgetContent = <WebcamWidget />;
+            } else if (widget.type === 'video') {
+              widgetIcon = <Video className="w-4 h-4 text-red-500" />;
+              widgetContent = <VideoWidget />;
+            } else if (widget.type === 'embed') {
+              widgetIcon = <Globe className="w-4 h-4 text-hbs-teal-deep" />;
+              widgetContent = <EmbedWidget />;
+            } else if (widget.type === 'pdf') {
+              widgetIcon = <FileText className="w-4 h-4 text-red-600" />;
+              widgetContent = <PdfViewerWidget />;
+            } else if (widget.type === 'hyperlink') {
+              widgetIcon = <LinkIcon className="w-4 h-4 text-hbs-blue" />;
+              widgetContent = <HyperlinkWidget />;
+            } else if (widget.type === 'poll') {
+              widgetIcon = <BarChart3 className="w-4 h-4 text-purple-600" />;
+              widgetContent = <PollWidget />;
+            }
 
-          return (
-            <BoardWidgetContainer
-              key={widget.id}
-              widget={widget}
-              icon={widgetIcon}
-              onPositionChange={(x, y) => updateWidgetPosition(widget.id, x, y)}
-              onClose={() => removeWidget(widget.id)}
-              onToggleMinimize={() => toggleMinimize(widget.id)}
-              onFocus={() => bringToFront(widget.id)}
-            >
-              {widgetContent}
-            </BoardWidgetContainer>
-          );
-        })}
+            return (
+              <BoardWidgetContainer
+                key={widget.id}
+                widget={widget}
+                icon={widgetIcon}
+                onPositionChange={(x, y) => updateWidgetPosition(widget.id, x, y)}
+                onSizeChange={(w, h) => updateWidgetSize(widget.id, w, h)}
+                onClose={() => removeWidget(widget.id)}
+                onToggleMinimize={() => toggleMinimize(widget.id)}
+                onFocus={() => bringToFront(widget.id)}
+              >
+                {widgetContent}
+              </BoardWidgetContainer>
+            );
+          })}
+        </div>
       </div>
 
       {/* Floating iOS Liquid-Glass Dock */}

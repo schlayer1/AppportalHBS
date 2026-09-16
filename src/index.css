@@ -95,6 +95,107 @@
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.4) 100%);
 }
 
+/* 5 Freundliche, seichte Verlaufs-Hintergründe (ohne Muster, ruhig & ablenkungsfrei) */
+.bg-gradient-sage {
+  background: linear-gradient(145deg, #eef4f0 0%, #d8e7de 100%);
+}
+
+.bg-gradient-sand {
+  background: linear-gradient(145deg, #fcf9f4 0%, #efe6d8 100%);
+}
+
+.bg-gradient-sky {
+  background: linear-gradient(145deg, #eff5fc 0%, #dbe8f6 100%);
+}
+
+.bg-gradient-lavender {
+  background: linear-gradient(145deg, #f5f2f9 0%, #e5dded 100%);
+}
+
+.bg-gradient-slate-soft {
+  background: linear-gradient(145deg, #253342 0%, #151d27 100%);
+}
+
+/* 5 Typische Tafel-Linierungen */
+.lineature-math-chalk {
+  background-color: #173225;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.14) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.14) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.lineature-primary-4lines {
+  background-color: #173225;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.28) 0px,
+    rgba(255, 255, 255, 0.28) 1.5px,
+    transparent 1.5px,
+    transparent 18px,
+    rgba(255, 255, 255, 0.18) 18px,
+    rgba(255, 255, 255, 0.18) 19px,
+    transparent 19px,
+    transparent 36px,
+    rgba(255, 255, 255, 0.18) 36px,
+    rgba(255, 255, 255, 0.18) 37px,
+    transparent 37px,
+    transparent 54px,
+    rgba(255, 255, 255, 0.28) 54px,
+    rgba(255, 255, 255, 0.28) 55.5px,
+    transparent 55.5px,
+    transparent 96px
+  );
+}
+
+.lineature-single-lines {
+  background-color: #173225;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.22) 0px,
+    rgba(255, 255, 255, 0.22) 1.5px,
+    transparent 1.5px,
+    transparent 42px
+  );
+}
+
+.lineature-music-staves {
+  background-color: #173225;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.32) 0px,
+    rgba(255, 255, 255, 0.32) 1.5px,
+    transparent 1.5px,
+    transparent 10px,
+    rgba(255, 255, 255, 0.32) 10px,
+    rgba(255, 255, 255, 0.32) 11.5px,
+    transparent 11.5px,
+    transparent 20px,
+    rgba(255, 255, 255, 0.32) 20px,
+    rgba(255, 255, 255, 0.32) 21.5px,
+    transparent 21.5px,
+    transparent 30px,
+    rgba(255, 255, 255, 0.32) 30px,
+    rgba(255, 255, 255, 0.32) 31.5px,
+    transparent 31.5px,
+    transparent 40px,
+    rgba(255, 255, 255, 0.32) 40px,
+    rgba(255, 255, 255, 0.32) 41.5px,
+    transparent 41.5px,
+    transparent 110px
+  );
+}
+
+.lineature-coordinate-grid {
+  background-color: #173225;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.32) 1.5px, transparent 1.5px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.32) 1.5px, transparent 1.5px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

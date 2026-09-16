@@ -45,7 +45,17 @@ export type BoardBackgroundId =
   | 'slate-dark'
   | 'nature-lake'
   | 'nature-forest'
-  | 'minimal-aurora';
+  | 'minimal-aurora'
+  | 'gradient-sage'
+  | 'gradient-sand'
+  | 'gradient-sky'
+  | 'gradient-lavender'
+  | 'gradient-slate-soft'
+  | 'lineature-math-chalk'
+  | 'lineature-primary-4lines'
+  | 'lineature-single-lines'
+  | 'lineature-music-staves'
+  | 'lineature-coordinate-grid';
 
 export interface BoardScreen {
   id: string;
@@ -57,8 +67,9 @@ export interface BoardScreen {
 export interface BackgroundPreset {
   id: BoardBackgroundId;
   name: string;
-  category: 'tafel' | 'papier' | 'natur' | 'modern';
+  category: 'verlauf' | 'linierung' | 'tafel' | 'papier' | 'natur' | 'modern';
   className?: string;
   style?: React.CSSProperties;
   previewColor: string;
+  description?: string;
 }

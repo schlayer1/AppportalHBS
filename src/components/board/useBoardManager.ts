@@ -176,12 +176,16 @@ export const useBoardManager = () => {
       defaultTitle = 'Abstimmung';
     }
 
+    // Ensure positive coordinates even on narrow mobile viewports
+    const safeMaxX = typeof window !== 'undefined' ? Math.max(20, window.innerWidth - w - 20) : 60;
+    const safeMaxY = typeof window !== 'undefined' ? Math.max(70, window.innerHeight - h - 100) : 80;
+
     const newWidget: BoardWidgetInstance = {
       id: `w-${type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       type,
       title: defaultTitle,
-      x: Math.min(60 + offset, window.innerWidth - w - 40),
-      y: Math.min(80 + offset, window.innerHeight - h - 120),
+      x: Math.max(20, Math.min(40 + offset, safeMaxX)),
+      y: Math.max(70, Math.min(80 + offset, safeMaxY)),
       width: w,
       height: h,
       zIndex: newZ,
@@ -218,6 +222,18 @@ export const useBoardManager = () => {
         return {
           ...scr,
           widgets: scr.widgets.map((w) => (w.id === id ? { ...w, x, y } : w))
+        };
+      });
+    });
+  }, [activeScreenIndex]);
+
+  const updateWidgetSize = useCallback((id: string, width: number, height: number) => {
+    setScreens((prev) => {
+      return prev.map((scr, idx) => {
+        if (idx !== activeScreenIndex) return scr;
+        return {
+          ...scr,
+          widgets: scr.widgets.map((w) => (w.id === id ? { ...w, width, height } : w))
         };
       });
     });
@@ -350,6 +366,7 @@ export const useBoardManager = () => {
     addWidget,
     removeWidget,
     updateWidgetPosition,
+    updateWidgetSize,
     updateWidgetData,
     toggleMinimize,
     bringToFront,
