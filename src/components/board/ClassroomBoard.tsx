@@ -17,6 +17,12 @@ import { SoundLevelWidget } from './widgets/SoundLevelWidget';
 import { RandomPickerWidget } from './widgets/RandomPickerWidget';
 import { GroupMakerWidget } from './widgets/GroupMakerWidget';
 import { DiceWidget } from './widgets/DiceWidget';
+import { TextWidget } from './widgets/TextWidget';
+import { DrawWidget } from './widgets/DrawWidget';
+import { QrCodeWidget } from './widgets/QrCodeWidget';
+import { ImageWidget } from './widgets/ImageWidget';
+import { StickersWidget } from './widgets/StickersWidget';
+import { ScoreboardWidget } from './widgets/ScoreboardWidget';
 import { 
   Clock, 
   Timer, 
@@ -31,6 +37,12 @@ import {
   Users,
   Users2,
   Dices,
+  FileText,
+  PenTool,
+  QrCode,
+  Image as ImageIcon,
+  Award,
+  Trophy,
   Sparkles, 
   Trash2, 
   ArrowLeft 
@@ -184,6 +196,24 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
           } else if (widget.type === 'dice') {
             widgetIcon = <Dices className="w-4 h-4 text-amber-500" />;
             widgetContent = <DiceWidget />;
+          } else if (widget.type === 'text') {
+            widgetIcon = <FileText className="w-4 h-4 text-hbs-blue" />;
+            widgetContent = <TextWidget />;
+          } else if (widget.type === 'draw') {
+            widgetIcon = <PenTool className="w-4 h-4 text-purple-600" />;
+            widgetContent = <DrawWidget />;
+          } else if (widget.type === 'qr-code') {
+            widgetIcon = <QrCode className="w-4 h-4 text-hbs-slate-dark" />;
+            widgetContent = <QrCodeWidget />;
+          } else if (widget.type === 'image') {
+            widgetIcon = <ImageIcon className="w-4 h-4 text-emerald-600" />;
+            widgetContent = <ImageWidget />;
+          } else if (widget.type === 'stickers') {
+            widgetIcon = <Award className="w-4 h-4 text-amber-500" />;
+            widgetContent = <StickersWidget />;
+          } else if (widget.type === 'scoreboard') {
+            widgetIcon = <Trophy className="w-4 h-4 text-yellow-600" />;
+            widgetContent = <ScoreboardWidget />;
           }
 
           return (

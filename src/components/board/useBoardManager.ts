@@ -126,6 +126,30 @@ export const useBoardManager = () => {
       w = 280;
       h = 260;
       defaultTitle = 'Würfel';
+    } else if (type === 'text') {
+      w = 360;
+      h = 320;
+      defaultTitle = 'Tafeltext';
+    } else if (type === 'draw') {
+      w = 380;
+      h = 340;
+      defaultTitle = 'Zeichnen';
+    } else if (type === 'qr-code') {
+      w = 260;
+      h = 300;
+      defaultTitle = 'QR-Code';
+    } else if (type === 'image') {
+      w = 340;
+      h = 280;
+      defaultTitle = 'Tafelbild';
+    } else if (type === 'stickers') {
+      w = 260;
+      h = 260;
+      defaultTitle = 'Sticker';
+    } else if (type === 'scoreboard') {
+      w = 340;
+      h = 280;
+      defaultTitle = 'Punktestand';
     }
 
     const newWidget: BoardWidgetInstance = {

@@ -23,6 +23,8 @@ import {
   PenTool,
   QrCode,
   FileText,
+  Award,
+  Trophy,
   Sparkles
 } from 'lucide-react';
 import { BoardWidgetType } from './types';
@@ -64,7 +66,7 @@ export const BoardDock: React.FC<BoardDockProps> = ({
               Werkzeugkasten (Classroomscreen)
             </span>
             <span className="text-[10px] font-bold text-hbs-teal bg-hbs-teal-light px-2 py-0.5 rounded-full border border-hbs-teal/20">
-              Meilenstein 1, 2 & 3 aktiv
+              Meilenstein 1, 2, 3 & 4 aktiv
             </span>
           </div>
 
@@ -83,10 +85,13 @@ export const BoardDock: React.FC<BoardDockProps> = ({
               { id: 'random-picker', label: 'Zufall', icon: Users, active: true },
               { id: 'group-maker', label: 'Gruppen', icon: Users, active: true },
               { id: 'dice', label: 'Würfel', icon: Dices, active: true },
-              { id: 'text', label: 'Tafeltext', icon: FileText, milestone: 'M4' },
-              { id: 'draw', label: 'Zeichnen', icon: PenTool, milestone: 'M4' },
-              { id: 'qr-code', label: 'QR-Code', icon: QrCode, milestone: 'M4' },
-            ].map((tool) => {
+              { id: 'text', label: 'Tafeltext', icon: FileText, active: true },
+              { id: 'draw', label: 'Zeichnen', icon: PenTool, active: true },
+              { id: 'qr-code', label: 'QR-Code', icon: QrCode, active: true },
+              { id: 'image', label: 'Bild', icon: ImageIcon, active: true },
+              { id: 'stickers', label: 'Sticker', icon: Award, active: true },
+              { id: 'scoreboard', label: 'Punkte', icon: Trophy, active: true },
+            ].map((tool: { id: string; label: string; icon: any; active: boolean; milestone?: string }) => {
               const Icon = tool.icon;
               return (
                 <button
