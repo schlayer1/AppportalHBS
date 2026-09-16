@@ -23,6 +23,12 @@ import { QrCodeWidget } from './widgets/QrCodeWidget';
 import { ImageWidget } from './widgets/ImageWidget';
 import { StickersWidget } from './widgets/StickersWidget';
 import { ScoreboardWidget } from './widgets/ScoreboardWidget';
+import { WebcamWidget } from './widgets/WebcamWidget';
+import { VideoWidget } from './widgets/VideoWidget';
+import { EmbedWidget } from './widgets/EmbedWidget';
+import { PdfViewerWidget } from './widgets/PdfViewerWidget';
+import { HyperlinkWidget } from './widgets/HyperlinkWidget';
+import { PollWidget } from './widgets/PollWidget';
 import { 
   Clock, 
   Timer, 
@@ -43,6 +49,11 @@ import {
   Image as ImageIcon,
   Award,
   Trophy,
+  Camera,
+  Video,
+  Globe,
+  Link as LinkIcon,
+  BarChart3,
   Sparkles, 
   Trash2, 
   ArrowLeft 
@@ -214,6 +225,24 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
           } else if (widget.type === 'scoreboard') {
             widgetIcon = <Trophy className="w-4 h-4 text-yellow-600" />;
             widgetContent = <ScoreboardWidget />;
+          } else if (widget.type === 'webcam') {
+            widgetIcon = <Camera className="w-4 h-4 text-blue-500" />;
+            widgetContent = <WebcamWidget />;
+          } else if (widget.type === 'video') {
+            widgetIcon = <Video className="w-4 h-4 text-red-500" />;
+            widgetContent = <VideoWidget />;
+          } else if (widget.type === 'embed') {
+            widgetIcon = <Globe className="w-4 h-4 text-hbs-teal-deep" />;
+            widgetContent = <EmbedWidget />;
+          } else if (widget.type === 'pdf') {
+            widgetIcon = <FileText className="w-4 h-4 text-red-600" />;
+            widgetContent = <PdfViewerWidget />;
+          } else if (widget.type === 'hyperlink') {
+            widgetIcon = <LinkIcon className="w-4 h-4 text-hbs-blue" />;
+            widgetContent = <HyperlinkWidget />;
+          } else if (widget.type === 'poll') {
+            widgetIcon = <BarChart3 className="w-4 h-4 text-purple-600" />;
+            widgetContent = <PollWidget />;
           }
 
           return (

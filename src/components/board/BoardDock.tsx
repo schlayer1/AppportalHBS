@@ -25,6 +25,11 @@ import {
   FileText,
   Award,
   Trophy,
+  Camera,
+  Video,
+  Globe,
+  Link as LinkIcon,
+  BarChart3,
   Sparkles
 } from 'lucide-react';
 import { BoardWidgetType } from './types';
@@ -65,12 +70,12 @@ export const BoardDock: React.FC<BoardDockProps> = ({
               <Sparkles className="w-3.5 h-3.5 text-hbs-blue" />
               Werkzeugkasten (Classroomscreen)
             </span>
-            <span className="text-[10px] font-bold text-hbs-teal bg-hbs-teal-light px-2 py-0.5 rounded-full border border-hbs-teal/20">
-              Meilenstein 1, 2, 3 & 4 aktiv
+            <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+              ✨ Alle Werkzeuge aktiv
             </span>
           </div>
 
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2 max-h-72 overflow-y-auto p-1">
             {[
               { id: 'clock', label: 'Uhr', icon: Clock, active: true },
               { id: 'timer', label: 'Timer', icon: Timer, active: true },
@@ -91,6 +96,12 @@ export const BoardDock: React.FC<BoardDockProps> = ({
               { id: 'image', label: 'Bild', icon: ImageIcon, active: true },
               { id: 'stickers', label: 'Sticker', icon: Award, active: true },
               { id: 'scoreboard', label: 'Punkte', icon: Trophy, active: true },
+              { id: 'webcam', label: 'Kamera', icon: Camera, active: true },
+              { id: 'video', label: 'Video', icon: Video, active: true },
+              { id: 'embed', label: 'Web-Tool', icon: Globe, active: true },
+              { id: 'pdf', label: 'PDF', icon: FileText, active: true },
+              { id: 'hyperlink', label: 'Links', icon: LinkIcon, active: true },
+              { id: 'poll', label: 'Abstimmung', icon: BarChart3, active: true },
             ].map((tool: { id: string; label: string; icon: any; active: boolean; milestone?: string }) => {
               const Icon = tool.icon;
               return (

@@ -150,6 +150,30 @@ export const useBoardManager = () => {
       w = 340;
       h = 280;
       defaultTitle = 'Punktestand';
+    } else if (type === 'webcam') {
+      w = 380;
+      h = 320;
+      defaultTitle = 'Kamera / Visualizer';
+    } else if (type === 'video') {
+      w = 380;
+      h = 300;
+      defaultTitle = 'Video';
+    } else if (type === 'embed') {
+      w = 420;
+      h = 360;
+      defaultTitle = 'Web-Tool';
+    } else if (type === 'pdf') {
+      w = 400;
+      h = 360;
+      defaultTitle = 'PDF-Dokument';
+    } else if (type === 'hyperlink') {
+      w = 360;
+      h = 280;
+      defaultTitle = 'Schnelllinks';
+    } else if (type === 'poll') {
+      w = 340;
+      h = 320;
+      defaultTitle = 'Abstimmung';
     }
 
     const newWidget: BoardWidgetInstance = {
