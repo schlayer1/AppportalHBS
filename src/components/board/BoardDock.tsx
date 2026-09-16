@@ -17,6 +17,7 @@ import {
   LayoutGrid,
   Volume2,
   TrafficCone,
+  MessageSquare,
   Users,
   Dices,
   PenTool,
@@ -63,7 +64,7 @@ export const BoardDock: React.FC<BoardDockProps> = ({
               Werkzeugkasten (Classroomscreen)
             </span>
             <span className="text-[10px] font-bold text-hbs-teal bg-hbs-teal-light px-2 py-0.5 rounded-full border border-hbs-teal/20">
-              Meilenstein 1 & 2 aktiv
+              Meilenstein 1, 2 & 3 aktiv
             </span>
           </div>
 
@@ -76,10 +77,12 @@ export const BoardDock: React.FC<BoardDockProps> = ({
               { id: 'calendar', label: 'Kalender', icon: Calendar, active: true },
               { id: 'event-countdown', label: 'Countdown', icon: CalendarClock, active: true },
               { id: 'timetable', label: 'Stundenplan', icon: CalendarDays, active: true },
-              { id: 'sound-level', label: 'Lärmampel', icon: Volume2, milestone: 'M3' },
-              { id: 'traffic-light', label: 'Ampel', icon: TrafficCone, milestone: 'M3' },
-              { id: 'random-picker', label: 'Zufall', icon: Users, milestone: 'M3' },
-              { id: 'dice', label: 'Würfel', icon: Dices, milestone: 'M3' },
+              { id: 'sound-level', label: 'Lärmampel', icon: Volume2, active: true },
+              { id: 'traffic-light', label: 'Ampel', icon: TrafficCone, active: true },
+              { id: 'work-symbols', label: 'Arbeit', icon: MessageSquare, active: true },
+              { id: 'random-picker', label: 'Zufall', icon: Users, active: true },
+              { id: 'group-maker', label: 'Gruppen', icon: Users, active: true },
+              { id: 'dice', label: 'Würfel', icon: Dices, active: true },
               { id: 'text', label: 'Tafeltext', icon: FileText, milestone: 'M4' },
               { id: 'draw', label: 'Zeichnen', icon: PenTool, milestone: 'M4' },
               { id: 'qr-code', label: 'QR-Code', icon: QrCode, milestone: 'M4' },

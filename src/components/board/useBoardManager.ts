@@ -102,6 +102,30 @@ export const useBoardManager = () => {
       w = 360;
       h = 380;
       defaultTitle = 'Stundenplan';
+    } else if (type === 'traffic-light') {
+      w = 200;
+      h = 320;
+      defaultTitle = 'Ampel';
+    } else if (type === 'work-symbols') {
+      w = 320;
+      h = 280;
+      defaultTitle = 'Arbeitsphasen';
+    } else if (type === 'sound-level') {
+      w = 340;
+      h = 280;
+      defaultTitle = 'Lärmampel';
+    } else if (type === 'random-picker') {
+      w = 340;
+      h = 300;
+      defaultTitle = 'Zufallsauswahl';
+    } else if (type === 'group-maker') {
+      w = 360;
+      h = 360;
+      defaultTitle = 'Gruppengenerator';
+    } else if (type === 'dice') {
+      w = 280;
+      h = 260;
+      defaultTitle = 'Würfel';
     }
 
     const newWidget: BoardWidgetInstance = {

@@ -11,6 +11,12 @@ import { StopwatchWidget } from './widgets/StopwatchWidget';
 import { CalendarWidget } from './widgets/CalendarWidget';
 import { EventCountdownWidget } from './widgets/EventCountdownWidget';
 import { TimetableWidget } from './widgets/TimetableWidget';
+import { TrafficLightWidget } from './widgets/TrafficLightWidget';
+import { WorkSymbolsWidget } from './widgets/WorkSymbolsWidget';
+import { SoundLevelWidget } from './widgets/SoundLevelWidget';
+import { RandomPickerWidget } from './widgets/RandomPickerWidget';
+import { GroupMakerWidget } from './widgets/GroupMakerWidget';
+import { DiceWidget } from './widgets/DiceWidget';
 import { 
   Clock, 
   Timer, 
@@ -19,6 +25,12 @@ import {
   Calendar, 
   CalendarClock, 
   CalendarDays, 
+  TrafficCone,
+  MessageSquare,
+  Volume2,
+  Users,
+  Users2,
+  Dices,
   Sparkles, 
   Trash2, 
   ArrowLeft 
@@ -154,6 +166,24 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
           } else if (widget.type === 'timetable') {
             widgetIcon = <CalendarDays className="w-4 h-4 text-emerald-600" />;
             widgetContent = <TimetableWidget />;
+          } else if (widget.type === 'traffic-light') {
+            widgetIcon = <TrafficCone className="w-4 h-4 text-red-500" />;
+            widgetContent = <TrafficLightWidget />;
+          } else if (widget.type === 'work-symbols') {
+            widgetIcon = <MessageSquare className="w-4 h-4 text-hbs-blue" />;
+            widgetContent = <WorkSymbolsWidget />;
+          } else if (widget.type === 'sound-level') {
+            widgetIcon = <Volume2 className="w-4 h-4 text-emerald-600" />;
+            widgetContent = <SoundLevelWidget />;
+          } else if (widget.type === 'random-picker') {
+            widgetIcon = <Users className="w-4 h-4 text-hbs-blue" />;
+            widgetContent = <RandomPickerWidget />;
+          } else if (widget.type === 'group-maker') {
+            widgetIcon = <Users2 className="w-4 h-4 text-hbs-teal-deep" />;
+            widgetContent = <GroupMakerWidget />;
+          } else if (widget.type === 'dice') {
+            widgetIcon = <Dices className="w-4 h-4 text-amber-500" />;
+            widgetContent = <DiceWidget />;
           }
 
           return (
