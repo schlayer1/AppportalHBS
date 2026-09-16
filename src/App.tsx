@@ -9,6 +9,7 @@ import { InstallGuideModal } from './components/InstallGuideModal';
 import { QuickToolsDrawer } from './components/QuickToolsDrawer';
 import { FloatingDock } from './components/FloatingDock';
 import { ExternalLinks } from './components/ExternalLinks';
+import { ClassroomBoard } from './components/board/ClassroomBoard';
 import { EmptyState } from './components/ui/empty-state';
 import { CardTilt } from './components/ui/card-tilt';
 import { AuroraBackground } from './components/ui/aurora-background';
@@ -100,6 +101,11 @@ export default function App() {
 
   if (!isAuthenticated) {
     return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
+
+  // Fullscreen Classroom Board View (Classroomscreen Replica)
+  if (viewMode === 'tafel') {
+    return <ClassroomBoard onExit={() => setViewMode('bento')} />;
   }
 
   return (

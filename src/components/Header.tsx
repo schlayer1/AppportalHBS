@@ -9,13 +9,14 @@ import {
   LayoutGrid,
   Grid2X2,
   Projector,
+  Presentation,
   Coffee,
   GraduationCap,
   Globe
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 
-export type ViewMode = 'bento' | 'compact' | 'smartboard';
+export type ViewMode = 'bento' | 'compact' | 'smartboard' | 'tafel';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -112,11 +113,25 @@ export const Header: React.FC<HeaderProps> = ({
                     ? 'bg-hbs-amber text-white shadow-xs'
                     : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
                 }`}
-                title="Smartboard-Präsentationsmodus"
+                title="Smartboard-Präsentationsmodus (Große App-Kacheln & QR)"
                 aria-label="Smartboard-Modus"
               >
                 <Projector className="w-4 h-4" />
                 <span className="hidden xl:inline">Smartboard</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode('tafel')}
+                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 ${
+                  viewMode === 'tafel'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-hbs-slate-muted hover:text-emerald-700'
+                }`}
+                title="Digitale Tafel (Classroom Board mit frei beweglichen iOS-Widgets)"
+                aria-label="Digitale Tafel"
+              >
+                <Presentation className={`w-4 h-4 ${viewMode === 'tafel' ? 'text-white' : 'text-emerald-600'}`} />
+                <span className="inline font-black">Tafel</span>
               </button>
             </div>
 
