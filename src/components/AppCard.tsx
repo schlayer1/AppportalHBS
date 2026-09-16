@@ -5,13 +5,6 @@ import {
   Sparkles, 
   CheckCircle2, 
   ShieldCheck, 
-  Languages, 
-  Headphones, 
-  Coffee, 
-  CalendarDays, 
-  Briefcase, 
-  Compass, 
-  Layers,
   RotateCw,
   Star,
   GraduationCap,
@@ -24,18 +17,7 @@ import { BorderBeam } from './ui/border-beam';
 import { ShimmerButton } from './ui/shimmer-button';
 import { Badge } from './ui/badge';
 import { CardTilt } from './ui/card-tilt';
-
-const getIconComponent = (iconName: string) => {
-  switch (iconName) {
-    case 'Languages': return Languages;
-    case 'Headphones': return Headphones;
-    case 'Coffee': return Coffee;
-    case 'CalendarDays': return CalendarDays;
-    case 'Briefcase': return Briefcase;
-    case 'Compass': return Compass;
-    default: return Layers;
-  }
-};
+import { AnimatedAppIcon } from './AnimatedAppIcon';
 
 interface AppCardProps {
   app: SchoolApp;
@@ -54,7 +36,6 @@ export const AppCard: React.FC<AppCardProps> = ({
   isSmartboardMode = false 
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
-  const Icon = getIconComponent(app.icon);
 
   const colorStyles = {
     blue: {
@@ -117,17 +98,16 @@ export const AppCard: React.FC<AppCardProps> = ({
               <div className={app.isFeaturedStudentQr ? 'mt-4' : ''}>
                 {/* Header row: Floating 3D Icon & Action Buttons */}
                 <div className="flex items-start justify-between gap-3 mb-4">
-                  {/* Floating Z-Depth Icon */}
+                  {/* Floating Z-Depth Icon with Micro-Animations */}
                   <div 
                     style={{ transform: 'translateZ(26px)' }}
                     className={`w-14 h-14 rounded-2xl p-3 flex items-center justify-center border transition-transform duration-300 group-hover:scale-105 shrink-0 ${colorStyles.iconBg}`}
                   >
-                    <Icon className="w-8 h-8" />
+                    <AnimatedAppIcon iconName={app.icon} size={32} />
                   </div>
 
                   {/* Top-Right Badges & Favorite Toggle */}
                   <div className="flex items-center gap-1.5">
-                    {/* Favorite Star Button with 44px min touch target */}
                     {onToggleFavorite && (
                       <button
                         onClick={(e) => {
@@ -146,7 +126,6 @@ export const AppCard: React.FC<AppCardProps> = ({
                       </button>
                     )}
 
-                    {/* 3D Flip Toggle Button */}
                     <button
                       onClick={() => setIsFlipped(true)}
                       className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-hbs-slate-muted hover:text-hbs-blue hover:bg-hbs-blue-soft flex items-center justify-center transition-all duration-150 active:scale-[0.98] shadow-xs"
@@ -191,7 +170,7 @@ export const AppCard: React.FC<AppCardProps> = ({
 
                 {/* SMARTBOARD MODE EXTRA: Directly Visible Large QR Code */}
                 {isSmartboardMode && (
-                  <div className="p-4 bg-white rounded-2xl border-2 border-hbs-blue/30 shadow-md my-3 flex flex-col items-center justify-center">
+                  <div className="p-4 bg-white rounded-2xl border-2 border-hbs-blue/30 shadow-md my-3 flex flex-col items-center justify-center animate-fadeIn">
                     <QRCodeSVG
                       value={app.url}
                       size={140}
@@ -212,7 +191,7 @@ export const AppCard: React.FC<AppCardProps> = ({
                   </div>
                 )}
 
-                {/* Tags (when not in smartboard mode to keep it compact) */}
+                {/* Tags */}
                 {!isSmartboardMode && (
                   <div className="flex flex-wrap gap-1.5 mb-6">
                     {app.tags.map((tag, idx) => (
@@ -277,7 +256,6 @@ export const AppCard: React.FC<AppCardProps> = ({
           <div className="w-full h-full rounded-3xl bg-white border border-hbs-blue/30 p-6 sm:p-7 shadow-2xl shadow-hbs-blue/10 flex flex-col justify-between shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]">
             
             <div>
-              {/* Back Header */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-lg bg-hbs-blue-soft text-hbs-blue">
@@ -303,14 +281,12 @@ export const AppCard: React.FC<AppCardProps> = ({
                 </button>
               </div>
 
-              {/* Pedagogical Highlight Box */}
               {app.pedagogicalValue && (
                 <div className="my-3 p-3 rounded-2xl bg-hbs-blue-soft/60 border border-hbs-blue/15 text-xs text-hbs-blue-deep leading-relaxed font-medium">
                   💡 <strong>Schulalltag-Nutzen:</strong> {app.pedagogicalValue}
                 </div>
               )}
 
-              {/* 3-Step Quick Guide */}
               {app.quickGuide && (
                 <div className="space-y-2 mt-3">
                   <span className="text-[11px] font-extrabold uppercase tracking-wider text-hbs-slate-muted block">
@@ -328,7 +304,6 @@ export const AppCard: React.FC<AppCardProps> = ({
               )}
             </div>
 
-            {/* Back Footer */}
             <div className="pt-4 border-t border-slate-100 flex items-center gap-2">
               <button
                 onClick={() => setIsFlipped(false)}

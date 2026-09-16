@@ -1,13 +1,26 @@
 import React from 'react';
-import { LogOut, Smartphone, Search, X, Sparkles, Projector, Wrench } from 'lucide-react';
+import { 
+  LogOut, 
+  Smartphone, 
+  Search, 
+  X, 
+  Sparkles, 
+  Wrench,
+  LayoutGrid,
+  Grid2X2,
+  Projector
+} from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
+import { SchoolClock } from './SchoolClock';
+
+export type ViewMode = 'bento' | 'compact' | 'smartboard';
 
 interface HeaderProps {
   onLogout: () => void;
   onOpenInstallGuide: () => void;
   onOpenQuickTools: () => void;
-  isSmartboardMode: boolean;
-  onToggleSmartboardMode: () => void;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   selectedCategory: string;
@@ -19,8 +32,8 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenInstallGuide,
   onOpenQuickTools,
-  isSmartboardMode,
-  onToggleSmartboardMode,
+  viewMode,
+  setViewMode,
   searchQuery,
   setSearchQuery,
   selectedCategory,
@@ -30,8 +43,8 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-white/95 border-b border-hbs-slate-border/70 sticky top-0 z-30 shadow-xs backdrop-blur-md pt-[env(safe-area-inset-top)]">
       {/* Top Navbar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 sm:h-24">
+      <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-10">
+        <div className="flex items-center justify-between h-20 sm:h-24 gap-3">
           
           {/* Logo & School Branding */}
           <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
@@ -47,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="text-xs font-extrabold uppercase tracking-wider text-hbs-blue truncate">
                   {PORTAL_CONFIG.schoolName}
                 </span>
-                <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-semibold text-hbs-teal bg-hbs-teal-light px-2.5 py-0.5 rounded-full border border-hbs-teal/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)]">
+                <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-semibold text-hbs-teal bg-hbs-teal-light px-2.5 py-0.5 rounded-full border border-hbs-teal/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)]">
                   <Sparkles className="w-3 h-3" /> Kollegiumshub
                 </span>
               </div>
@@ -57,47 +70,83 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
+          {/* Center: Live School Clock */}
+          <div className="hidden md:flex items-center justify-center">
+            <SchoolClock />
+          </div>
+
           {/* Right Action buttons */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             
-            {/* Smartboard Mode Switch */}
-            <button
-              onClick={onToggleSmartboardMode}
-              className={`min-h-[44px] flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all duration-150 select-none ${
-                isSmartboardMode
-                  ? 'bg-hbs-amber text-white border-hbs-amber shadow-md shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3)]'
-                  : 'bg-white hover:bg-hbs-amber-light text-hbs-slate-dark hover:text-hbs-amber-dark border-slate-200'
-              }`}
-              title="Smartboard-Präsentationsmodus für den Unterricht"
-            >
-              <Projector className="w-4 h-4 shrink-0" />
-              <span className="hidden sm:inline">Smartboard</span>
-            </button>
+            {/* View Mode Segmented Control */}
+            <div className="flex items-center bg-hbs-bg p-1 rounded-2xl border border-hbs-slate-border/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]">
+              <button
+                onClick={() => setViewMode('bento')}
+                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1 ${
+                  viewMode === 'bento'
+                    ? 'bg-white text-hbs-blue shadow-xs'
+                    : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
+                }`}
+                title="Bento-Grid Ansicht"
+                aria-label="Bento-Grid Ansicht"
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span className="hidden xl:inline">Bento</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode('compact')}
+                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1 ${
+                  viewMode === 'compact'
+                    ? 'bg-white text-hbs-blue shadow-xs'
+                    : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
+                }`}
+                title="Kompakte Kacheln (App-Style)"
+                aria-label="Kompaktansicht"
+              >
+                <Grid2X2 className="w-4 h-4" />
+                <span className="hidden xl:inline">Kompakt</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode('smartboard')}
+                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1 ${
+                  viewMode === 'smartboard'
+                    ? 'bg-hbs-amber text-white shadow-xs'
+                    : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
+                }`}
+                title="Smartboard-Präsentationsmodus"
+                aria-label="Smartboard-Modus"
+              >
+                <Projector className="w-4 h-4" />
+                <span className="hidden xl:inline">Smartboard</span>
+              </button>
+            </div>
 
             {/* Quick Tools Drawer Trigger */}
             <button
               onClick={onOpenQuickTools}
-              className="min-h-[44px] flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl bg-hbs-blue-soft text-hbs-blue-deep hover:bg-hbs-blue-light border border-hbs-blue/20 text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all duration-150 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)] select-none"
+              className="min-h-[42px] flex items-center gap-2 px-3 py-2 rounded-xl bg-hbs-blue-soft text-hbs-blue-deep hover:bg-hbs-blue-light border border-hbs-blue/20 text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all duration-150 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)] select-none"
               title="Unterrichts-Quick-Tools (Timer, Zufall, Lärmampel)"
             >
               <Wrench className="w-4 h-4 text-hbs-blue shrink-0" />
-              <span className="hidden sm:inline">Quick-Tools</span>
+              <span className="hidden sm:inline">Tools</span>
             </button>
 
             {/* PWA / Homescreen button */}
             <button
               onClick={onOpenInstallGuide}
-              className="hidden lg:flex min-h-[44px] items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-hbs-slate-dark border border-slate-200 text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all duration-150 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)] select-none"
+              className="hidden lg:flex min-h-[42px] items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-hbs-slate-dark border border-slate-200 text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all duration-150 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)] select-none"
               title="Anleitung: Als App auf iPad oder Smartphone ablegen"
             >
               <Smartphone className="w-4 h-4 text-hbs-slate-muted shrink-0" />
-              <span>App-Guide</span>
+              <span>Guide</span>
             </button>
 
             {/* Logout button */}
             <button
               onClick={onLogout}
-              className="min-h-[44px] min-w-[44px] p-2 sm:px-3 sm:py-2.5 rounded-xl text-hbs-slate-muted hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 text-xs sm:text-sm font-semibold active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-1.5 select-none"
+              className="min-h-[42px] min-w-[42px] p-2 sm:px-3 sm:py-2 rounded-xl text-hbs-slate-muted hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 text-xs sm:text-sm font-semibold active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-1.5 select-none"
               title="Portal sperren / Abmelden"
               aria-label="Abmelden"
             >
@@ -107,10 +156,15 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
+        {/* Mobile Clock & Status on small screens */}
+        <div className="md:hidden pb-3 flex justify-center">
+          <SchoolClock />
+        </div>
+
         {/* Search & Category Filter Sub-Bar */}
         <div className="pb-4 pt-1 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           
-          {/* Categories with 44px touch height */}
+          {/* Categories */}
           <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
             <button
               onClick={() => setSelectedCategory('all')}
@@ -155,7 +209,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Search Box */}
-          <div className="relative w-full md:w-72 shrink-0">
+          <div className="relative w-full md:w-80 shrink-0">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-hbs-slate-light">
               <Search className="w-4 h-4" />
             </div>

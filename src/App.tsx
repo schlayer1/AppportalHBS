@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { PasswordGate } from './components/PasswordGate';
-import { Header } from './components/Header';
+import { Header, ViewMode } from './components/Header';
 import { AppCard } from './components/AppCard';
+import { CompactAppCard } from './components/CompactAppCard';
+import { AppDetailSheet } from './components/AppDetailSheet';
 import { QrCodeModal } from './components/QrCodeModal';
 import { InstallGuideModal } from './components/InstallGuideModal';
 import { QuickToolsDrawer } from './components/QuickToolsDrawer';
@@ -9,6 +11,7 @@ import { FloatingDock } from './components/FloatingDock';
 import { ExternalLinks } from './components/ExternalLinks';
 import { EmptyState } from './components/ui/empty-state';
 import { CardTilt } from './components/ui/card-tilt';
+import { AuroraBackground } from './components/ui/aurora-background';
 import { SCHOOL_APPS, EXTERNAL_LINKS, PORTAL_CONFIG, SchoolApp } from './config/apps';
 import { useFavorites } from './hooks/useFavorites';
 import { 
@@ -19,6 +22,7 @@ import {
   SearchX, 
   Projector, 
   Star,
+  MonitorCheck
 } from 'lucide-react';
 
 export default function App() {
@@ -29,20 +33,30 @@ export default function App() {
     );
   });
 
+  // Default to compact view on mobile screens (< 640px)
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      return 'compact';
+    }
+    return 'bento';
+  });
+
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeQrApp, setActiveQrApp] = useState<SchoolApp | null>(null);
+  const [selectedDetailApp, setSelectedDetailApp] = useState<SchoolApp | null>(null);
   const [isInstallGuideOpen, setIsInstallGuideOpen] = useState<boolean>(false);
   const [isQuickToolsOpen, setIsQuickToolsOpen] = useState<boolean>(false);
-  const [isSmartboardMode, setIsSmartboardMode] = useState<boolean>(false);
 
   // Favorites Hook
   const { favorites, toggleFavorite, isFavorite, hasFavorites } = useFavorites();
 
-  // Auto-scroll to top when category or smartboard mode changes
+  const isSmartboardMode = viewMode === 'smartboard';
+
+  // Auto-scroll to top when category or view mode changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedCategory, isSmartboardMode]);
+  }, [selectedCategory, viewMode]);
 
   const handleLogout = () => {
     localStorage.removeItem('hbs_portal_auth');
@@ -89,15 +103,15 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-dvh bg-hbs-bg text-hbs-slate-dark flex flex-col font-sans pb-24">
+    <AuroraBackground>
       
-      {/* Sticky Header */}
+      {/* Sticky Header with SchoolClock and ViewMode Segmented Switcher */}
       <Header
         onLogout={handleLogout}
         onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
         onOpenQuickTools={() => setIsQuickToolsOpen(true)}
-        isSmartboardMode={isSmartboardMode}
-        onToggleSmartboardMode={() => setIsSmartboardMode(!isSmartboardMode)}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         selectedCategory={selectedCategory}
@@ -105,8 +119,8 @@ export default function App() {
         appCount={SCHOOL_APPS.length}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 w-full">
+      {/* Main Content Area: Screen-Filling Desktop Width */}
+      <main className="flex-1 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-8">
         
         {/* SMARTBOARD MODE ALERT BANNER */}
         {isSmartboardMode && (
@@ -129,7 +143,7 @@ export default function App() {
             </div>
 
             <button
-              onClick={() => setIsSmartboardMode(false)}
+              onClick={() => setViewMode('bento')}
               className="min-h-[44px] px-5 py-2 rounded-xl bg-white hover:bg-hbs-amber text-hbs-slate-dark hover:text-white border border-hbs-amber/30 text-xs font-bold shadow-xs transition-all duration-150 active:scale-95 shrink-0"
             >
               Normalansicht wiederherstellen
@@ -137,14 +151,14 @@ export default function App() {
           </div>
         )}
 
-        {/* HERO BANNER WITH 3D EMBLEM & AURA */}
+        {/* HERO BANNER WITH 3D EMBLEM & AURA (Desktop / Tablet) */}
         {selectedCategory === 'all' && !searchQuery && !isSmartboardMode && (
-          <div className="relative rounded-3xl bg-gradient-to-br from-white via-white to-hbs-blue-soft/50 border border-hbs-slate-border/80 p-6 sm:p-10 shadow-hbs-card mb-8 sm:mb-12 overflow-hidden shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]">
+          <div className="relative rounded-3xl bg-white/85 backdrop-blur-xl border border-hbs-slate-border/80 p-6 sm:p-10 shadow-hbs-card mb-8 sm:mb-10 overflow-hidden shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]">
             
             <div className="flex flex-col lg:flex-row items-center justify-between gap-8 relative z-10">
               
               {/* Left Column: Text & Features */}
-              <div className="max-w-2xl">
+              <div className="max-w-3xl">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hbs-blue-soft border border-hbs-blue/20 text-hbs-blue text-xs font-bold mb-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)]">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Digitale Infrastruktur • Heimbürgeschule Kahla</span>
@@ -171,16 +185,19 @@ export default function App() {
                     <HeartHandshake className="w-4 h-4 text-hbs-amber" />
                     <span>Von Kollegen für Kollegen</span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <MonitorCheck className="w-4 h-4 text-hbs-blue" />
+                    <span>Screen-Filling Dashboard</span>
+                  </div>
                 </div>
               </div>
 
               {/* Right Column: 3D Interaktives Schulsiegel mit Leucht-Aura */}
               <div className="relative group shrink-0">
-                {/* Pulsing Aura */}
                 <div className="absolute inset-0 rounded-full bg-gradient-to-r from-hbs-blue/30 via-hbs-teal/30 to-hbs-amber/20 blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
 
                 <CardTilt maxRotation={15} scale={1.05} className="relative z-10">
-                  <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-3xl bg-white/90 backdrop-blur-md p-4 flex items-center justify-center border-2 border-hbs-blue/20 shadow-2xl shadow-hbs-blue/15 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]">
+                  <div className="w-32 h-32 sm:w-44 sm:h-44 rounded-3xl bg-white/95 backdrop-blur-md p-4 flex items-center justify-center border-2 border-hbs-blue/20 shadow-2xl shadow-hbs-blue/15 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]">
                     <img 
                       src="/Siegel_bunt.png" 
                       alt="Heimbürgeschule Siegel" 
@@ -207,26 +224,41 @@ export default function App() {
               </h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
-              {favoriteApps.map((app) => (
-                <AppCard
-                  key={`fav-${app.id}`}
-                  app={app}
-                  onOpenQr={(selectedApp) => setActiveQrApp(selectedApp)}
-                  onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
-                  isFavorite={true}
-                  onToggleFavorite={toggleFavorite}
-                  isSmartboardMode={false}
-                />
-              ))}
-            </div>
+            {/* Favorite Apps Grid */}
+            {viewMode === 'compact' ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+                {favoriteApps.map((app) => (
+                  <CompactAppCard
+                    key={`fav-compact-${app.id}`}
+                    app={app}
+                    onOpenDetails={(a) => setSelectedDetailApp(a)}
+                    isFavorite={true}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 sm:gap-7">
+                {favoriteApps.map((app) => (
+                  <AppCard
+                    key={`fav-${app.id}`}
+                    app={app}
+                    onOpenQr={(selectedApp) => setActiveQrApp(selectedApp)}
+                    onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
+                    isFavorite={true}
+                    onToggleFavorite={toggleFavorite}
+                    isSmartboardMode={false}
+                  />
+                ))}
+              </div>
+            )}
 
-            <div className="w-full h-[1px] bg-slate-200/80 my-10" />
+            <div className="w-full h-[1px] bg-slate-200/80 my-8" />
           </div>
         )}
 
         {/* Section Header */}
-        <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center justify-between gap-4 mb-5">
           <div>
             <h3 className="text-lg sm:text-xl font-black text-hbs-slate-dark tracking-tight">
               {isSmartboardMode && 'Schüler- & Unterrichtstools für Beamer'}
@@ -240,29 +272,47 @@ export default function App() {
                 ? `${filteredApps.length} ${filteredApps.length === 1 ? 'Ergebnis' : 'Ergebnisse'} für „${searchQuery}“`
                 : isSmartboardMode
                 ? 'Schüler können die QR-Codes direkt von der Wand oder vom Smartboard scannen.'
+                : viewMode === 'compact'
+                ? 'Tippen Sie auf eine Kachel für Details & QR-Code oder auf „Öffnen“.'
                 : 'Klicken Sie auf 🔄 für 3D-Details oder ⭐ zum Favorisieren.'
               }
             </p>
           </div>
         </div>
 
-        {/* Apps Grid */}
+        {/* Apps Grid: Dynamic switching between Bento, Compact and Smartboard */}
         {selectedCategory !== 'portale' && (
           <>
             {filteredApps.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
-                {filteredApps.map((app) => (
-                  <AppCard
-                    key={app.id}
-                    app={app}
-                    onOpenQr={(selectedApp) => setActiveQrApp(selectedApp)}
-                    onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
-                    isFavorite={isFavorite(app.id)}
-                    onToggleFavorite={toggleFavorite}
-                    isSmartboardMode={isSmartboardMode}
-                  />
-                ))}
-              </div>
+              viewMode === 'compact' ? (
+                /* Compact 2-column mobile / tablet grid */
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+                  {filteredApps.map((app) => (
+                    <CompactAppCard
+                      key={`compact-${app.id}`}
+                      app={app}
+                      onOpenDetails={(a) => setSelectedDetailApp(a)}
+                      isFavorite={isFavorite(app.id)}
+                      onToggleFavorite={toggleFavorite}
+                    />
+                  ))}
+                </div>
+              ) : (
+                /* Full-width Bento / Smartboard grid (up to 4 columns on large screens) */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 sm:gap-7">
+                  {filteredApps.map((app) => (
+                    <AppCard
+                      key={app.id}
+                      app={app}
+                      onOpenQr={(selectedApp) => setActiveQrApp(selectedApp)}
+                      onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
+                      isFavorite={isFavorite(app.id)}
+                      onToggleFavorite={toggleFavorite}
+                      isSmartboardMode={isSmartboardMode}
+                    />
+                  ))}
+                </div>
+              )
             ) : (
               <EmptyState
                 icon={SearchX}
@@ -272,7 +322,7 @@ export default function App() {
                 onAction={() => {
                   setSearchQuery('');
                   setSelectedCategory('all');
-                  setIsSmartboardMode(false);
+                  setViewMode('bento');
                 }}
               />
             )}
@@ -286,9 +336,9 @@ export default function App() {
 
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-hbs-slate-border/70 mt-16 sm:mt-24 py-8 pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-hbs-slate-muted">
+      {/* Footer with Safe Area Padding */}
+      <footer className="bg-white/80 backdrop-blur-md border-t border-hbs-slate-border/70 mt-16 sm:mt-20 py-8 pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+        <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-hbs-slate-muted">
           <div className="flex items-center gap-3">
             <img src="/Siegel_bunt.png" alt="" className="w-7 h-7 object-contain opacity-80" />
             <div>
@@ -325,16 +375,26 @@ export default function App() {
       <FloatingDock
         onOpenQuickTools={() => setIsQuickToolsOpen(true)}
         isSmartboardMode={isSmartboardMode}
-        onToggleSmartboardMode={() => setIsSmartboardMode(!isSmartboardMode)}
+        onToggleSmartboardMode={() => setViewMode(isSmartboardMode ? 'bento' : 'smartboard')}
         onOpenQr={(app) => setActiveQrApp(app)}
         onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
         apps={SCHOOL_APPS}
       />
 
-      {/* QR Code Modal */}
+      {/* QR Code Modal (for full Beamer view) */}
       <QrCodeModal
         app={activeQrApp}
         onClose={() => setActiveQrApp(null)}
+      />
+
+      {/* iOS Bottom Detail Sheet (for compact mobile taps) */}
+      <AppDetailSheet
+        app={selectedDetailApp}
+        onClose={() => setSelectedDetailApp(null)}
+        onOpenFullQr={(app) => {
+          setSelectedDetailApp(null);
+          setActiveQrApp(app);
+        }}
       />
 
       {/* PWA Homescreen Guide Modal */}
@@ -349,6 +409,6 @@ export default function App() {
         onClose={() => setIsQuickToolsOpen(false)}
       />
 
-    </div>
+    </AuroraBackground>
   );
 }
