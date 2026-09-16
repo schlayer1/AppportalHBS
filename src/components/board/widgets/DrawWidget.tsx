@@ -23,6 +23,7 @@ const COLORS = [
 ];
 
 export const DrawWidget: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [tool, setTool] = useState<'pen' | 'highlighter' | 'eraser'>('pen');
   const [color, setColor] = useState('#091D2E');
@@ -61,6 +62,28 @@ export const DrawWidget: React.FC = () => {
 
   useEffect(() => {
     redraw();
+  }, [paths]);
+
+  // Dynamically resize canvas to fit container on widget resize
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current && canvasRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          const w = Math.floor(rect.width);
+          const h = Math.floor(rect.height);
+          if (canvasRef.current.width !== w || canvasRef.current.height !== h) {
+            canvasRef.current.width = w;
+            canvasRef.current.height = h;
+            redraw();
+          }
+        }
+      }
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
   }, [paths]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -211,7 +234,7 @@ export const DrawWidget: React.FC = () => {
       </div>
 
       {/* Canvas Area */}
-      <div className="flex-1 min-h-[220px] rounded-2xl bg-white/90 border border-white shadow-inner overflow-hidden relative touch-none">
+      <div ref={containerRef} className="flex-1 min-h-0 rounded-2xl bg-white/90 border border-white shadow-inner overflow-hidden relative touch-none">
         <canvas
           ref={canvasRef}
           width={360}

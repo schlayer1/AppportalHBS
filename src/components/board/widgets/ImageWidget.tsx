@@ -78,12 +78,12 @@ export const ImageWidget: React.FC = () => {
         </div>
       ) : (
         /* Image Display */
-        <div className="flex-1 rounded-2xl overflow-hidden bg-black/10 border border-white shadow-inner flex items-center justify-center min-h-[160px]">
+        <div className="flex-1 rounded-2xl overflow-hidden bg-black/10 border border-white shadow-inner flex items-center justify-center min-h-0">
           {imageUrl ? (
             <img
               src={imageUrl}
               alt="Tafelbild"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           ) : (
             <span className="text-xs font-bold text-hbs-slate-muted">Kein Bild geladen</span>

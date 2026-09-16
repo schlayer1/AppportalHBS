@@ -106,7 +106,7 @@ export const TimerWidget: React.FC = () => {
   const strokeDashoffset = circumference - progressPercent * circumference;
 
   return (
-    <div className="flex flex-col items-center justify-between p-1 text-hbs-slate-dark select-none">
+    <div className="w-full h-full flex flex-col items-center justify-between p-1 text-hbs-slate-dark select-none">
       
       {/* SVG Circular Countdown */}
       <div className="relative w-44 h-44 flex items-center justify-center my-1">

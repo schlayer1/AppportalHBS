@@ -81,7 +81,7 @@ export const DiceWidget: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-between p-1 text-hbs-slate-dark select-none h-full">
+    <div className="w-full h-full flex flex-col items-center justify-between p-1 text-hbs-slate-dark select-none">
       {/* Dice Selector Bar */}
       <div className="flex items-center gap-1.5 mb-2 bg-white/60 p-1 rounded-xl border border-white/80">
         {[1, 2, 3].map((count) => (

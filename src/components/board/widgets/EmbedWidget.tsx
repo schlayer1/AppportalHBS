@@ -83,7 +83,7 @@ export const EmbedWidget: React.FC = () => {
         </div>
       ) : (
         /* iFrame Viewport */
-        <div className="flex-1 rounded-2xl overflow-hidden bg-white border border-white shadow-inner min-h-[220px]">
+        <div className="flex-1 rounded-2xl overflow-hidden bg-white border border-white shadow-inner min-h-0">
           <iframe
             src={embedUrl}
             title="Embedded Web Tool"

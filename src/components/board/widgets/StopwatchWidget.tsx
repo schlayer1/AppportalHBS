@@ -80,7 +80,7 @@ export const StopwatchWidget: React.FC = () => {
   const formatted = formatTime(elapsedMs);
 
   return (
-    <div className="flex flex-col items-center justify-between p-1 text-hbs-slate-dark select-none h-full">
+    <div className="w-full h-full flex flex-col items-center justify-between p-1 text-hbs-slate-dark select-none">
       {/* Time Display */}
       <div className="flex items-baseline justify-center gap-1 my-2">
         <span className="text-4xl sm:text-5xl font-black font-mono tracking-tight text-hbs-slate-dark">

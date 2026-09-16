@@ -9,7 +9,7 @@ interface ChecklistItem {
 
 export const TextWidget: React.FC = () => {
   const [mode, setMode] = useState<'text' | 'checklist'>('checklist');
-  const [fontSize, setFontSize] = useState<'normal' | 'large' | 'huge'>('large');
+  const [fontSize, setFontSize] = useState<'normal' | 'large' | 'huge' | 'giant'>('large');
   
   // Note text state
   const [noteText, setNoteText] = useState(
@@ -51,7 +51,8 @@ export const TextWidget: React.FC = () => {
   const fontSizeClass = {
     normal: 'text-xs sm:text-sm',
     large: 'text-sm sm:text-base',
-    huge: 'text-base sm:text-lg'
+    huge: 'text-base sm:text-lg',
+    giant: 'text-lg sm:text-2xl font-bold'
   }[fontSize];
 
   return (
@@ -81,7 +82,7 @@ export const TextWidget: React.FC = () => {
 
         {/* Font Size Selector */}
         <div className="flex items-center gap-0.5 bg-white/60 p-0.5 rounded-xl border border-white/80">
-          {(['normal', 'large', 'huge'] as const).map((s) => (
+          {(['normal', 'large', 'huge', 'giant'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setFontSize(s)}
@@ -95,10 +96,10 @@ export const TextWidget: React.FC = () => {
         </div>
       </div>
 
-      {/* Body Area */}
-      <div className="flex-1 overflow-y-auto max-h-56 pr-1">
+      {/* Body Area - Dynamically expands with widget size */}
+      <div className="flex-1 overflow-y-auto pr-1 min-h-0 flex flex-col">
         {mode === 'checklist' ? (
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 flex-1">
             {checklist.map((item) => (
               <div
                 key={item.id}
@@ -155,7 +156,7 @@ export const TextWidget: React.FC = () => {
           <textarea
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
-            className={`w-full h-full min-h-[140px] p-3 rounded-2xl bg-white/80 border border-white font-medium focus:outline-none focus:ring-2 focus:ring-hbs-blue/20 ${fontSizeClass}`}
+            className={`w-full flex-1 p-3 rounded-2xl bg-white/80 border border-white font-medium focus:outline-none focus:ring-2 focus:ring-hbs-blue/20 resize-none min-h-[100px] ${fontSizeClass}`}
             placeholder="Aufgabenstellung, Tafelnotiz oder Stundenziele hier eintragen..."
           />
         )}

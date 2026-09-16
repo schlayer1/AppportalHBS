@@ -102,7 +102,7 @@ export const WebcamWidget: React.FC = () => {
       </div>
 
       {/* Video Viewport */}
-      <div className="flex-1 rounded-2xl overflow-hidden bg-slate-950 border border-white shadow-inner flex items-center justify-center min-h-[180px] relative">
+      <div className="flex-1 rounded-2xl overflow-hidden bg-slate-950 border border-white shadow-inner flex items-center justify-center min-h-0 relative">
         {errorMsg ? (
           <div className="p-3 text-center text-xs text-red-400 font-bold">
             {errorMsg}

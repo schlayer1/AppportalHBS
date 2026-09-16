@@ -76,7 +76,7 @@ export const useBoardManager = () => {
 
     if (type === 'clock') {
       w = 320;
-      h = 180;
+      h = 220;
       defaultTitle = 'Unterrichtsuhr';
     } else if (type === 'timer') {
       w = 340;
@@ -104,7 +104,7 @@ export const useBoardManager = () => {
       defaultTitle = 'Stundenplan';
     } else if (type === 'traffic-light') {
       w = 200;
-      h = 320;
+      h = 340;
       defaultTitle = 'Ampel';
     } else if (type === 'work-symbols') {
       w = 320;
@@ -327,7 +327,7 @@ export const useBoardManager = () => {
 
     if (presetType === 'begruessung') {
       newWidgets = [
-        { id: `w-clock-${timestamp}`, type: 'clock', title: 'Unterrichtsuhr', x: 40, y: 40, width: 320, height: 180, zIndex: 10 },
+        { id: `w-clock-${timestamp}`, type: 'clock', title: 'Unterrichtsuhr', x: 40, y: 40, width: 320, height: 220, zIndex: 10 },
         { id: `w-timetable-${timestamp}`, type: 'timetable', title: 'Stundenplan', x: 380, y: 40, width: 360, height: 380, zIndex: 11 },
         { id: `w-text-${timestamp}`, type: 'text', title: 'Stundenziel & Aufgaben', x: 760, y: 40, width: 360, height: 320, zIndex: 12 }
       ];
@@ -345,9 +345,9 @@ export const useBoardManager = () => {
       ];
     } else if (presetType === 'test') {
       newWidgets = [
-        { id: `w-clock-${timestamp}`, type: 'clock', title: 'Offizielle Prüfungszeit', x: 80, y: 60, width: 320, height: 180, zIndex: 10 },
+        { id: `w-clock-${timestamp}`, type: 'clock', title: 'Offizielle Prüfungszeit', x: 80, y: 60, width: 320, height: 220, zIndex: 10 },
         { id: `w-timer-${timestamp}`, type: 'timer', title: 'Restzeit Klassenarbeit', x: 420, y: 60, width: 340, height: 380, zIndex: 11 },
-        { id: `w-traffic-light-${timestamp}`, type: 'traffic-light', title: 'Prüfungsphase', x: 780, y: 60, width: 200, height: 320, zIndex: 12 }
+        { id: `w-traffic-light-${timestamp}`, type: 'traffic-light', title: 'Prüfungsphase', x: 780, y: 60, width: 200, height: 340, zIndex: 12 }
       ];
     }
 

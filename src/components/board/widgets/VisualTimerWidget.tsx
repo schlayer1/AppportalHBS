@@ -68,7 +68,7 @@ export const VisualTimerWidget: React.FC = () => {
   const timeFormatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
   return (
-    <div className="flex flex-col items-center justify-between p-1 text-hbs-slate-dark select-none">
+    <div className="w-full h-full flex flex-col items-center justify-between p-1 text-hbs-slate-dark select-none">
       
       {/* Time-Timer Style Visual Clock Face (Conic Gradient Pie) */}
       <div className="relative w-44 h-44 rounded-full border-4 border-white/90 bg-white/80 shadow-md flex items-center justify-center my-1 overflow-hidden">

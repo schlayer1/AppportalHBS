@@ -31,7 +31,7 @@ export const PdfViewerWidget: React.FC = () => {
       </div>
 
       {/* PDF Viewport */}
-      <div className="flex-1 rounded-2xl overflow-hidden bg-slate-100 border border-white shadow-inner flex items-center justify-center min-h-[220px]">
+      <div className="flex-1 rounded-2xl overflow-hidden bg-slate-100 border border-white shadow-inner flex items-center justify-center min-h-0">
         {pdfDataUrl ? (
           <object
             data={pdfDataUrl}

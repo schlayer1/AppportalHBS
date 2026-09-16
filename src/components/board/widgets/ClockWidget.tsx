@@ -72,7 +72,7 @@ export const ClockWidget: React.FC = () => {
   const hourDeg = (((hours % 12) + minutes / 60) / 12) * 360;
 
   return (
-    <div className="flex flex-col items-center justify-center p-2 text-hbs-slate-dark">
+    <div className="w-full h-full flex flex-col items-center justify-between p-1 text-hbs-slate-dark select-none">
       {/* Mode Switcher Toggle */}
       <div className="w-full flex items-center justify-between mb-3 text-[11px] font-bold text-hbs-slate-muted">
         <div className="flex items-center gap-1.5">

@@ -1,6 +1,27 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { Minus, X, GripHorizontal } from 'lucide-react';
-import { BoardWidgetInstance } from './types';
+import { BoardWidgetInstance, BoardWidgetType } from './types';
+
+export const WIDGET_BASE_DIMENSIONS: Partial<Record<BoardWidgetType, { baseWidth: number; baseHeight: number }>> = {
+  'clock': { baseWidth: 304, baseHeight: 160 },
+  'timer': { baseWidth: 324, baseHeight: 320 },
+  'visual-timer': { baseWidth: 304, baseHeight: 300 },
+  'stopwatch': { baseWidth: 304, baseHeight: 220 },
+  'traffic-light': { baseWidth: 184, baseHeight: 280 },
+  'work-symbols': { baseWidth: 304, baseHeight: 220 },
+  'sound-level': { baseWidth: 324, baseHeight: 220 },
+  'random-picker': { baseWidth: 324, baseHeight: 240 },
+  'group-maker': { baseWidth: 344, baseHeight: 300 },
+  'dice': { baseWidth: 264, baseHeight: 200 },
+  'stickers': { baseWidth: 244, baseHeight: 200 },
+  'scoreboard': { baseWidth: 324, baseHeight: 220 },
+  'event-countdown': { baseWidth: 284, baseHeight: 200 },
+  'calendar': { baseWidth: 324, baseHeight: 260 },
+  'poll': { baseWidth: 324, baseHeight: 260 },
+  'timetable': { baseWidth: 344, baseHeight: 320 },
+  'hyperlink': { baseWidth: 344, baseHeight: 220 },
+  'qr-code': { baseWidth: 244, baseHeight: 240 }
+};
 
 interface BoardWidgetContainerProps {
   widget: BoardWidgetInstance;
@@ -32,6 +53,14 @@ export const BoardWidgetContainer: React.FC<BoardWidgetContainerProps> = ({
   const isResizingRef = useRef(false);
   const resizeStartRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
   const [isResizing, setIsResizing] = useState(false);
+
+  // Dynamic Scale Factor Calculation for Scalable Widgets
+  const baseDim = WIDGET_BASE_DIMENSIONS[widget.type];
+  const availW = Math.max(40, widget.width - 16);
+  const availH = Math.max(40, (widget.isMinimized ? 44 : widget.height) - 44 - 16);
+  const scale = baseDim
+    ? Math.min(availW / baseDim.baseWidth, availH / baseDim.baseHeight)
+    : 1;
 
   // Dragging Handlers
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -106,9 +135,9 @@ export const BoardWidgetContainer: React.FC<BoardWidgetContainerProps> = ({
     const dx = e.clientX - resizeStartRef.current.x;
     const dy = e.clientY - resizeStartRef.current.y;
 
-    // Minimum 220px width, 140px height; Maximum 1200px
-    const newW = Math.max(220, Math.min(1400, resizeStartRef.current.w + dx));
-    const newH = Math.max(140, Math.min(1000, resizeStartRef.current.h + dy));
+    // Dynamic minimum 140px width, 90px height; Maximum 1600px width, 1200px height
+    const newW = Math.max(140, Math.min(1600, resizeStartRef.current.w + dx));
+    const newH = Math.max(90, Math.min(1200, resizeStartRef.current.h + dy));
 
     onSizeChange(newW, newH);
   };
@@ -174,10 +203,29 @@ export const BoardWidgetContainer: React.FC<BoardWidgetContainerProps> = ({
         </div>
       </div>
 
-      {/* Content Body */}
+      {/* Content Body with Dynamic Realtime Content Scaling */}
       {!widget.isMinimized && (
-        <div className="p-3.5 flex-1 flex flex-col overflow-auto bg-white/20 relative">
-          {children}
+        <div className="p-2 flex-1 w-full h-full min-h-0 overflow-hidden flex items-center justify-center bg-white/20 relative">
+          {baseDim ? (
+            <div
+              style={{
+                width: `${baseDim.baseWidth}px`,
+                height: `${baseDim.baseHeight}px`,
+                transform: `scale(${scale})`,
+                transformOrigin: 'center center',
+                WebkitBackfaceVisibility: 'hidden',
+                backfaceVisibility: 'hidden',
+                flexShrink: 0
+              }}
+              className="flex flex-col justify-center items-center select-none w-full h-full"
+            >
+              {children}
+            </div>
+          ) : (
+            <div className="w-full h-full flex flex-col min-h-0 overflow-auto">
+              {children}
+            </div>
+          )}
         </div>
       )}
 

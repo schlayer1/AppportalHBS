@@ -66,7 +66,7 @@ export const VideoWidget: React.FC = () => {
         </div>
       ) : (
         /* Video Viewport */
-        <div className="flex-1 rounded-2xl overflow-hidden bg-black border border-white shadow-inner min-h-[180px]">
+        <div className="flex-1 rounded-2xl overflow-hidden bg-black border border-white shadow-inner min-h-0">
           <iframe
             src={embedSrc}
             title="Classroom Video Player"
