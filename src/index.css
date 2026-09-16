@@ -4,22 +4,46 @@
 
 @layer base {
   body {
-    background-color: #F8FBFC;
+    background-color: #F0F4F8;
     color: #091D2E;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Custom scrollbar for modal/content */
+/* VisionOS Glass Card Style with visible physical light edges */
+.vision-glass {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 
+    0 10px 30px -5px rgba(9, 29, 46, 0.08),
+    0 4px 12px -2px rgba(9, 29, 46, 0.04),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.vision-glass-hover:hover {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(11, 123, 167, 0.35);
+  box-shadow: 
+    0 20px 40px -10px rgba(11, 123, 167, 0.18),
+    0 8px 16px -4px rgba(9, 29, 46, 0.06),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 1);
+  transform: translateY(-2px);
+}
+
+/* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #F0F8FA;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #BFC8CF;
-  border-radius: 4px;
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #0B7BA7;

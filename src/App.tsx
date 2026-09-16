@@ -119,8 +119,8 @@ export default function App() {
         appCount={SCHOOL_APPS.length}
       />
 
-      {/* Main Content Area: Screen-Filling Desktop Width */}
-      <main className="flex-1 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-8">
+      {/* Main Content Area: Screen-Filling Desktop Width with generous bottom clearance for Dock */}
+      <main className="flex-1 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-8 pb-40 sm:pb-36">
         
         {/* SMARTBOARD MODE ALERT BANNER */}
         {isSmartboardMode && (
@@ -151,58 +151,58 @@ export default function App() {
           </div>
         )}
 
-        {/* HERO BANNER WITH 3D EMBLEM & AURA (Desktop / Tablet) */}
+        {/* HERO BANNER: Clean, non-overlapping responsive layout */}
         {selectedCategory === 'all' && !searchQuery && !isSmartboardMode && (
-          <div className="relative rounded-3xl bg-white/85 backdrop-blur-xl border border-hbs-slate-border/80 p-6 sm:p-10 shadow-hbs-card mb-8 sm:mb-10 overflow-hidden shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]">
+          <div className="relative rounded-3xl bg-white/90 backdrop-blur-xl border border-white/90 p-5 sm:p-8 lg:p-10 shadow-[0_15px_35px_-5px_rgba(9,29,46,0.07)] mb-8 sm:mb-10 overflow-hidden shadow-[inset_0_1px_1px_0_rgba(255,255,255,1)]">
             
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-8 relative z-10">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8 relative z-10">
               
-              {/* Left Column: Text & Features */}
-              <div className="max-w-3xl">
+              {/* Left Column: School Title & Feature Badges */}
+              <div className="max-w-3xl text-center md:text-left">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hbs-blue-soft border border-hbs-blue/20 text-hbs-blue text-xs font-bold mb-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)]">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Digitale Infrastruktur • Heimbürgeschule Kahla</span>
+                  <Sparkles className="w-3.5 h-3.5 text-hbs-blue" />
+                  <span>Staatliche Regelschule Heimbürgeschule Kahla</span>
                 </div>
-                <h2 className="text-2xl sm:text-4xl font-extrabold text-hbs-slate-dark tracking-tight leading-tight">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-hbs-slate-dark tracking-tight leading-tight">
                   Zentrale Anlaufstelle für Ihren Schulalltag
                 </h2>
-                <p className="text-sm sm:text-base text-hbs-slate-muted mt-2 sm:mt-3 leading-relaxed">
-                  Alle schuleigenen Web-Apps, pädagogischen Begleiter und offiziellen Portale an einem geschützten Ort. 
-                  Optimiert für Tablets, Smartphones und Dienstgeräte.
+                <p className="text-xs sm:text-sm lg:text-base text-hbs-slate-muted mt-2 leading-relaxed">
+                  Alle schuleigenen Web-Apps, pädagogischen Begleiter und offiziellen Portale gebündelt. 
+                  Optimiert für Tablets, Smartphones, Smartboards und Dienstgeräte.
                 </p>
 
                 {/* Quick Feature Pills */}
-                <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-6 pt-6 border-t border-slate-100 text-xs font-semibold text-hbs-slate-muted">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-hbs-blue" />
-                    <span>DSGVO-konform & datensparsam</span>
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 sm:gap-4 mt-5 pt-5 border-t border-slate-100 text-xs font-bold text-hbs-slate-muted">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-hbs-bg border border-slate-200">
+                    <Shield className="w-3.5 h-3.5 text-hbs-blue" />
+                    <span>DSGVO-konform</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-hbs-teal" />
-                    <span>PWA & Homescreen-fähig</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-hbs-bg border border-slate-200">
+                    <Smartphone className="w-3.5 h-3.5 text-hbs-teal" />
+                    <span>PWA-fähig</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <HeartHandshake className="w-4 h-4 text-hbs-amber" />
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-hbs-bg border border-slate-200">
+                    <HeartHandshake className="w-3.5 h-3.5 text-hbs-amber" />
                     <span>Von Kollegen für Kollegen</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <MonitorCheck className="w-4 h-4 text-hbs-blue" />
-                    <span>Screen-Filling Dashboard</span>
+                  <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-hbs-bg border border-slate-200">
+                    <MonitorCheck className="w-3.5 h-3.5 text-hbs-blue" />
+                    <span>Dashboard-Mode</span>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: 3D Interaktives Schulsiegel mit Leucht-Aura */}
-              <div className="relative group shrink-0">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-hbs-blue/30 via-hbs-teal/30 to-hbs-amber/20 blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
+              {/* Right Column: Properly Sized 3D School Seal (Never cut off!) */}
+              <div className="relative shrink-0 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-hbs-blue/30 via-hbs-teal/25 to-hbs-amber/20 blur-xl pointer-events-none" />
 
-                <CardTilt maxRotation={15} scale={1.05} className="relative z-10">
-                  <div className="w-32 h-32 sm:w-44 sm:h-44 rounded-3xl bg-white/95 backdrop-blur-md p-4 flex items-center justify-center border-2 border-hbs-blue/20 shadow-2xl shadow-hbs-blue/15 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]">
+                <CardTilt maxRotation={12} scale={1.05} className="relative z-10">
+                  <div className="w-24 h-24 sm:w-36 sm:h-36 rounded-3xl bg-white/95 backdrop-blur-md p-3 sm:p-4 flex items-center justify-center border border-white/90 shadow-xl shadow-hbs-blue/10 shadow-[inset_0_1px_1px_0_rgba(255,255,255,1)]">
                     <img 
                       src="/Siegel_bunt.png" 
                       alt="Heimbürgeschule Siegel" 
-                      className="w-full h-full object-contain filter drop-shadow-md transition-transform duration-500 group-hover:scale-110"
-                      style={{ transform: 'translateZ(25px)' }}
+                      className="w-full h-full object-contain filter drop-shadow-sm transition-transform duration-500 hover:scale-105"
+                      style={{ transform: 'translateZ(20px)' }}
                     />
                   </div>
                 </CardTilt>
@@ -216,7 +216,7 @@ export default function App() {
         {hasFavorites && selectedCategory === 'all' && !searchQuery && !isSmartboardMode && (
           <div className="mb-10 animate-fadeIn">
             <div className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 rounded-xl bg-amber-50 text-amber-500 border border-amber-200">
+              <div className="p-1.5 rounded-xl bg-amber-50 text-amber-500 border border-amber-200 shadow-xs">
                 <Star className="w-4 h-4 fill-amber-400" />
               </div>
               <h3 className="text-lg font-black text-hbs-slate-dark tracking-tight">
@@ -226,12 +226,13 @@ export default function App() {
 
             {/* Favorite Apps Grid */}
             {viewMode === 'compact' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4">
                 {favoriteApps.map((app) => (
                   <CompactAppCard
                     key={`fav-compact-${app.id}`}
                     app={app}
                     onOpenDetails={(a) => setSelectedDetailApp(a)}
+                    onOpenQr={(a) => setActiveQrApp(a)}
                     isFavorite={true}
                     onToggleFavorite={toggleFavorite}
                   />
@@ -273,7 +274,7 @@ export default function App() {
                 : isSmartboardMode
                 ? 'Schüler können die QR-Codes direkt von der Wand oder vom Smartboard scannen.'
                 : viewMode === 'compact'
-                ? 'Tippen Sie auf eine Kachel für Details & QR-Code oder auf „Öffnen“.'
+                ? 'Tippen Sie auf „Starten“ oder auf die Kachel für Details & QR-Code.'
                 : 'Klicken Sie auf 🔄 für 3D-Details oder ⭐ zum Favorisieren.'
               }
             </p>
@@ -286,12 +287,13 @@ export default function App() {
             {filteredApps.length > 0 ? (
               viewMode === 'compact' ? (
                 /* Compact 2-column mobile / tablet grid */
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4">
                   {filteredApps.map((app) => (
                     <CompactAppCard
                       key={`compact-${app.id}`}
                       app={app}
                       onOpenDetails={(a) => setSelectedDetailApp(a)}
+                      onOpenQr={(a) => setActiveQrApp(a)}
                       isFavorite={isFavorite(app.id)}
                       onToggleFavorite={toggleFavorite}
                     />
@@ -322,7 +324,7 @@ export default function App() {
                 onAction={() => {
                   setSearchQuery('');
                   setSelectedCategory('all');
-                  setViewMode('bento');
+                  setViewMode('compact');
                 }}
               />
             )}
@@ -337,7 +339,7 @@ export default function App() {
       </main>
 
       {/* Footer with Safe Area Padding */}
-      <footer className="bg-white/80 backdrop-blur-md border-t border-hbs-slate-border/70 mt-16 sm:mt-20 py-8 pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+      <footer className="bg-white/80 backdrop-blur-md border-t border-hbs-slate-border/70 mt-16 sm:mt-20 py-8 pb-[calc(4rem+env(safe-area-inset-bottom))]">
         <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-hbs-slate-muted">
           <div className="flex items-center gap-3">
             <img src="/Siegel_bunt.png" alt="" className="w-7 h-7 object-contain opacity-80" />

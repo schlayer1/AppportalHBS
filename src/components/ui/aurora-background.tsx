@@ -2,17 +2,18 @@ import React from 'react';
 
 export const AuroraBackground: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="relative min-h-dvh w-full overflow-hidden bg-[#F8FBFC] selection:bg-hbs-blue-light selection:text-hbs-blue-deep">
-      {/* Living Mesh Aurora in Google Stitch School Colors */}
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-60">
-        {/* Cerulean Blue orb */}
-        <div className="absolute -top-[15%] left-[10%] w-[600px] h-[600px] rounded-full bg-gradient-to-br from-[#0B7BA7]/25 to-transparent blur-[120px] animate-pulse duration-[10000ms]" />
+    <div className="relative min-h-dvh w-full overflow-hidden bg-gradient-to-b from-[#EBF3F8] via-[#F4F8FA] to-[#E9F1F6] text-[#091D2E]">
+      
+      {/* High-Impact Luminous Background Orbs with rich vibrant color */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        {/* Top-Right Glowing Cerulean Sun */}
+        <div className="absolute -top-[15%] -right-[5%] w-[500px] sm:w-[750px] h-[500px] sm:h-[750px] rounded-full bg-gradient-to-br from-[#0B7BA7]/35 via-[#00A896]/20 to-transparent blur-[90px] sm:blur-[130px]" />
         
-        {/* Soft Teal orb */}
-        <div className="absolute top-[35%] -right-[10%] w-[650px] h-[650px] rounded-full bg-gradient-to-bl from-[#00A896]/20 to-transparent blur-[140px] animate-pulse duration-[12000ms] delay-1000" />
-        
-        {/* Warm Golden Marigold orb */}
-        <div className="absolute -bottom-[10%] left-[20%] w-[550px] h-[550px] rounded-full bg-gradient-to-tr from-[#F39200]/15 to-transparent blur-[130px] animate-pulse duration-[9000ms] delay-2000" />
+        {/* Mid-Left Warm Marigold Accent */}
+        <div className="absolute top-[28%] -left-[15%] w-[450px] sm:w-[650px] h-[450px] sm:h-[650px] rounded-full bg-gradient-to-tr from-[#F39200]/25 via-[#FFA929]/15 to-transparent blur-[100px] sm:blur-[140px]" />
+
+        {/* Bottom Soft Emerald Aura */}
+        <div className="absolute -bottom-[10%] right-[15%] w-[500px] sm:w-[700px] h-[500px] sm:h-[700px] rounded-full bg-gradient-to-tl from-[#006B5F]/20 via-[#00A896]/15 to-transparent blur-[100px] sm:blur-[150px]" />
       </div>
 
       {/* Content wrapper */}
