@@ -6,7 +6,23 @@ import { BoardBackgroundPicker } from './BoardBackgroundPicker';
 import { BACKGROUND_PRESETS } from './backgrounds';
 import { ClockWidget } from './widgets/ClockWidget';
 import { TimerWidget } from './widgets/TimerWidget';
-import { Clock, Timer, Sparkles, Trash2, ArrowLeft } from 'lucide-react';
+import { VisualTimerWidget } from './widgets/VisualTimerWidget';
+import { StopwatchWidget } from './widgets/StopwatchWidget';
+import { CalendarWidget } from './widgets/CalendarWidget';
+import { EventCountdownWidget } from './widgets/EventCountdownWidget';
+import { TimetableWidget } from './widgets/TimetableWidget';
+import { 
+  Clock, 
+  Timer, 
+  Hourglass, 
+  Watch, 
+  Calendar, 
+  CalendarClock, 
+  CalendarDays, 
+  Sparkles, 
+  Trash2, 
+  ArrowLeft 
+} from 'lucide-react';
 
 interface ClassroomBoardProps {
   onExit: () => void;
@@ -123,6 +139,21 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
           } else if (widget.type === 'timer') {
             widgetIcon = <Timer className="w-4 h-4" />;
             widgetContent = <TimerWidget />;
+          } else if (widget.type === 'visual-timer') {
+            widgetIcon = <Hourglass className="w-4 h-4 text-red-500" />;
+            widgetContent = <VisualTimerWidget />;
+          } else if (widget.type === 'stopwatch') {
+            widgetIcon = <Watch className="w-4 h-4 text-hbs-teal-deep" />;
+            widgetContent = <StopwatchWidget />;
+          } else if (widget.type === 'calendar') {
+            widgetIcon = <Calendar className="w-4 h-4 text-hbs-blue" />;
+            widgetContent = <CalendarWidget />;
+          } else if (widget.type === 'event-countdown') {
+            widgetIcon = <CalendarClock className="w-4 h-4 text-amber-500" />;
+            widgetContent = <EventCountdownWidget />;
+          } else if (widget.type === 'timetable') {
+            widgetIcon = <CalendarDays className="w-4 h-4 text-emerald-600" />;
+            widgetContent = <TimetableWidget />;
           }
 
           return (

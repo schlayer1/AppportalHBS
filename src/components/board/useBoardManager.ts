@@ -82,6 +82,26 @@ export const useBoardManager = () => {
       w = 340;
       h = 380;
       defaultTitle = 'Countdown-Timer';
+    } else if (type === 'visual-timer') {
+      w = 320;
+      h = 360;
+      defaultTitle = 'Visueller Timer';
+    } else if (type === 'stopwatch') {
+      w = 320;
+      h = 280;
+      defaultTitle = 'Stoppuhr';
+    } else if (type === 'calendar') {
+      w = 340;
+      h = 320;
+      defaultTitle = 'Schulkalender';
+    } else if (type === 'event-countdown') {
+      w = 300;
+      h = 260;
+      defaultTitle = 'Event-Countdown';
+    } else if (type === 'timetable') {
+      w = 360;
+      h = 380;
+      defaultTitle = 'Stundenplan';
     }
 
     const newWidget: BoardWidgetInstance = {

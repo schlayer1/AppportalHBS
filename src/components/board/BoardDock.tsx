@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { 
   Clock, 
   Timer, 
+  Hourglass,
+  Watch,
+  Calendar,
+  CalendarClock,
+  CalendarDays,
   Image as ImageIcon, 
   Plus, 
   ChevronLeft, 
@@ -58,7 +63,7 @@ export const BoardDock: React.FC<BoardDockProps> = ({
               Werkzeugkasten (Classroomscreen)
             </span>
             <span className="text-[10px] font-bold text-hbs-teal bg-hbs-teal-light px-2 py-0.5 rounded-full border border-hbs-teal/20">
-              Meilenstein 1 aktiv
+              Meilenstein 1 & 2 aktiv
             </span>
           </div>
 
@@ -66,6 +71,11 @@ export const BoardDock: React.FC<BoardDockProps> = ({
             {[
               { id: 'clock', label: 'Uhr', icon: Clock, active: true },
               { id: 'timer', label: 'Timer', icon: Timer, active: true },
+              { id: 'visual-timer', label: 'Kuchen-Timer', icon: Hourglass, active: true },
+              { id: 'stopwatch', label: 'Stoppuhr', icon: Watch, active: true },
+              { id: 'calendar', label: 'Kalender', icon: Calendar, active: true },
+              { id: 'event-countdown', label: 'Countdown', icon: CalendarClock, active: true },
+              { id: 'timetable', label: 'Stundenplan', icon: CalendarDays, active: true },
               { id: 'sound-level', label: 'Lärmampel', icon: Volume2, milestone: 'M3' },
               { id: 'traffic-light', label: 'Ampel', icon: TrafficCone, milestone: 'M3' },
               { id: 'random-picker', label: 'Zufall', icon: Users, milestone: 'M3' },
