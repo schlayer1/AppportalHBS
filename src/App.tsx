@@ -5,8 +5,9 @@ import { AppCard } from './components/AppCard';
 import { QrCodeModal } from './components/QrCodeModal';
 import { InstallGuideModal } from './components/InstallGuideModal';
 import { ExternalLinks } from './components/ExternalLinks';
+import { EmptyState } from './components/ui/empty-state';
 import { SCHOOL_APPS, EXTERNAL_LINKS, PORTAL_CONFIG, SchoolApp } from './config/apps';
-import { Sparkles, Shield, Smartphone, HeartHandshake, Layers } from 'lucide-react';
+import { Sparkles, Shield, Smartphone, HeartHandshake, SearchX } from 'lucide-react';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -62,7 +63,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-hbs-bg text-hbs-slate-dark flex flex-col font-sans">
+    <div className="min-h-dvh bg-hbs-bg text-hbs-slate-dark flex flex-col font-sans">
       
       {/* Sticky Header with Navigation & Filter */}
       <Header
@@ -78,9 +79,9 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 w-full">
         
-        {/* Welcome Hero Banner (Only on 'all' and when not searching) */}
+        {/* Welcome Hero Banner with Linear Top Edge & Depth */}
         {selectedCategory === 'all' && !searchQuery && (
-          <div className="relative rounded-3xl bg-gradient-to-br from-white via-white to-hbs-blue-soft/50 border border-hbs-slate-border/80 p-6 sm:p-10 shadow-hbs-card mb-8 sm:mb-12 overflow-hidden">
+          <div className="relative rounded-3xl bg-gradient-to-br from-white via-white to-hbs-blue-soft/50 border border-hbs-slate-border/80 p-6 sm:p-10 shadow-hbs-card mb-8 sm:mb-12 overflow-hidden shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]">
             
             {/* Background seal watermark */}
             <div className="absolute -right-10 -bottom-10 w-64 h-64 opacity-5 pointer-events-none">
@@ -88,7 +89,7 @@ export default function App() {
             </div>
 
             <div className="max-w-3xl relative z-10">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hbs-blue-soft border border-hbs-blue/20 text-hbs-blue text-xs font-bold mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hbs-blue-soft border border-hbs-blue/20 text-hbs-blue text-xs font-bold mb-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)]">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Digitale Infrastruktur • Heimbürgeschule Kahla</span>
               </div>
@@ -152,19 +153,16 @@ export default function App() {
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-hbs-slate-border">
-                <Layers className="w-12 h-12 text-hbs-slate-light mx-auto mb-3 opacity-50" />
-                <h4 className="text-base font-bold text-hbs-slate-dark">Keine passende Schulapp gefunden</h4>
-                <p className="text-xs text-hbs-slate-muted mt-1 max-w-sm mx-auto">
-                  Versuchen Sie einen anderen Suchbegriff oder wählen Sie oben die Kategorie „Alle Apps“.
-                </p>
-                <button
-                  onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}
-                  className="mt-4 px-4 py-2 rounded-xl bg-hbs-blue-soft text-hbs-blue text-xs font-bold hover:bg-hbs-blue-light transition-colors"
-                >
-                  Filter zurücksetzen
-                </button>
-              </div>
+              <EmptyState
+                icon={SearchX}
+                title="Keine passende Schulapp gefunden"
+                description={`Für den Suchbegriff „${searchQuery}“ in der ausgewählten Kategorie konnte keine App gefunden werden.`}
+                actionLabel="Filter zurücksetzen"
+                onAction={() => {
+                  setSearchQuery('');
+                  setSelectedCategory('all');
+                }}
+              />
             )}
           </>
         )}
@@ -176,8 +174,8 @@ export default function App() {
 
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-hbs-slate-border/70 mt-16 sm:mt-24 py-8">
+      {/* Footer with Safe Area Padding */}
+      <footer className="bg-white border-t border-hbs-slate-border/70 mt-16 sm:mt-24 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-hbs-slate-muted">
           <div className="flex items-center gap-3">
             <img src="/Siegel_bunt.png" alt="" className="w-7 h-7 object-contain opacity-80" />
@@ -189,14 +187,14 @@ export default function App() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsInstallGuideOpen(true)}
-              className="hover:text-hbs-blue transition-colors font-medium"
+              className="min-h-[44px] hover:text-hbs-blue transition-colors font-medium flex items-center"
             >
               PWA-Anleitung
             </button>
             <span>•</span>
             <button
               onClick={handleLogout}
-              className="hover:text-red-600 transition-colors font-medium"
+              className="min-h-[44px] hover:text-red-600 transition-colors font-medium flex items-center"
             >
               Abmelden
             </button>

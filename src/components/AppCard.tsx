@@ -14,6 +14,10 @@ import {
   Layers 
 } from 'lucide-react';
 import { SchoolApp } from '../config/apps';
+import { SpotlightCard } from './ui/spotlight-card';
+import { BorderBeam } from './ui/border-beam';
+import { ShimmerButton } from './ui/shimmer-button';
+import { Badge } from './ui/badge';
 
 // Helper to resolve icon by string name
 const getIconComponent = (iconName: string) => {
@@ -37,60 +41,65 @@ interface AppCardProps {
 export const AppCard: React.FC<AppCardProps> = ({ app, onOpenQr }) => {
   const Icon = getIconComponent(app.icon);
 
-  // Styling maps based on badgeColor from DESIGN.md
+  // Styling maps strictly based on Stitch / DESIGN.md colors
   const colorStyles = {
     blue: {
-      cardBorder: 'hover:border-hbs-blue/50',
-      iconBg: 'bg-hbs-blue-soft text-hbs-blue-deep border-hbs-blue/20',
-      badgeBg: 'bg-hbs-blue-soft text-hbs-blue-deep border-hbs-blue/20',
-      actionBtn: 'bg-hbs-blue hover:bg-hbs-blue-deep text-white shadow-xs hover:shadow',
-      qrBtn: 'hover:bg-hbs-blue-soft text-hbs-blue-deep border-hbs-blue/20',
+      spotlight: 'rgba(11, 123, 167, 0.08)',
+      iconBg: 'bg-hbs-blue-soft text-hbs-blue-deep border-hbs-blue/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]',
+      actionBtn: 'bg-hbs-blue hover:bg-hbs-blue-deep text-white shadow-xs hover:shadow shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]',
+      qrBtn: 'hover:bg-hbs-blue-soft text-hbs-blue-deep border-hbs-blue/25',
     },
     amber: {
-      cardBorder: 'hover:border-hbs-amber/50',
-      iconBg: 'bg-hbs-amber-light text-hbs-amber-dark border-hbs-amber/25',
-      badgeBg: 'bg-hbs-amber-light text-hbs-amber-dark border-hbs-amber/25',
-      actionBtn: 'bg-hbs-amber hover:bg-hbs-amber-dark text-white shadow-xs hover:shadow',
+      spotlight: 'rgba(243, 146, 0, 0.08)',
+      iconBg: 'bg-hbs-amber-light text-hbs-amber-dark border-hbs-amber/25 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]',
+      actionBtn: 'bg-hbs-amber hover:bg-hbs-amber-dark text-white shadow-xs hover:shadow shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]',
       qrBtn: 'hover:bg-hbs-amber-light text-hbs-amber-dark border-hbs-amber/25',
     },
     teal: {
-      cardBorder: 'hover:border-hbs-teal/50',
-      iconBg: 'bg-hbs-teal-light text-hbs-teal-deep border-hbs-teal/25',
-      badgeBg: 'bg-hbs-teal-light text-hbs-teal-deep border-hbs-teal/25',
-      actionBtn: 'bg-hbs-teal hover:bg-hbs-teal-deep text-white shadow-xs hover:shadow',
+      spotlight: 'rgba(0, 168, 150, 0.08)',
+      iconBg: 'bg-hbs-teal-light text-hbs-teal-deep border-hbs-teal/25 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]',
+      actionBtn: 'bg-hbs-teal hover:bg-hbs-teal-deep text-white shadow-xs hover:shadow shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]',
       qrBtn: 'hover:bg-hbs-teal-light text-hbs-teal-deep border-hbs-teal/25',
     },
     slate: {
-      cardBorder: 'hover:border-hbs-slate/50',
-      iconBg: 'bg-slate-100 text-hbs-slate-dark border-slate-200',
-      badgeBg: 'bg-slate-100 text-hbs-slate-dark border-slate-200',
-      actionBtn: 'bg-hbs-slate-dark hover:bg-black text-white shadow-xs hover:shadow',
+      spotlight: 'rgba(44, 62, 80, 0.06)',
+      iconBg: 'bg-slate-100 text-hbs-slate-dark border-slate-200 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]',
+      actionBtn: 'bg-hbs-slate-dark hover:bg-black text-white shadow-xs hover:shadow shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]',
       qrBtn: 'hover:bg-slate-100 text-hbs-slate-dark border-slate-200',
     }
   }[app.badgeColor];
 
   return (
-    <div className={`group bg-white rounded-3xl p-6 sm:p-7 border border-hbs-slate-border/70 shadow-hbs-card hover:shadow-hbs-hover transition-all duration-300 flex flex-col justify-between relative overflow-hidden ${colorStyles.cardBorder}`}>
-      
+    <SpotlightCard 
+      spotlightColor={colorStyles.spotlight}
+      className={`p-6 sm:p-7 flex flex-col justify-between relative group hover:border-hbs-blue/40 ${
+        app.isFeaturedStudentQr ? 'border-hbs-amber/40 ring-1 ring-hbs-amber/20' : ''
+      }`}
+    >
+      {/* Magic UI Border Beam on Featured Card */}
+      {app.isFeaturedStudentQr && (
+        <BorderBeam size={250} duration={12} colorFrom="#F39200" colorTo="#0B7BA7" />
+      )}
+
       {/* Top Banner accent if featured for students */}
       {app.isFeaturedStudentQr && (
-        <div className="absolute top-0 right-0 left-0 bg-gradient-to-r from-hbs-amber to-amber-500 py-1 px-4 text-center text-white text-[11px] font-extrabold tracking-wider uppercase flex items-center justify-center gap-1.5 shadow-xs">
-          <Sparkles className="w-3 h-3" />
-          <span>Direkt im Unterricht einsetzbar • Schneller QR-Scan für Schüler</span>
+        <div className="absolute top-0 right-0 left-0 bg-gradient-to-r from-hbs-amber to-amber-500 py-1.5 px-4 text-center text-white text-[11px] font-extrabold tracking-wider uppercase flex items-center justify-center gap-1.5 shadow-xs shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3)]">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Direkt im Unterricht • QR-Scan für Schüler</span>
         </div>
       )}
 
-      <div>
+      <div className={app.isFeaturedStudentQr ? 'mt-4' : ''}>
         {/* Header row: Icon & Badges */}
-        <div className={`flex items-start justify-between gap-3 ${app.isFeaturedStudentQr ? 'mt-4' : ''} mb-4`}>
-          <div className={`w-14 h-14 rounded-2xl p-3 flex items-center justify-center border shadow-xs transition-transform duration-300 group-hover:scale-105 ${colorStyles.iconBg}`}>
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className={`w-14 h-14 rounded-2xl p-3 flex items-center justify-center border transition-transform duration-300 group-hover:scale-105 shrink-0 ${colorStyles.iconBg}`}>
             <Icon className="w-8 h-8" />
           </div>
 
           <div className="flex flex-col items-end gap-1.5">
-            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${colorStyles.badgeBg}`}>
+            <Badge variant={app.badgeColor}>
               {app.badge}
-            </span>
+            </Badge>
             {app.privacyBadge && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-hbs-slate-light bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">
                 <ShieldCheck className="w-3 h-3 text-hbs-teal" />
@@ -105,7 +114,7 @@ export const AppCard: React.FC<AppCardProps> = ({ app, onOpenQr }) => {
           <h3 className="text-lg sm:text-xl font-bold text-hbs-slate-dark tracking-tight leading-snug group-hover:text-hbs-blue transition-colors">
             {app.title}
           </h3>
-          <p className="text-xs font-semibold text-hbs-blue mt-0.5">
+          <p className="text-xs font-bold text-hbs-blue mt-0.5">
             {app.subtitle}
           </p>
         </div>
@@ -120,13 +129,13 @@ export const AppCard: React.FC<AppCardProps> = ({ app, onOpenQr }) => {
           {app.tags.map((tag, idx) => (
             <span 
               key={idx} 
-              className="text-[11px] font-medium text-hbs-slate-muted bg-hbs-bg px-2.5 py-1 rounded-lg border border-hbs-slate-border/50"
+              className="text-[11px] font-medium text-hbs-slate-muted bg-hbs-bg px-2.5 py-1 rounded-lg border border-hbs-slate-border/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)]"
             >
               {tag}
             </span>
           ))}
           {app.offlineReady && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)]">
               <CheckCircle2 className="w-3 h-3" /> PWA-fähig
             </span>
           )}
@@ -136,34 +145,34 @@ export const AppCard: React.FC<AppCardProps> = ({ app, onOpenQr }) => {
       {/* Action Footer */}
       <div className="pt-4 border-t border-slate-100 flex flex-col gap-2.5">
         
-        {/* Prominent QR button for student apps */}
+        {/* Magic UI Shimmer Button for Student QR Feature */}
         {app.isFeaturedStudentQr && (
-          <button
+          <ShimmerButton
             onClick={() => onOpenQr(app)}
-            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-hbs-amber hover:from-amber-600 hover:to-hbs-amber-dark text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs hover:shadow transition-all"
+            className="w-full text-xs sm:text-sm"
           >
             <QrCode className="w-4 h-4" />
             <span>QR-Code für Schüler anzeigen (Beamer / Smartboard)</span>
-          </button>
+          </ShimmerButton>
         )}
 
         <div className="flex items-center gap-2">
-          {/* Main Launch Button */}
+          {/* Main Launch Button with 44px touch height */}
           <a
             href={app.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${colorStyles.actionBtn}`}
+            className={`flex-1 min-h-[44px] px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all duration-150 select-none ${colorStyles.actionBtn}`}
           >
             <span>App öffnen</span>
             <ExternalLink className="w-3.5 h-3.5 opacity-80" />
           </a>
 
-          {/* Standard QR Code button */}
+          {/* Standard QR Code button with 44px min touch target */}
           {!app.isFeaturedStudentQr && (
             <button
               onClick={() => onOpenQr(app)}
-              className={`p-2.5 rounded-xl border font-semibold text-xs transition-colors flex items-center justify-center bg-white ${colorStyles.qrBtn}`}
+              className={`min-h-[44px] min-w-[44px] p-2.5 rounded-xl border font-semibold text-xs transition-all duration-150 active:scale-[0.98] flex items-center justify-center bg-white shadow-xs hover:shadow shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)] ${colorStyles.qrBtn}`}
               title="QR-Code zum Scannen anzeigen"
               aria-label="QR-Code anzeigen"
             >
@@ -173,6 +182,6 @@ export const AppCard: React.FC<AppCardProps> = ({ app, onOpenQr }) => {
         </div>
       </div>
 
-    </div>
+    </SpotlightCard>
   );
 };
