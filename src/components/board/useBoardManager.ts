@@ -305,6 +305,44 @@ export const useBoardManager = () => {
     });
   }, [activeScreenIndex]);
 
+  const loadPreset = useCallback((presetType: 'begruessung' | 'stillarbeit' | 'gruppenarbeit' | 'test') => {
+    const timestamp = Date.now();
+    let newWidgets: BoardWidgetInstance[] = [];
+
+    if (presetType === 'begruessung') {
+      newWidgets = [
+        { id: `w-clock-${timestamp}`, type: 'clock', title: 'Unterrichtsuhr', x: 40, y: 40, width: 320, height: 180, zIndex: 10 },
+        { id: `w-timetable-${timestamp}`, type: 'timetable', title: 'Stundenplan', x: 380, y: 40, width: 360, height: 380, zIndex: 11 },
+        { id: `w-text-${timestamp}`, type: 'text', title: 'Stundenziel & Aufgaben', x: 760, y: 40, width: 360, height: 320, zIndex: 12 }
+      ];
+    } else if (presetType === 'stillarbeit') {
+      newWidgets = [
+        { id: `w-visual-timer-${timestamp}`, type: 'visual-timer', title: 'Kuchen-Timer', x: 60, y: 60, width: 320, height: 360, zIndex: 10 },
+        { id: `w-work-symbols-${timestamp}`, type: 'work-symbols', title: 'Stillarbeit', x: 400, y: 60, width: 320, height: 280, zIndex: 11 },
+        { id: `w-sound-level-${timestamp}`, type: 'sound-level', title: 'Lärmampel', x: 740, y: 60, width: 340, height: 280, zIndex: 12 }
+      ];
+    } else if (presetType === 'gruppenarbeit') {
+      newWidgets = [
+        { id: `w-timer-${timestamp}`, type: 'timer', title: 'Arbeitszeit', x: 60, y: 60, width: 340, height: 380, zIndex: 10 },
+        { id: `w-group-maker-${timestamp}`, type: 'group-maker', title: 'Gruppen-Einteilung', x: 420, y: 60, width: 360, height: 360, zIndex: 11 },
+        { id: `w-work-symbols-${timestamp}`, type: 'work-symbols', title: 'Gruppenarbeit', x: 800, y: 60, width: 320, height: 280, zIndex: 12 }
+      ];
+    } else if (presetType === 'test') {
+      newWidgets = [
+        { id: `w-clock-${timestamp}`, type: 'clock', title: 'Offizielle Prüfungszeit', x: 80, y: 60, width: 320, height: 180, zIndex: 10 },
+        { id: `w-timer-${timestamp}`, type: 'timer', title: 'Restzeit Klassenarbeit', x: 420, y: 60, width: 340, height: 380, zIndex: 11 },
+        { id: `w-traffic-light-${timestamp}`, type: 'traffic-light', title: 'Prüfungsphase', x: 780, y: 60, width: 200, height: 320, zIndex: 12 }
+      ];
+    }
+
+    setScreens((prev) => {
+      return prev.map((scr, idx) => {
+        if (idx !== activeScreenIndex) return scr;
+        return { ...scr, widgets: newWidgets };
+      });
+    });
+  }, [activeScreenIndex]);
+
   return {
     screens,
     activeScreen,
@@ -319,6 +357,7 @@ export const useBoardManager = () => {
     addScreen,
     switchScreen,
     deleteScreen,
-    clearCurrentScreen
+    clearCurrentScreen,
+    loadPreset
   };
 };

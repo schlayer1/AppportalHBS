@@ -76,10 +76,12 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
     setBackground,
     addScreen,
     switchScreen,
-    clearCurrentScreen
+    clearCurrentScreen,
+    loadPreset
   } = useBoardManager();
 
   const [isBackgroundPickerOpen, setIsBackgroundPickerOpen] = useState(false);
+  const [isPresetsOpen, setIsPresetsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Fullscreen Listener
@@ -144,7 +146,47 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="flex items-center gap-2 pointer-events-auto relative">
+          {/* 1-Click Lesson Presets Button */}
+          <div className="relative">
+            <button
+              onClick={() => setIsPresetsOpen(!isPresetsOpen)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-blue hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
+              title="Stunden-Vorlagen laden"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-hbs-amber" />
+              <span>Vorlagen</span>
+            </button>
+
+            {isPresetsOpen && (
+              <div className="absolute top-10 right-0 w-64 p-3 rounded-2xl ios-glass-dock shadow-2xl border border-white/80 animate-fadeIn z-50 text-hbs-slate-dark">
+                <span className="text-[11px] font-black uppercase tracking-wider text-hbs-slate-muted block mb-2">
+                  1-Klick Stunden-Vorlagen
+                </span>
+                <div className="space-y-1.5">
+                  {[
+                    { id: 'begruessung', title: '🌅 Stundenbeginn & Ziele', desc: 'Uhr, Stundenplan & Stundenziel' },
+                    { id: 'stillarbeit', title: '🤫 Stillarbeitsphase', desc: 'Kuchen-Timer, Stillarbeit & Lärmampel' },
+                    { id: 'gruppenarbeit', title: '👥 Gruppenarbeit', desc: 'Timer, Gruppenteams & Symbol' },
+                    { id: 'test', title: '📝 Klassenarbeit & Test', desc: 'Offizielle Uhr, Prüfungszeit & Ampel' }
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        loadPreset(p.id as any);
+                        setIsPresetsOpen(false);
+                      }}
+                      className="w-full text-left p-2 rounded-xl bg-white/70 hover:bg-white border border-white transition-all active:scale-95 shadow-2xs"
+                    >
+                      <span className="text-xs font-black block text-hbs-slate-dark">{p.title}</span>
+                      <span className="text-[10px] text-hbs-slate-muted block">{p.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {activeScreen.widgets.length > 0 && (
             <button
               onClick={() => {
