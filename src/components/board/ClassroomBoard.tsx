@@ -57,7 +57,8 @@ import {
   Sparkles, 
   Trash2, 
   ArrowLeft,
-  RotateCcw
+  RotateCcw,
+  Palette
 } from 'lucide-react';
 
 interface ClassroomBoardProps {
@@ -147,14 +148,28 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
             <span className="xs:hidden">Zurück</span>
           </button>
 
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full ios-glass text-xs font-bold text-hbs-slate-dark/80 shadow-md">
-            <Sparkles className="w-3.5 h-3.5 text-hbs-amber" />
+          <button
+            onClick={() => setIsBackgroundPickerOpen(true)}
+            className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full ios-glass hover:bg-white text-xs font-bold text-hbs-slate-dark/80 shadow-md transition-all active:scale-95 cursor-pointer"
+            title="Tafelhintergrund wechseln"
+          >
+            <Palette className="w-3.5 h-3.5 text-hbs-blue" />
             <span>{activeScreen.title}</span>
             <span className="text-hbs-slate-muted">({activeBgPreset.name})</span>
-          </div>
+          </button>
         </div>
 
         <div className="flex items-center gap-2 pointer-events-auto relative">
+          {/* Direct Background Picker Button */}
+          <button
+            onClick={() => setIsBackgroundPickerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-slate-dark hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
+            title="Tafelhintergrund auswählen"
+          >
+            <Palette className="w-3.5 h-3.5 text-hbs-blue" />
+            <span className="hidden sm:inline">Hintergrund</span>
+          </button>
+
           {/* Scroll / Center View Button (especially helpful on mobile phones) */}
           <button
             onClick={resetScroll}

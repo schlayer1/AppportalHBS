@@ -30,7 +30,8 @@ import {
   Globe,
   Link as LinkIcon,
   BarChart3,
-  Sparkles
+  Sparkles,
+  Palette
 } from 'lucide-react';
 import { BoardWidgetType } from './types';
 
@@ -62,21 +63,47 @@ export const BoardDock: React.FC<BoardDockProps> = ({
   return (
     <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center select-none">
       
-      {/* "More Tools" iOS Glass Flyout */}
+      {/* "More Tools" iOS Glass Flyout (Werkzeugkasten) */}
       {showMoreFlyout && (
         <div className="mb-3 w-80 sm:w-96 p-4 rounded-3xl ios-glass-dock shadow-2xl border border-white/80 animate-fadeIn text-hbs-slate-dark">
-          <div className="flex items-center justify-between pb-2 border-b border-white/40 mb-3">
+          <div className="flex items-center justify-between pb-2 border-b border-white/40 mb-2.5">
             <span className="text-xs font-black uppercase tracking-wider text-hbs-slate-dark flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-hbs-blue" />
               Werkzeugkasten (Classroomscreen)
             </span>
-            <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
-              ✨ Alle Werkzeuge aktiv
-            </span>
+            <button
+              onClick={() => setShowMoreFlyout(false)}
+              className="text-[10px] font-bold text-hbs-slate-muted hover:text-hbs-slate-dark px-2 py-0.5 rounded-lg bg-white/50"
+            >
+              Schließen ✕
+            </button>
           </div>
+
+          {/* Quick Action: Tafelhintergrund wählen */}
+          <button
+            onClick={() => {
+              onOpenBackgroundPicker();
+              setShowMoreFlyout(false);
+            }}
+            className="w-full mb-3 p-2.5 rounded-2xl bg-gradient-to-r from-hbs-blue/15 via-white/80 to-hbs-teal/15 hover:from-hbs-blue/25 hover:to-hbs-teal/25 text-hbs-slate-dark border border-white shadow-xs flex items-center justify-between gap-3 transition-all active:scale-98 group"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-hbs-blue text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
+                <Palette className="w-4 h-4" />
+              </div>
+              <div className="text-left min-w-0">
+                <span className="text-xs font-black block text-hbs-slate-dark truncate">Tafelhintergrund wählen</span>
+                <span className="text-[10px] text-hbs-slate-muted block truncate font-medium">10 Verläufe & Schul-Linierungen</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-black text-hbs-blue px-2 py-1 rounded-lg bg-white/90 border border-white/80 shadow-2xs shrink-0">
+              Wählen →
+            </span>
+          </button>
 
           <div className="grid grid-cols-4 gap-2 max-h-72 overflow-y-auto p-1">
             {[
+              { id: '__background__', label: 'Hintergrund', icon: Palette, active: true },
               { id: 'clock', label: 'Uhr', icon: Clock, active: true },
               { id: 'timer', label: 'Timer', icon: Timer, active: true },
               { id: 'visual-timer', label: 'Kuchen-Timer', icon: Hourglass, active: true },
@@ -100,7 +127,7 @@ export const BoardDock: React.FC<BoardDockProps> = ({
               { id: 'video', label: 'Video', icon: Video, active: true },
               { id: 'embed', label: 'Web-Tool', icon: Globe, active: true },
               { id: 'pdf', label: 'PDF', icon: FileText, active: true },
-              { id: 'hyperlink', label: 'Links', icon: LinkIcon, active: true },
+              { id: 'hyperlink', label: 'Links & Web', icon: LinkIcon, active: true },
               { id: 'poll', label: 'Abstimmung', icon: BarChart3, active: true },
             ].map((tool: { id: string; label: string; icon: any; active: boolean; milestone?: string }) => {
               const Icon = tool.icon;
@@ -109,13 +136,18 @@ export const BoardDock: React.FC<BoardDockProps> = ({
                   key={tool.id}
                   disabled={!tool.active}
                   onClick={() => {
-                    if (tool.active) {
+                    if (tool.id === '__background__') {
+                      onOpenBackgroundPicker();
+                      setShowMoreFlyout(false);
+                    } else if (tool.active) {
                       onAddWidget(tool.id as BoardWidgetType);
                       setShowMoreFlyout(false);
                     }
                   }}
                   className={`p-2 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all text-center relative ${
-                    tool.active
+                    tool.id === '__background__'
+                      ? 'bg-hbs-blue-soft/50 hover:bg-hbs-blue-soft text-hbs-blue border border-hbs-blue/30 shadow-2xs active:scale-95'
+                      : tool.active
                       ? 'bg-white/80 hover:bg-white text-hbs-slate-dark hover:text-hbs-blue border border-white/80 shadow-2xs active:scale-95'
                       : 'bg-black/5 text-hbs-slate-muted/50 border border-transparent cursor-not-allowed opacity-60'
                   }`}
