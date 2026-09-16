@@ -14,7 +14,6 @@ import {
   Globe
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
-import { SchoolClock } from './SchoolClock';
 
 export type ViewMode = 'bento' | 'compact' | 'smartboard';
 
@@ -71,11 +70,6 @@ export const Header: React.FC<HeaderProps> = ({
                 {PORTAL_CONFIG.portalTitle}
               </h1>
             </div>
-          </div>
-
-          {/* Center: Live School Clock */}
-          <div className="hidden md:flex items-center justify-center">
-            <SchoolClock />
           </div>
 
           {/* Right Action buttons */}
@@ -157,11 +151,6 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">Abmelden</span>
             </button>
           </div>
-        </div>
-
-        {/* Mobile Clock & Status on small screens */}
-        <div className="md:hidden pb-3 flex justify-center">
-          <SchoolClock />
         </div>
 
         {/* Search & Category Filter Sub-Bar */}

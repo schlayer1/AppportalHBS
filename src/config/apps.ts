@@ -40,8 +40,8 @@ export const PORTAL_CONFIG = {
 export const SCHOOL_APPS: SchoolApp[] = [
   {
     id: "schueler-translator",
-    title: "Schüler-Translator HBS",
-    shortTitle: "Schüler-Translator",
+    title: "Übersetzer Schüler",
+    shortTitle: "Übersetzer Schüler",
     subtitle: "Sprachbrücke für Unterricht & DaZ",
     description: "Schlanker, intuitiver Übersetzer für Schülerinnen und Schüler im Unterricht. Ideal für DaZ-Klassen und Sprachförderung per Schnellscan.",
     url: "https://schueler-translator-hbs.vercel.app/",
@@ -62,8 +62,8 @@ export const SCHOOL_APPS: SchoolApp[] = [
   },
   {
     id: "lehrer-translator",
-    title: "Translator HBS (Lehrkräfte)",
-    shortTitle: "Translator Kollegium",
+    title: "Übersetzer Lehrer",
+    shortTitle: "Übersetzer Lehrer",
     subtitle: "Dolmetscher für Eltern- & Fachgespräche",
     description: "Professioneller KI-Sprachmittler mit 2-Wege-Audio, geteiltem Bildschirmmodus und Sprachausgabe für Elterngespräche und Schulanmeldungen.",
     url: "https://translator-hbs.vercel.app/",
@@ -108,7 +108,7 @@ export const SCHOOL_APPS: SchoolApp[] = [
     subtitle: "Fehlzeiten, Mehrarbeit & AZV-Konten",
     shortTitle: "Vertretungsstatistik",
     description: "Dezentrale Erfassung von Ausfall- und Vertretungsstunden für das Kollegium im geschützten Kiosk-Modus und Cockpit für die Schulleitung.",
-    url: "https://schlayer1.github.io/Vertretungsstatistik/",
+    url: "https://schlayer1.github.io/Statistik/",
     category: "kollegium",
     badge: "Kollegium & Leitung",
     badgeColor: "blue",
@@ -129,7 +129,7 @@ export const SCHOOL_APPS: SchoolApp[] = [
     shortTitle: "Praxistag",
     subtitle: "Reflexion & Berufsorientierung",
     description: "Begleit-App für den Praxistag der Regelschüler: Tagesreflexion, Kompetenzerfassung, Masterprompts und Auswertungs-Dashboard für Lehrkräfte.",
-    url: "https://tag-in-der-praxis-2-0.vercel.app/",
+    url: "https://tag-in-der-praxis.vercel.app/",
     category: "unterricht",
     badge: "Praxistag & BO",
     badgeColor: "teal",
@@ -172,26 +172,26 @@ export const EXTERNAL_LINKS: ExternalLink[] = [
     id: "edupage",
     title: "EduPage",
     subtitle: "Stundenplan, Vertretungsplan & Noten",
-    description: "Zentrales Schulverwaltungs- und Kommunikationssystem der Regelschule Kahla für Lehrkräfte, Eltern und Schüler.",
-    url: "https://heimbuergeschule.edupage.org/",
+    description: "",
+    url: "https://regelschule-kahla.edupage.org/",
     icon: "GraduationCap",
-    badge: "Offizielles Schulsystem"
+    badge: "Schulsystem"
   },
   {
     id: "schulportal-thueringen",
-    title: "Thüringer Schulportal (TSP)",
-    subtitle: "Thillm Fortbildungen & Dienste",
-    description: "Zentraler Zugang zu den Online-Diensten des Freistaats Thüringen, Thillm-Fortbildungskatalog und amtlichen Verordnungen.",
-    url: "https://www.schulportal-thueringen.de/",
+    title: "TSP",
+    subtitle: "Thüringer Schulportal",
+    description: "",
+    url: "https://schulportal-thueringen.de/start",
     icon: "School",
     badge: "Land Thüringen"
   },
   {
     id: "schul-cloud-thueringen",
-    title: "Thüringer Schulcloud (TSC)",
-    subtitle: "Digitale Lernumgebung des Freistaats",
-    description: "Gemeinsame Dateiablage, Kurse, Aufgaben und datenschutzkonforme Kommunikationsplattform für Thüringer Schulen.",
-    url: "https://thueringen.schul-cloud.org/",
+    title: "TSC",
+    subtitle: "Thüringer Schulcloud",
+    description: "",
+    url: "https://schulportal-thueringen.de/thueringer_schulcloud/startseite_thueringer_schulcloud",
     icon: "CloudSun",
     badge: "Lernplattform"
   }

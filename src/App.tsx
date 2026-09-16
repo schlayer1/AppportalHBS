@@ -268,16 +268,14 @@ export default function App() {
               {!isSmartboardMode && selectedCategory === 'unterricht' && 'Apps für Unterricht & Schülerprojekte'}
               {!isSmartboardMode && selectedCategory === 'portale' && 'Offizielle Schulportale'}
             </h3>
-            <p className="text-xs sm:text-sm text-hbs-slate-muted mt-0.5">
-              {searchQuery 
-                ? `${filteredApps.length} ${filteredApps.length === 1 ? 'Ergebnis' : 'Ergebnisse'} für „${searchQuery}“`
-                : isSmartboardMode
-                ? 'Schüler können die QR-Codes direkt von der Wand oder vom Smartboard scannen.'
-                : viewMode === 'compact'
-                ? 'Tippen Sie auf „Starten“ oder auf die Kachel für Details & QR-Code.'
-                : 'Klicken Sie auf 🔄 für 3D-Details oder ⭐ zum Favorisieren.'
-              }
-            </p>
+            {(searchQuery || isSmartboardMode) && (
+              <p className="text-xs sm:text-sm text-hbs-slate-muted mt-0.5">
+                {searchQuery 
+                  ? `${filteredApps.length} ${filteredApps.length === 1 ? 'Ergebnis' : 'Ergebnisse'} für „${searchQuery}“`
+                  : 'Schüler können die QR-Codes direkt von der Wand oder vom Smartboard scannen.'
+                }
+              </p>
+            )}
           </div>
         </div>
 
