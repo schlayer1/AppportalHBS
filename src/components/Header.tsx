@@ -8,7 +8,10 @@ import {
   Wrench,
   LayoutGrid,
   Grid2X2,
-  Projector
+  Projector,
+  Coffee,
+  GraduationCap,
+  Globe
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 import { SchoolClock } from './SchoolClock';
@@ -168,43 +171,47 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`min-h-[40px] px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-150 active:scale-[0.98] shrink-0 select-none ${
+              className={`min-h-[40px] px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-150 active:scale-[0.98] shrink-0 select-none flex items-center gap-1.5 ${
                 selectedCategory === 'all'
                   ? 'bg-hbs-blue text-white shadow-xs shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]'
                   : 'bg-hbs-blue-soft/70 text-hbs-slate-muted hover:bg-hbs-blue-soft hover:text-hbs-blue border border-hbs-blue/10'
               }`}
             >
-              Alle Apps (<span className="tabular-nums">{appCount}</span>)
+              <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
+              <span>Alle Apps</span> (<span className="tabular-nums">{appCount}</span>)
             </button>
             <button
               onClick={() => setSelectedCategory('kollegium')}
-              className={`min-h-[40px] px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-150 active:scale-[0.98] shrink-0 select-none ${
+              className={`min-h-[40px] px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-150 active:scale-[0.98] shrink-0 select-none flex items-center gap-1.5 ${
                 selectedCategory === 'kollegium'
                   ? 'bg-hbs-blue text-white shadow-xs shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]'
                   : 'bg-hbs-blue-soft/70 text-hbs-slate-muted hover:bg-hbs-blue-soft hover:text-hbs-blue border border-hbs-blue/10'
               }`}
             >
-              ☕ Lehrerzimmer & Kollegium
+              <Coffee className="w-3.5 h-3.5 shrink-0 text-hbs-teal-deep" />
+              <span>Lehrerzimmer & Kollegium</span>
             </button>
             <button
               onClick={() => setSelectedCategory('unterricht')}
-              className={`min-h-[40px] px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-150 active:scale-[0.98] shrink-0 select-none ${
+              className={`min-h-[40px] px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-150 active:scale-[0.98] shrink-0 select-none flex items-center gap-1.5 ${
                 selectedCategory === 'unterricht'
                   ? 'bg-hbs-blue text-white shadow-xs shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]'
                   : 'bg-hbs-blue-soft/70 text-hbs-slate-muted hover:bg-hbs-blue-soft hover:text-hbs-blue border border-hbs-blue/10'
               }`}
             >
-              🎒 Unterricht & Schüler
+              <GraduationCap className="w-3.5 h-3.5 shrink-0 text-hbs-amber-dark" />
+              <span>Unterricht & Schüler</span>
             </button>
             <button
               onClick={() => setSelectedCategory('portale')}
-              className={`min-h-[40px] px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-150 active:scale-[0.98] shrink-0 select-none ${
+              className={`min-h-[40px] px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-150 active:scale-[0.98] shrink-0 select-none flex items-center gap-1.5 ${
                 selectedCategory === 'portale'
                   ? 'bg-hbs-blue text-white shadow-xs shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]'
                   : 'bg-hbs-blue-soft/70 text-hbs-slate-muted hover:bg-hbs-blue-soft hover:text-hbs-blue border border-hbs-blue/10'
               }`}
             >
-              🌐 Schul-Portale
+              <Globe className="w-3.5 h-3.5 shrink-0 text-hbs-blue" />
+              <span>Schul-Portale</span>
             </button>
           </div>
 

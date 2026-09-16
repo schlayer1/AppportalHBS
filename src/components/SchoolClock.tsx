@@ -11,12 +11,12 @@ interface Period {
 const SCHEDULE: Period[] = [
   { start: 7 * 60 + 45, end: 8 * 60 + 30, label: '1. Stunde' },
   { start: 8 * 60 + 35, end: 9 * 60 + 20, label: '2. Stunde' },
-  { start: 9 * 60 + 20, end: 9 * 60 + 35, label: 'Frühstückspause 🥐', isBreak: true },
+  { start: 9 * 60 + 20, end: 9 * 60 + 35, label: 'Frühstückspause', isBreak: true },
   { start: 9 * 60 + 35, end: 10 * 60 + 20, label: '3. Stunde' },
   { start: 10 * 60 + 25, end: 11 * 60 + 10, label: '4. Stunde' },
-  { start: 11 * 60 + 10, end: 11 * 60 + 35, label: 'Große Hofpause ☀️', isBreak: true },
+  { start: 11 * 60 + 10, end: 11 * 60 + 35, label: 'Große Hofpause', isBreak: true },
   { start: 11 * 60 + 35, end: 12 * 60 + 20, label: '5. Stunde' },
-  { start: 12 * 60 + 20, end: 12 * 60 + 45, label: 'Mittagspause 🥗', isBreak: true },
+  { start: 12 * 60 + 20, end: 12 * 60 + 45, label: 'Mittagspause', isBreak: true },
   { start: 12 * 60 + 45, end: 13 * 60 + 30, label: '6. Stunde' },
   { start: 13 * 60 + 35, end: 14 * 60 + 20, label: '7. Stunde' },
 ];
@@ -39,7 +39,7 @@ export const SchoolClock: React.FC = () => {
   let isBreakTime = false;
 
   if (day === 0 || day === 6) {
-    statusText = 'Schönes Wochenende ✨';
+    statusText = 'Schönes Wochenende';
   } else if (currentMinutes < 7 * 60 + 45) {
     statusText = 'Guten Morgen • Vor Beginn';
   } else if (currentMinutes > 14 * 60 + 20) {
