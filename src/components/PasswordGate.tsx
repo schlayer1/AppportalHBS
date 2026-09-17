@@ -32,9 +32,14 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({ onAuthenticated }) =
   const [hasError, setHasError] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  // Filter active teachers by search
+  // Filter active teachers by search (Schulleitung ausgeschlossen, da eigenes Admin-Feld)
   const filteredUsers = useMemo(() => {
-    return users.filter(u => u.active !== false && u.name.toLowerCase().includes(searchQuery.toLowerCase().trim()));
+    return users.filter(u => 
+      u.active !== false && 
+      u.role !== 'admin' && 
+      !u.name.toLowerCase().includes('schulleitung') && 
+      u.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
+    );
   }, [users, searchQuery]);
 
   // Handle Teacher PIN Submit
@@ -250,7 +255,7 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({ onAuthenticated }) =
                   />
                 </div>
                 <span className="text-[10px] text-hbs-slate-muted mt-1 block">
-                  PIN wie in der Vertretungsstatistik (Standard: 1234 oder persönlich vergeben).
+                  Persönliche 4-stellige PIN wie in der Vertretungsstatistik.
                 </span>
               </div>
 

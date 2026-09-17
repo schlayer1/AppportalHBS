@@ -33,9 +33,8 @@ try {
   console.warn("Firebase Init-Warnung (Offline-Fallback wird genutzt):", err);
 }
 
-// Initial seed teachers matching official Heimbürgeschule Kollegiumsliste
+// Initial seed teachers matching official Heimbürgeschule Kollegiumsliste (ohne Schulleitung, da extra Login-Feld)
 export const INITIAL_SEED_TEACHERS: PortalUser[] = [
-  { id: "t-admin", name: "Schulleitung (Admin)", pin: "1234", role: "admin", active: true, createdAt: Date.now() },
   { id: "t-allerdt", name: "Allerdt", pin: "6300", role: "teacher", active: true, createdAt: Date.now() },
   { id: "t-dengler", name: "Dengler", pin: "8991", role: "teacher", active: true, createdAt: Date.now() },
   { id: "t-funk", name: "Funk", pin: "1091", role: "teacher", active: true, createdAt: Date.now() },
@@ -186,10 +185,12 @@ export const syncTeachersFromVertretungsstatistik = async (): Promise<{ added: n
     let updated = 0;
 
     sourceTeachers.forEach((st: any) => {
-      if (!st.name) return;
+      if (!st.name || st.name.toLowerCase().includes('schulleitung')) return;
       const existingIdx = existingUsers.findIndex(u => u.name.trim().toLowerCase() === st.name.trim().toLowerCase());
       
-      const pinToUse = st.pin && String(st.pin).length === 4 ? String(st.pin) : "1234";
+      const pinToUse = st.pin && String(st.pin).length === 4 
+        ? String(st.pin) 
+        : Math.floor(1000 + Math.random() * 9000).toString();
 
       if (existingIdx >= 0) {
         // Update existing user's PIN if provided

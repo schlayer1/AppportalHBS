@@ -62,7 +62,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserName.trim()) return;
-    const pin = newUserPin.trim().length === 4 ? newUserPin.trim() : '1234';
+    const pin = newUserPin.trim().length === 4 
+      ? newUserPin.trim() 
+      : Math.floor(1000 + Math.random() * 9000).toString();
 
     const newUser: PortalUser = {
       id: `user-${Date.now()}`,
@@ -91,7 +93,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
   // Save Edit User
   const handleSaveEdit = async () => {
     if (!editingUserId || !editName.trim()) return;
-    const pin = editPin.trim().length === 4 ? editPin.trim() : '1234';
+    const currentUserObj = users.find(u => u.id === editingUserId);
+    const pin = editPin.trim().length === 4 
+      ? editPin.trim() 
+      : (currentUserObj?.pin || Math.floor(1000 + Math.random() * 9000).toString());
 
     const updated = users.map(u => {
       if (u.id === editingUserId) {
@@ -315,7 +320,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                       maxLength={4}
                       value={newUserPin}
                       onChange={(e) => setNewUserPin(e.target.value)}
-                      placeholder="4-stellige PIN (Standard: 1234)"
+                      placeholder="4-stellige PIN (z. B. 5821)"
                       className="px-3 py-1.5 text-xs rounded-xl bg-slate-50 border border-slate-200 font-mono font-bold"
                     />
                     <select
