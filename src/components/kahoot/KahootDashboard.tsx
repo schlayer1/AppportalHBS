@@ -13,11 +13,13 @@ import {
   Check,
   Flame,
   Award,
-  Users
+  Users,
+  Printer
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { KahootGame, KahootQuestion } from '../../types/kahootTypes';
 import { KahootAiModal } from './KahootAiModal';
+import { KahootWorksheetModal } from './KahootWorksheetModal';
 
 interface KahootDashboardProps {
   onBackToPortal: () => void;
@@ -66,6 +68,9 @@ export const KahootDashboard: React.FC<KahootDashboardProps> = ({
   // AI Modal state
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [targetGameForAi, setTargetGameForAi] = useState<KahootGame | null>(null);
+
+  // Worksheet Modal state
+  const [worksheetGame, setWorksheetGame] = useState<KahootGame | null>(null);
 
   // Filter games
   const myGames = kahootGames.filter(
@@ -407,6 +412,14 @@ export const KahootDashboard: React.FC<KahootDashboardProps> = ({
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                     </button>
+
+                    <button
+                      onClick={() => setWorksheetGame(game)}
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all active:scale-95"
+                      title="Notfall-Arbeitsblatt & Lösungsbogen drucken (A4)"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
                   <div className="flex items-center gap-1">
@@ -463,6 +476,14 @@ export const KahootDashboard: React.FC<KahootDashboardProps> = ({
         defaultSubject={targetGameForAi?.subject || selectedSubject !== 'Alle Fächer' ? selectedSubject : 'Mathematik'}
         defaultGrade={targetGameForAi?.grade || 'Klasse 7'}
       />
+
+      {/* Emergency Worksheet Modal */}
+      {worksheetGame && (
+        <KahootWorksheetModal
+          game={worksheetGame}
+          onClose={() => setWorksheetGame(null)}
+        />
+      )}
 
     </div>
   );

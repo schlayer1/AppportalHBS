@@ -4,6 +4,8 @@ export type MentiSlideType =
   | 'open'          // Offene Fragen / Sprechblasen-Pinnwand
   | 'scales'        // Bewertungsskalen (Likert 1-5)
   | 'quiz'          // Quiz-Wettbewerb mit Zeitlimit & Leaderboard
+  | 'matrix'        // 2x2 Matrix / Priorisierungs-Quadrant
+  | 'ranking'       // Rangfolge / Sortieraufgabe
   | 'content';      // Infofolie (Text, Merksatz)
 
 export interface MentiChoiceOption {
@@ -17,6 +19,28 @@ export interface MentiScaleStatement {
   statement: string;
   lowLabel?: string;  // e.g. "Stimmt gar nicht"
   highLabel?: string; // e.g. "Stimmt voll"
+}
+
+export interface MentiMatrixItem {
+  id: string;
+  label: string;
+}
+
+export interface MentiMatrixConfig {
+  xLowLabel: string;   // e.g. "Geringer Nutzen"
+  xHighLabel: string;  // e.g. "Hoher Nutzen"
+  yLowLabel: string;   // e.g. "Geringer Aufwand"
+  yHighLabel: string;  // e.g. "Hoher Aufwand"
+  quadrantTL?: string;
+  quadrantTR?: string;
+  quadrantBL?: string;
+  quadrantBR?: string;
+  items?: MentiMatrixItem[];
+}
+
+export interface MentiRankingItem {
+  id: string;
+  text: string;
 }
 
 export interface MentiSlide {
@@ -34,6 +58,12 @@ export interface MentiSlide {
 
   // Scales options
   scales?: MentiScaleStatement[];
+
+  // Matrix options
+  matrixConfig?: MentiMatrixConfig;
+
+  // Ranking options
+  rankingItems?: MentiRankingItem[];
 
   // Quiz options
   timeLimitSeconds?: number; // 15, 30, 45, 60

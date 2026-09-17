@@ -20,7 +20,8 @@ import {
   MoreVertical,
   BarChart2,
   Flame,
-  Users
+  Users,
+  QrCode
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +32,7 @@ interface HeaderProps {
   onLogout: () => void;
   onOpenInstallGuide: () => void;
   onOpenQuickTools: () => void;
+  onOpenTableTent?: () => void;
   onOpenAdminPanel?: () => void;
   onOpenAddCustomLink?: () => void;
   isReorderMode?: boolean;
@@ -58,6 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenInstallGuide,
   onOpenQuickTools,
+  onOpenTableTent,
   onOpenAdminPanel,
   onOpenAddCustomLink,
   isReorderMode,
@@ -190,6 +193,19 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
 
+            {/* Table Tent Generator modal trigger (xl:flex) */}
+            {onOpenTableTent && (
+              <button
+                onClick={onOpenTableTent}
+                className="hidden xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-teal-700 hover:bg-teal-50 border border-transparent hover:border-teal-200 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                title="QR-Code Tischaufsteller für Schülertische drucken"
+                aria-label="Tischaufsteller öffnen"
+              >
+                <QrCode className="w-4 h-4 text-teal-600 shrink-0" />
+                <span>Aufsteller</span>
+              </button>
+            )}
+
             {/* Guide modal trigger (xl:flex) */}
             <button
               onClick={onOpenInstallGuide}
@@ -254,6 +270,16 @@ export const Header: React.FC<HeaderProps> = ({
                       >
                         <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
                         <span>{isReorderMode ? 'Sortieren beenden' : 'Apps frei sortieren'}</span>
+                      </button>
+                    )}
+
+                    {onOpenTableTent && (
+                      <button
+                        onClick={() => { onOpenTableTent(); setIsMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-teal-800 hover:bg-teal-50 flex items-center gap-2"
+                      >
+                        <QrCode className="w-3.5 h-3.5 text-teal-600" />
+                        <span>Tischaufsteller drucken</span>
                       </button>
                     )}
 

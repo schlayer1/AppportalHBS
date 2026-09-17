@@ -34,12 +34,16 @@ export interface KahootGame {
   timesPlayed?: number;
 }
 
+export type KahootGameMode = 'individual' | 'team';
+
 export interface KahootParticipant {
   id: string;
   nickname: string;
   avatar: string; // emoji e.g. 🦊, 🚀, 🦁, ⚡
   score: number;
   streak: number;
+  isTeam?: boolean;
+  teamMembers?: string[];
   lastAnswerId?: string;
   lastAnswerTime?: number;
   lastAnswerCorrect?: boolean;
@@ -59,6 +63,7 @@ export interface KahootLiveSession {
   gameTitle: string;
   sessionCode: string; // 6 digits e.g. "839 201"
   stage: KahootSessionStage;
+  gameMode?: KahootGameMode;
   currentQuestionIndex: number;
   totalQuestions: number;
   activeQuestion?: KahootQuestion;

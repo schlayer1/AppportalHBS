@@ -16,7 +16,9 @@ import {
   BarChart2, 
   MessageSquare, 
   Cloud, 
-  Sparkles 
+  Sparkles,
+  Grid2X2,
+  ListOrdered
 } from 'lucide-react';
 import { MentiPresentation, MentiSlide, MentiSlideType } from '../../types/mentiTypes';
 import { useAuth } from '../../context/AuthContext';
@@ -32,6 +34,8 @@ const SLIDE_TYPE_INFO: Record<MentiSlideType, { label: string; icon: any; color:
   choice: { label: 'Multiple Choice', icon: BarChart2, color: 'text-teal-600 bg-teal-50', desc: 'Klassische Abstimmung mit animierten Balkendiagrammen' },
   open: { label: 'Offene Frage', icon: MessageSquare, color: 'text-indigo-600 bg-indigo-50', desc: 'Schüler tippen Sätze oder Fragen, sichtbar als Kärtchen-Mosaik' },
   scales: { label: 'Bewertungsskala', icon: Sliders, color: 'text-amber-600 bg-amber-50', desc: 'Thesen mit Schiebereglern (1-5 Sterne) bewerten' },
+  matrix: { label: '2×2 Matrix', icon: Grid2X2, color: 'text-violet-600 bg-violet-50', desc: 'Thesen auf 2 Achsen einordnen (z. B. Nutzen vs. Aufwand, Pro vs. Kontra)' },
+  ranking: { label: 'Rangfolge / Ranking', icon: ListOrdered, color: 'text-cyan-600 bg-cyan-50', desc: 'Schüler ordnen Elemente per Drag & Drop in die richtige Reihenfolge' },
   quiz: { label: 'Quiz-Rennen', icon: Award, color: 'text-rose-600 bg-rose-50', desc: 'Wettbewerb mit Zeitlimit, Punkten und Live-Treppchen' },
   content: { label: 'Info & Merksatz', icon: FileText, color: 'text-emerald-600 bg-emerald-50', desc: 'Erklärungen, Hausaufgaben oder Überschriften ohne Abstimmung' },
 };
@@ -94,6 +98,8 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
                 type === 'choice' ? 'Welche Option ist richtig?' :
                 type === 'open' ? 'Was denkst du darüber?' :
                 type === 'scales' ? 'Bewerte die folgenden Thesen:' :
+                type === 'matrix' ? 'Ordne die Elemente im Koordinatenfeld ein:' :
+                type === 'ranking' ? 'Bringe die Elemente in die richtige Reihenfolge:' :
                 type === 'quiz' ? 'Schnelligkeitsfrage: Wer weiß es?' : 'Merksatz zur heutigen Stunde',
       maxWordsPerUser: type === 'wordcloud' ? 3 : undefined,
       options: (type === 'choice' || type === 'quiz') ? [
@@ -104,6 +110,21 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
       scales: type === 'scales' ? [
         { id: 'sc-1', statement: 'Ich habe das Prinzip verstanden', lowLabel: 'Nein', highLabel: 'Ja' },
         { id: 'sc-2', statement: 'Die Aufgabe war leicht', lowLabel: 'Schwer', highLabel: 'Leicht' }
+      ] : undefined,
+      matrixConfig: type === 'matrix' ? {
+        xLowLabel: 'Geringer Nutzen',
+        xHighLabel: 'Hoher Nutzen',
+        yLowLabel: 'Geringer Aufwand',
+        yHighLabel: 'Hoher Aufwand',
+        items: [
+          { id: 'mat-1', label: 'These A' },
+          { id: 'mat-2', label: 'These B' }
+        ]
+      } : undefined,
+      rankingItems: type === 'ranking' ? [
+        { id: 'rnk-1', text: 'Erster Schritt (zuerst)' },
+        { id: 'rnk-2', text: 'Zweiter Schritt' },
+        { id: 'rnk-3', text: 'Dritter Schritt (zuletzt)' }
       ] : undefined,
       timeLimitSeconds: type === 'quiz' ? 20 : undefined,
       points: type === 'quiz' ? 1000 : undefined,
@@ -488,6 +509,56 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
                   ))}
                 </div>
               )}
+
+              {/* Matrix 2x2 Preview */}
+              {activeSlide.type === 'matrix' && (
+                <div className="max-w-md mx-auto relative bg-white/5 p-5 rounded-2xl border border-white/10">
+                  <div className="text-center text-[10px] font-bold text-teal-300 uppercase mb-1">
+                    ▲ {activeSlide.matrixConfig?.yHighLabel || 'Hoher Aufwand'}
+                  </div>
+                  <div className="relative aspect-square max-h-52 w-full mx-auto border-2 border-dashed border-white/20 rounded-xl bg-slate-900/40 p-2 flex items-center justify-center">
+                    <div className="absolute inset-x-0 top-1/2 h-[1px] bg-white/30" />
+                    <div className="absolute inset-y-0 left-1/2 w-[1px] bg-white/30" />
+                    <div className="grid grid-cols-2 grid-rows-2 w-full h-full text-[9px] font-bold text-slate-400 p-2">
+                      <span className="text-left">II</span>
+                      <span className="text-right">I</span>
+                      <span className="text-left self-end">III</span>
+                      <span className="text-right self-end">IV</span>
+                    </div>
+                    {/* Sample items badge */}
+                    <div className="absolute top-1/3 right-1/4 px-2 py-1 bg-teal-500 text-white rounded-md text-[10px] font-bold shadow-md animate-pulse">
+                      📍 {activeSlide.matrixConfig?.items?.[0]?.label || 'These A'}
+                    </div>
+                  </div>
+                  <div className="text-center text-[10px] font-bold text-slate-400 uppercase mt-1">
+                    ▼ {activeSlide.matrixConfig?.yLowLabel || 'Geringer Aufwand'}
+                  </div>
+                  <div className="flex justify-between text-[10px] font-bold text-slate-300 mt-1 px-1">
+                    <span>◄ {activeSlide.matrixConfig?.xLowLabel || 'Geringer Nutzen'}</span>
+                    <span>{activeSlide.matrixConfig?.xHighLabel || 'Hoher Nutzen'} ►</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Ranking Preview */}
+              {activeSlide.type === 'ranking' && (
+                <div className="max-w-md mx-auto space-y-2">
+                  {(activeSlide.rankingItems || []).map((item, idx) => (
+                    <div 
+                      key={item.id || idx}
+                      className="p-3 bg-white/10 border border-white/15 rounded-xl flex items-center gap-3 text-left"
+                    >
+                      <span className="w-7 h-7 rounded-lg bg-teal-500 text-white font-black text-xs flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <span className="text-xs font-bold text-slate-200 flex-1 truncate">
+                        {item.text}
+                      </span>
+                      <span className="text-slate-400 text-xs">≡</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Bottom Preview Footer */}
@@ -788,6 +859,202 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
                   placeholder="Erster Punkt&#10;Zweiter Punkt"
                 />
               </div>
+            </div>
+          )}
+
+          {/* Specific Settings for 2x2 Matrix */}
+          {activeSlide.type === 'matrix' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block">
+                  Achsenbeschriftungen
+                </label>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block mb-0.5">X-Achse links:</span>
+                    <input
+                      type="text"
+                      value={activeSlide.matrixConfig?.xLowLabel || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateActiveSlide(s => ({
+                          ...s,
+                          matrixConfig: { ...s.matrixConfig, xLowLabel: val } as any
+                        }));
+                      }}
+                      className="w-full p-1.5 rounded-lg bg-slate-50 border border-slate-200 font-bold"
+                      placeholder="Geringer Nutzen"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block mb-0.5">X-Achse rechts:</span>
+                    <input
+                      type="text"
+                      value={activeSlide.matrixConfig?.xHighLabel || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateActiveSlide(s => ({
+                          ...s,
+                          matrixConfig: { ...s.matrixConfig, xHighLabel: val } as any
+                        }));
+                      }}
+                      className="w-full p-1.5 rounded-lg bg-slate-50 border border-slate-200 font-bold"
+                      placeholder="Hoher Nutzen"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block mb-0.5">Y-Achse unten:</span>
+                    <input
+                      type="text"
+                      value={activeSlide.matrixConfig?.yLowLabel || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateActiveSlide(s => ({
+                          ...s,
+                          matrixConfig: { ...s.matrixConfig, yLowLabel: val } as any
+                        }));
+                      }}
+                      className="w-full p-1.5 rounded-lg bg-slate-50 border border-slate-200 font-bold"
+                      placeholder="Geringer Aufwand"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block mb-0.5">Y-Achse oben:</span>
+                    <input
+                      type="text"
+                      value={activeSlide.matrixConfig?.yHighLabel || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateActiveSlide(s => ({
+                          ...s,
+                          matrixConfig: { ...s.matrixConfig, yHighLabel: val } as any
+                        }));
+                      }}
+                      className="w-full p-1.5 rounded-lg bg-slate-50 border border-slate-200 font-bold"
+                      placeholder="Hoher Aufwand"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block">
+                    Elemente / Thesen ({(activeSlide.matrixConfig?.items || []).length})
+                  </label>
+                  <button
+                    onClick={() => {
+                      const items = activeSlide.matrixConfig?.items || [];
+                      updateActiveSlide(s => ({
+                        ...s,
+                        matrixConfig: {
+                          ...s.matrixConfig,
+                          items: [...items, { id: `mat-${Date.now()}`, label: `These ${items.length + 1}` }]
+                        } as any
+                      }));
+                    }}
+                    className="text-[10px] font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Element
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  {(activeSlide.matrixConfig?.items || []).map((item, idx) => (
+                    <div key={item.id || idx} className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={item.label}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          updateActiveSlide(s => {
+                            const updated = [...(s.matrixConfig?.items || [])];
+                            updated[idx] = { ...updated[idx], label: val };
+                            return { ...s, matrixConfig: { ...s.matrixConfig, items: updated } as any };
+                          });
+                        }}
+                        className="flex-1 p-1.5 text-xs rounded-lg bg-slate-50 border border-slate-200 font-medium"
+                      />
+                      {(activeSlide.matrixConfig?.items || []).length > 1 && (
+                        <button
+                          onClick={() => {
+                            updateActiveSlide(s => ({
+                              ...s,
+                              matrixConfig: {
+                                ...s.matrixConfig,
+                                items: (s.matrixConfig?.items || []).filter((_, i) => i !== idx)
+                              } as any
+                            }));
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Specific Settings for Ranking */}
+          {activeSlide.type === 'ranking' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block">
+                  Reihenfolge-Elemente ({(activeSlide.rankingItems || []).length})
+                </label>
+                {(activeSlide.rankingItems || []).length < 6 && (
+                  <button
+                    onClick={() => {
+                      const items = activeSlide.rankingItems || [];
+                      updateActiveSlide(s => ({
+                        ...s,
+                        rankingItems: [...items, { id: `rnk-${Date.now()}`, text: `Neues Element ${items.length + 1}` }]
+                      }));
+                    }}
+                    className="text-[10px] font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Element
+                  </button>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                {(activeSlide.rankingItems || []).map((item, idx) => (
+                  <div key={item.id || idx} className="flex items-center gap-1.5">
+                    <span className="w-5 text-center text-xs font-bold text-slate-400">{idx + 1}.</span>
+                    <input
+                      type="text"
+                      value={item.text}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateActiveSlide(s => {
+                          const updated = [...(s.rankingItems || [])];
+                          updated[idx] = { ...updated[idx], text: val };
+                          return { ...s, rankingItems: updated };
+                        });
+                      }}
+                      className="flex-1 p-1.5 text-xs rounded-lg bg-slate-50 border border-slate-200 font-medium"
+                    />
+                    {(activeSlide.rankingItems || []).length > 2 && (
+                      <button
+                        onClick={() => {
+                          updateActiveSlide(s => ({
+                            ...s,
+                            rankingItems: (s.rankingItems || []).filter((_, i) => i !== idx)
+                          }));
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Tipp: Die Reihenfolge hier entspricht der Vorgabe. Schüler sortieren sie per Drag & Drop auf dem Smartphone.
+              </p>
             </div>
           )}
         </div>

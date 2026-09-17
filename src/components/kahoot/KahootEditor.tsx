@@ -11,11 +11,13 @@ import {
   Award, 
   Check, 
   ChevronUp, 
-  ChevronDown
+  ChevronDown,
+  Printer
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { KahootGame, KahootQuestion, KahootOption, KahootShape } from '../../types/kahootTypes';
 import { KahootAiModal } from './KahootAiModal';
+import { KahootWorksheetModal } from './KahootWorksheetModal';
 
 interface KahootEditorProps {
   initialGame: KahootGame;
@@ -51,6 +53,7 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState<number>(0);
   const [isSavedRecently, setIsSavedRecently] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isWorksheetOpen, setIsWorksheetOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<'deck' | 'editor'>('editor');
 
   const currentQ: KahootQuestion | undefined = game.questions[selectedQuestionIndex];
@@ -217,6 +220,15 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
           >
             <Sparkles className="w-4 h-4" />
             <span className="hidden md:inline">✨ KI-Fragen ergänzen</span>
+          </button>
+
+          <button
+            onClick={() => setIsWorksheetOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs transition-all active:scale-95"
+            title="A4 Notfall-Arbeitsblatt & Lösungsbogen drucken"
+          >
+            <Printer className="w-4 h-4" />
+            <span className="hidden lg:inline">Arbeitsblatt</span>
           </button>
 
           <button
@@ -593,6 +605,14 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
         defaultSubject={game.subject || 'Mathematik'}
         defaultGrade={game.grade || 'Klasse 7'}
       />
+
+      {/* Emergency Worksheet Modal */}
+      {isWorksheetOpen && (
+        <KahootWorksheetModal
+          game={game}
+          onClose={() => setIsWorksheetOpen(false)}
+        />
+      )}
 
     </div>
   );

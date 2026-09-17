@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Flame, 
-  X
+  X,
+  Users
 } from 'lucide-react';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -47,6 +48,10 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
     return localStorage.getItem('hbs_kahoot_nickname') || '';
   });
   const [selectedAvatar, setSelectedAvatar] = useState<string>('🦊');
+
+  // Team mode state
+  const [teamMembersStr, setTeamMembersStr] = useState<string>('');
+  const [teamConsultationLeft, setTeamConsultationLeft] = useState<number>(0);
 
   // Answer state for current question
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
@@ -115,13 +120,27 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
     }
   }, [pinCode]);
 
-  // When question changes, reset selected answer
+  // When question changes, reset selected answer and start team consultation countdown
   useEffect(() => {
     if (session && session.currentQuestionIndex !== lastQuestionIndex) {
       setLastQuestionIndex(session.currentQuestionIndex);
       setSelectedOptionId(null);
+      if (session.gameMode === 'team') {
+        setTeamConsultationLeft(5);
+      } else {
+        setTeamConsultationLeft(0);
+      }
     }
-  }, [session?.currentQuestionIndex, lastQuestionIndex]);
+  }, [session?.currentQuestionIndex, lastQuestionIndex, session?.gameMode]);
+
+  // Team consultation 5s countdown
+  useEffect(() => {
+    if (teamConsultationLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTeamConsultationLeft(prev => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [teamConsultationLeft]);
 
   // Find my current participant state in session
   const myParticipant = session?.participants?.find(p => p.id === studentId);
@@ -143,12 +162,19 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
 
     localStorage.setItem('hbs_kahoot_nickname', nickname.trim());
 
+    const isTeam = session?.gameMode === 'team';
+    const members = teamMembersStr
+      ? teamMembersStr.split(',').map(s => s.trim()).filter(Boolean)
+      : undefined;
+
     const newParticipant: KahootParticipant = {
       id: studentId,
       nickname: nickname.trim(),
       avatar: selectedAvatar,
       score: 0,
-      streak: 0
+      streak: 0,
+      isTeam,
+      teamMembers: members
     };
 
     // Broadcast locally
@@ -302,17 +328,19 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
       {hasEnteredPin && !hasJoinedLobby && (
         <main className="flex-1 flex flex-col items-center justify-center p-6 max-w-sm mx-auto w-full">
           <h1 className="text-2xl font-black text-center mb-1">
-            Wähle deinen Namen
+            {session?.gameMode === 'team' ? '👥 Eure Tischgruppe' : 'Wähle deinen Namen'}
           </h1>
           <p className="text-xs text-purple-200/80 text-center mb-5">
-            Wähle ein Emoji und deinen Spitznamen für das Quiz.
+            {session?.gameMode === 'team' 
+              ? 'Wählt euer Maskottchen und gebt euren Team-Namen ein.' 
+              : 'Wähle ein Emoji und deinen Spitznamen für das Quiz.'}
           </p>
 
-          <form onSubmit={handleJoinLobby} className="w-full space-y-5">
+          <form onSubmit={handleJoinLobby} className="w-full space-y-4">
             {/* Avatar Selector */}
             <div>
               <label className="text-[11px] font-black uppercase tracking-wider text-purple-300 block mb-2 text-center">
-                Dein Avatar:
+                {session?.gameMode === 'team' ? 'Team-Maskottchen:' : 'Dein Avatar:'}
               </label>
               <div className="grid grid-cols-6 gap-2 p-2 rounded-2xl bg-white/5 border border-white/10">
                 {AVATARS.map(emoji => (
@@ -332,25 +360,45 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
               </div>
             </div>
 
-            {/* Nickname Input */}
+            {/* Nickname / Team Name Input */}
             <div>
+              <label className="text-[11px] font-black uppercase tracking-wider text-purple-300 block mb-1">
+                {session?.gameMode === 'team' ? 'Team-Name:' : 'Spitzname:'}
+              </label>
               <input
                 type="text"
                 value={nickname}
                 onChange={e => setNickname(e.target.value)}
-                placeholder="Dein Vorname oder Nick..."
-                maxLength={18}
+                placeholder={session?.gameMode === 'team' ? 'z. B. Einstein-Falken oder Tisch 2' : 'Dein Vorname oder Nick...'}
+                maxLength={24}
                 className="w-full p-3.5 rounded-2xl bg-white/10 border-2 border-white/20 text-base font-bold text-center text-white placeholder:text-white/40 focus:border-purple-400 focus:outline-none"
                 autoFocus
               />
             </div>
+
+            {/* Team Members Input (if team mode) */}
+            {session?.gameMode === 'team' && (
+              <div>
+                <label className="text-[11px] font-black uppercase tracking-wider text-purple-300 block mb-1">
+                  Team-Mitglieder (optional):
+                </label>
+                <input
+                  type="text"
+                  value={teamMembersStr}
+                  onChange={e => setTeamMembersStr(e.target.value)}
+                  placeholder="z. B. Anna, Tim, Felix, Sophie"
+                  maxLength={50}
+                  className="w-full p-3 rounded-2xl bg-white/10 border-2 border-white/20 text-xs font-bold text-center text-white placeholder:text-white/40 focus:border-purple-400 focus:outline-none"
+                />
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={!nickname.trim()}
               className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-95 font-black text-sm tracking-wider uppercase transition-all shadow-xl active:scale-95 disabled:opacity-40"
             >
-              Ins Spiel einsteigen! 🚀
+              {session?.gameMode === 'team' ? 'Als Team beitreten! 👥' : 'Ins Spiel einsteigen! 🚀'}
             </button>
           </form>
         </main>
@@ -362,11 +410,21 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
           <div className="w-24 h-24 rounded-full bg-purple-600/30 border-4 border-purple-400 flex items-center justify-center text-5xl animate-pulse">
             {selectedAvatar}
           </div>
-          <h2 className="text-2xl font-black">
-            Du bist im Spiel, {nickname}!
-          </h2>
-          <p className="text-sm text-purple-200/90 font-medium">
-            Siehst du deinen Namen vorne auf dem Smartboard? Die Lehrkraft startet das Quiz in Kürze...
+          <div className="space-y-1">
+            <span className="text-xs uppercase font-black tracking-widest text-purple-300">
+              {session?.gameMode === 'team' ? 'Team registriert' : 'Du bist dabei!'}
+            </span>
+            <h2 className="text-2xl font-black">
+              {nickname}
+            </h2>
+            {teamMembersStr && (
+              <p className="text-xs text-purple-200/80 font-medium">
+                Mitglieder: {teamMembersStr}
+              </p>
+            )}
+          </div>
+          <p className="text-xs text-purple-200/70 pt-2">
+            Warte auf den Start durch die Lehrkraft am Smartboard...
           </p>
         </main>
       )}
@@ -402,27 +460,47 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
               </p>
             </div>
           ) : (
-            // Gamepad Buttons
-            <div className="flex-1 grid grid-cols-2 gap-3 h-full max-h-[85vh]">
-              {session?.activeQuestion?.options.map((opt, idx) => {
-                const shapeMeta = SHAPE_CONFIG[opt.shape] || SHAPE_CONFIG.triangle;
-                return (
-                  <button
-                    key={opt.id || idx}
-                    onClick={() => handleSelectOption(opt.id)}
-                    className={`min-h-[140px] sm:min-h-[180px] rounded-3xl flex items-center justify-center text-6xl sm:text-7xl shadow-2xl transition-all active:scale-90 select-none touch-manipulation cursor-pointer ${
-                      opt.color === 'red' ? 'bg-red-600 active:bg-red-700' :
-                      opt.color === 'blue' ? 'bg-blue-600 active:bg-blue-700' :
-                      opt.color === 'yellow' ? 'bg-amber-500 active:bg-amber-600' :
-                      'bg-emerald-600 active:bg-emerald-700'
-                    }`}
-                  >
-                    <span className="drop-shadow-lg pointer-events-none">
-                      {shapeMeta.icon}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="flex-1 flex flex-col justify-between h-full">
+              {/* Team Consultation Banner */}
+              {session?.gameMode === 'team' && teamConsultationLeft > 0 && (
+                <div className="p-3 mb-2 rounded-2xl bg-amber-500/25 border-2 border-amber-400 text-amber-100 text-center animate-pulse shrink-0">
+                  <div className="text-[10px] uppercase font-black tracking-widest text-amber-300 flex items-center justify-center gap-1.5">
+                    <Users className="w-3.5 h-3.5" />
+                    <span>Team-Beratungsphase</span>
+                  </div>
+                  <div className="text-xs sm:text-sm font-bold mt-0.5">
+                    Sprecht euch am Tisch ab! Freigabe in <span className="font-mono text-base font-black text-amber-300">{teamConsultationLeft}s</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Gamepad Buttons */}
+              <div className="flex-1 grid grid-cols-2 gap-3 h-full max-h-[85vh]">
+                {session?.activeQuestion?.options.map((opt, idx) => {
+                  const shapeMeta = SHAPE_CONFIG[opt.shape] || SHAPE_CONFIG.triangle;
+                  const isLockedByConsultation = session?.gameMode === 'team' && teamConsultationLeft > 0;
+
+                  return (
+                    <button
+                      key={opt.id || idx}
+                      onClick={() => !isLockedByConsultation && handleSelectOption(opt.id)}
+                      disabled={isLockedByConsultation}
+                      className={`min-h-[140px] sm:min-h-[180px] rounded-3xl flex items-center justify-center text-6xl sm:text-7xl shadow-2xl transition-all active:scale-90 select-none touch-manipulation cursor-pointer ${
+                        isLockedByConsultation ? 'opacity-40 cursor-not-allowed' : ''
+                      } ${
+                        opt.color === 'red' ? 'bg-red-600 active:bg-red-700' :
+                        opt.color === 'blue' ? 'bg-blue-600 active:bg-blue-700' :
+                        opt.color === 'yellow' ? 'bg-amber-500 active:bg-amber-600' :
+                        'bg-emerald-600 active:bg-emerald-700'
+                      }`}
+                    >
+                      <span className="drop-shadow-lg pointer-events-none">
+                        {shapeMeta.icon}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 

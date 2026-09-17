@@ -11,12 +11,14 @@ import {
   Mic, 
   MicOff, 
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  QrCode
 } from 'lucide-react';
 
 interface QuickToolsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenTableTent?: () => void;
 }
 
 // Simple Web Audio Bell synthesizer (no external audio file required)
@@ -45,7 +47,11 @@ const playChime = () => {
   }
 };
 
-export const QuickToolsDrawer: React.FC<QuickToolsDrawerProps> = ({ isOpen, onClose }) => {
+export const QuickToolsDrawer: React.FC<QuickToolsDrawerProps> = ({ 
+  isOpen, 
+  onClose,
+  onOpenTableTent 
+}) => {
   const [activeTab, setActiveTab] = useState<'timer' | 'picker' | 'noise'>('timer');
 
   // ========== 1. TIMER STATE ==========
@@ -480,7 +486,22 @@ export const QuickToolsDrawer: React.FC<QuickToolsDrawerProps> = ({ isOpen, onCl
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-2">
+          {onOpenTableTent ? (
+            <button
+              onClick={() => {
+                stopMic();
+                onClose();
+                onOpenTableTent();
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-teal-800 text-xs font-bold hover:bg-teal-50 transition-colors shadow-2xs"
+              title="QR-Code Tischaufsteller für Schülertische drucken"
+            >
+              <QrCode className="w-3.5 h-3.5 text-teal-600" />
+              <span>Tischaufsteller</span>
+            </button>
+          ) : <div />}
+
           <button
             onClick={() => {
               stopMic();

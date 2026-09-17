@@ -5,6 +5,8 @@ import {
   Sparkles, 
   Lock, 
   ArrowRight,
+  ArrowUp,
+  ArrowDown,
   X
 } from 'lucide-react';
 import { doc, onSnapshot, updateDoc, increment, arrayUnion } from 'firebase/firestore';
@@ -51,6 +53,13 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
 
   // Scales values (statementId -> number 1..5)
   const [scaleValues, setScaleValues] = useState<Record<string, number>>({});
+
+  // Matrix coordinates (x: 0..100, y: 0..100)
+  const [matrixCoords, setMatrixCoords] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
+  const [matrixHasPlaced, setMatrixHasPlaced] = useState<boolean>(false);
+
+  // Ranking order (list of item IDs)
+  const [rankingOrder, setRankingOrder] = useState<string[]>([]);
 
   const broadcastRef = useRef<BroadcastChannel | null>(null);
 
@@ -124,6 +133,15 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
           const initialScales: Record<string, number> = {};
           session.activeSlide.scales.forEach(s => { initialScales[s.id] = 3; });
           setScaleValues(initialScales);
+        }
+        // Initialize matrix
+        if (session.activeSlide.type === 'matrix') {
+          setMatrixCoords({ x: 50, y: 50 });
+          setMatrixHasPlaced(false);
+        }
+        // Initialize ranking
+        if (session.activeSlide.type === 'ranking' && session.activeSlide.rankingItems) {
+          setRankingOrder(session.activeSlide.rankingItems.map(item => item.id));
         }
       }
     }
@@ -330,6 +348,72 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
         });
       } catch (e) {
         console.warn('Submit quiz error:', e);
+      }
+    }
+  };
+
+  // Submit Matrix
+  const handleSubmitMatrix = async () => {
+    if (!session || !session.isVotingOpen) return;
+    setHasVotedForCurrentSlide(true);
+    setVotedSlideId(session.activeSlide.id);
+
+    const vote = {
+      x: Math.round(matrixCoords.x),
+      y: Math.round(matrixCoords.y),
+      label: nickname.trim() || undefined
+    };
+
+    // Broadcast locally
+    if (broadcastRef.current) {
+      broadcastRef.current.postMessage({
+        type: 'STUDENT_MATRIX_VOTE',
+        payload: {
+          slideId: session.activeSlide.id,
+          vote
+        }
+      });
+    }
+
+    // Cloud push
+    if (db) {
+      try {
+        const portalDocRef = doc(db, 'schools', 'HBS_portal');
+        await updateDoc(portalDocRef, {
+          [`activeMentiSession.responses.${session.activeSlide.id}`]: arrayUnion(vote)
+        });
+      } catch (e) {
+        console.warn('Submit matrix error:', e);
+      }
+    }
+  };
+
+  // Submit Ranking
+  const handleSubmitRanking = async () => {
+    if (!session || !session.isVotingOpen || rankingOrder.length === 0) return;
+    setHasVotedForCurrentSlide(true);
+    setVotedSlideId(session.activeSlide.id);
+
+    // Broadcast locally
+    if (broadcastRef.current) {
+      broadcastRef.current.postMessage({
+        type: 'STUDENT_RANKING_VOTE',
+        payload: {
+          slideId: session.activeSlide.id,
+          orderIds: rankingOrder
+        }
+      });
+    }
+
+    // Cloud push
+    if (db) {
+      try {
+        const portalDocRef = doc(db, 'schools', 'HBS_portal');
+        await updateDoc(portalDocRef, {
+          [`activeMentiSession.responses.${session.activeSlide.id}`]: arrayUnion(rankingOrder)
+        });
+      } catch (e) {
+        console.warn('Submit ranking error:', e);
       }
     }
   };
@@ -634,6 +718,186 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* MATRIX 2X2 QUADRANT */}
+            {activeSlide.type === 'matrix' && (
+              <div className="space-y-4 pt-2">
+                <div className="text-center">
+                  <p className="text-xs font-semibold text-slate-500">
+                    Tippe in das Koordinatenfeld, um deine Position zu setzen:
+                  </p>
+                </div>
+
+                <div 
+                  className="relative w-full aspect-square max-w-[320px] mx-auto bg-slate-50 rounded-2xl border-2 border-slate-300 shadow-inner overflow-hidden select-none touch-none cursor-crosshair"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const clientX = e.clientX;
+                    const clientY = e.clientY;
+                    const pctX = Math.max(5, Math.min(95, ((clientX - rect.left) / rect.width) * 100));
+                    const pctY = Math.max(5, Math.min(95, ((rect.bottom - clientY) / rect.height) * 100));
+                    setMatrixCoords({ x: pctX, y: pctY });
+                    setMatrixHasPlaced(true);
+                  }}
+                  onTouchMove={(e) => {
+                    if (e.touches.length > 0) {
+                      const touch = e.touches[0];
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const pctX = Math.max(5, Math.min(95, ((touch.clientX - rect.left) / rect.width) * 100));
+                      const pctY = Math.max(5, Math.min(95, ((rect.bottom - touch.clientY) / rect.height) * 100));
+                      setMatrixCoords({ x: pctX, y: pctY });
+                      setMatrixHasPlaced(true);
+                    }
+                  }}
+                >
+                  {/* Quadrant Background Colors */}
+                  <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
+                    <div className="bg-amber-500/5 border-r border-b border-slate-200 p-2 flex flex-col justify-start">
+                      <span className="text-[10px] font-black text-amber-700/60 uppercase tracking-wider line-clamp-1">
+                        {activeSlide.matrixConfig?.quadrantTL || 'Oben Links'}
+                      </span>
+                    </div>
+                    <div className="bg-emerald-500/5 border-b border-slate-200 p-2 flex flex-col justify-start items-end">
+                      <span className="text-[10px] font-black text-emerald-700/60 uppercase tracking-wider line-clamp-1">
+                        {activeSlide.matrixConfig?.quadrantTR || 'Oben Rechts'}
+                      </span>
+                    </div>
+                    <div className="bg-slate-500/5 border-r border-slate-200 p-2 flex flex-col justify-end">
+                      <span className="text-[10px] font-black text-slate-700/60 uppercase tracking-wider line-clamp-1">
+                        {activeSlide.matrixConfig?.quadrantBL || 'Unten Links'}
+                      </span>
+                    </div>
+                    <div className="bg-blue-500/5 p-2 flex flex-col justify-end items-end">
+                      <span className="text-[10px] font-black text-blue-700/60 uppercase tracking-wider line-clamp-1">
+                        {activeSlide.matrixConfig?.quadrantBR || 'Unten Rechts'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Axis Crosshairs */}
+                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-300 pointer-events-none" />
+                  <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-slate-300 pointer-events-none" />
+
+                  {/* Axis Labels */}
+                  <div className="absolute top-1.5 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-500 uppercase tracking-widest bg-white/80 px-1.5 py-0.5 rounded shadow-2xs pointer-events-none">
+                    {activeSlide.matrixConfig?.yHighLabel || 'Y: Hoch'}
+                  </div>
+                  <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-500 uppercase tracking-widest bg-white/80 px-1.5 py-0.5 rounded shadow-2xs pointer-events-none">
+                    {activeSlide.matrixConfig?.yLowLabel || 'Y: Niedrig'}
+                  </div>
+                  <div className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-500 uppercase tracking-widest bg-white/80 px-1.5 py-0.5 rounded shadow-2xs pointer-events-none">
+                    {activeSlide.matrixConfig?.xLowLabel || 'X: Niedrig'}
+                  </div>
+                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-500 uppercase tracking-widest bg-white/80 px-1.5 py-0.5 rounded shadow-2xs pointer-events-none">
+                    {activeSlide.matrixConfig?.xHighLabel || 'X: Hoch'}
+                  </div>
+
+                  {/* User Pin */}
+                  {matrixHasPlaced && (
+                    <div 
+                      className="absolute w-6 h-6 -translate-x-1/2 translate-y-1/2 flex items-center justify-center pointer-events-none transition-all duration-75"
+                      style={{
+                        left: `${matrixCoords.x}%`,
+                        bottom: `${matrixCoords.y}%`
+                      }}
+                    >
+                      <div className="w-5 h-5 rounded-full bg-teal-500 border-2 border-white shadow-md flex items-center justify-center animate-pulse">
+                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-center text-xs text-slate-500 font-semibold">
+                  {matrixHasPlaced 
+                    ? `Position gesetzt (X: ${Math.round(matrixCoords.x)}%, Y: ${Math.round(matrixCoords.y)}%)`
+                    : 'Tippe irgendwo ins Feld, um deine Einschätzung zu platzieren'}
+                </div>
+
+                <button
+                  onClick={handleSubmitMatrix}
+                  disabled={!matrixHasPlaced || !session?.isVotingOpen}
+                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Position absenden</span>
+                </button>
+              </div>
+            )}
+
+            {/* RANKING LIST */}
+            {activeSlide.type === 'ranking' && (
+              <div className="space-y-4 pt-2">
+                <p className="text-xs font-semibold text-slate-500 text-center">
+                  Bringe die Einträge in deine Wunsch-Reihenfolge (Platz 1 = ganz oben):
+                </p>
+
+                <div className="space-y-2">
+                  {rankingOrder.map((itemId, idx) => {
+                    const itemObj = (activeSlide.rankingItems || []).find(it => it.id === itemId);
+                    if (!itemObj) return null;
+                    return (
+                      <div 
+                        key={itemId}
+                        className="flex items-center gap-2 p-3 bg-slate-50 rounded-2xl border-2 border-slate-200 transition-all shadow-2xs"
+                      >
+                        <span className="w-7 h-7 rounded-xl bg-teal-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                          #{idx + 1}
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-800 flex-1 break-words">
+                          {itemObj.text}
+                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => {
+                              if (idx > 0) {
+                                const newOrder = [...rankingOrder];
+                                const temp = newOrder[idx - 1];
+                                newOrder[idx - 1] = newOrder[idx];
+                                newOrder[idx] = temp;
+                                setRankingOrder(newOrder);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-30 active:scale-95 transition-all text-slate-700"
+                            title="Nach oben"
+                          >
+                            <ArrowUp className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === rankingOrder.length - 1}
+                            onClick={() => {
+                              if (idx < rankingOrder.length - 1) {
+                                const newOrder = [...rankingOrder];
+                                const temp = newOrder[idx + 1];
+                                newOrder[idx + 1] = newOrder[idx];
+                                newOrder[idx] = temp;
+                                setRankingOrder(newOrder);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-30 active:scale-95 transition-all text-slate-700"
+                            title="Nach unten"
+                          >
+                            <ArrowDown className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={handleSubmitRanking}
+                  disabled={rankingOrder.length === 0 || !session?.isVotingOpen}
+                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Rangfolge absenden</span>
+                </button>
               </div>
             )}
 

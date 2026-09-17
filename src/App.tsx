@@ -29,6 +29,7 @@ import { OncooStudentClient } from './components/oncoo/OncooStudentClient';
 import { OncooSession } from './types/oncooTypes';
 import { AdminPanelModal } from './components/admin/AdminPanelModal';
 import { AddCustomLinkModal } from './components/links/AddCustomLinkModal';
+import { TableTentGeneratorModal } from './components/tools/TableTentGeneratorModal';
 import { EmptyState } from './components/ui/empty-state';
 import { CardTilt } from './components/ui/card-tilt';
 import { AuroraBackground } from './components/ui/aurora-background';
@@ -169,6 +170,7 @@ export default function App() {
   // New Modals State
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState<boolean>(false);
   const [isAddCustomLinkOpen, setIsAddCustomLinkOpen] = useState<boolean>(false);
+  const [isTableTentOpen, setIsTableTentOpen] = useState<boolean>(false);
   const [isReorderMode, setIsReorderMode] = useState<boolean>(false);
 
   // Menti presentation state
@@ -529,6 +531,7 @@ export default function App() {
         onLogout={logout}
         onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
         onOpenQuickTools={() => setIsQuickToolsOpen(true)}
+        onOpenTableTent={() => setIsTableTentOpen(true)}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenAddCustomLink={() => setIsAddCustomLinkOpen(true)}
         isReorderMode={isReorderMode}
@@ -839,6 +842,7 @@ export default function App() {
       <QuickToolsDrawer
         isOpen={isQuickToolsOpen}
         onClose={() => setIsQuickToolsOpen(false)}
+        onOpenTableTent={() => setIsTableTentOpen(true)}
       />
 
       {/* Admin Panel Modal */}
@@ -851,6 +855,12 @@ export default function App() {
       <AddCustomLinkModal
         isOpen={isAddCustomLinkOpen}
         onClose={() => setIsAddCustomLinkOpen(false)}
+      />
+
+      {/* QR-Code Table Tent Generator Modal */}
+      <TableTentGeneratorModal
+        isOpen={isTableTentOpen}
+        onClose={() => setIsTableTentOpen(false)}
       />
 
     </AuroraBackground>

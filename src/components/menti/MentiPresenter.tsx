@@ -15,7 +15,8 @@ import {
   Award, 
   Clock, 
   Check, 
-  Smartphone
+  Smartphone,
+  Presentation
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
@@ -50,6 +51,7 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
   const [slideResponses, setSlideResponses] = useState<Record<string, any>>({});
   const [floatingReactions, setFloatingReactions] = useState<MentiLiveReaction[]>([]);
   const [participantsCount, setParticipantsCount] = useState<number>(0);
+  const [boardExportToast, setBoardExportToast] = useState<boolean>(false);
 
   // Quiz timer
   const activeSlide: MentiSlide = presentation.slides[currentSlideIndex] || presentation.slides[0];
@@ -221,6 +223,26 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
           if (payload.reaction) {
             setFloatingReactions(prev => [...prev, payload.reaction]);
           }
+        } else if (type === 'STUDENT_MATRIX_VOTE') {
+          const { slideId, vote } = payload;
+          setSlideResponses(prev => {
+            const current = prev[slideId] || [];
+            return {
+              ...prev,
+              [slideId]: [...(Array.isArray(current) ? current : []), vote]
+            };
+          });
+          setParticipantsCount(prev => prev + 1);
+        } else if (type === 'STUDENT_RANKING_VOTE') {
+          const { slideId, orderIds } = payload;
+          setSlideResponses(prev => {
+            const current = prev[slideId] || [];
+            return {
+              ...prev,
+              [slideId]: [...(Array.isArray(current) ? current : []), orderIds]
+            };
+          });
+          setParticipantsCount(prev => prev + 1);
         }
       };
     } catch (e) {
@@ -386,6 +408,110 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
       .slice(0, 5);
   }, [activeSlide, currentVotes]);
 
+  // Matrix 2x2 computed scatter & centroid
+  const matrixData = useMemo(() => {
+    if (activeSlide.type !== 'matrix') return { points: [], avgX: 50, avgY: 50, count: 0 };
+    const raw: any = currentVotes;
+    const votes: { x: number; y: number; label?: string }[] = Array.isArray(raw) 
+      ? raw 
+      : typeof raw === 'object' && raw !== null
+      ? Object.values(raw).flatMap(v => Array.isArray(v) ? v : [v])
+      : [];
+    if (votes.length === 0) return { points: [], avgX: 50, avgY: 50, count: 0 };
+
+    const sumX = votes.reduce((acc, v) => acc + (v.x ?? 50), 0);
+    const sumY = votes.reduce((acc, v) => acc + (v.y ?? 50), 0);
+    const avgX = Math.round(sumX / votes.length);
+    const avgY = Math.round(sumY / votes.length);
+
+    return { points: votes, avgX, avgY, count: votes.length };
+  }, [activeSlide, currentVotes]);
+
+  // Ranking computed Borda scores
+  const rankingData = useMemo(() => {
+    if (activeSlide.type !== 'ranking') return [];
+    const items = activeSlide.rankingItems || [];
+    const rawSubmissions: any = Array.isArray(currentVotes) ? currentVotes : Object.values(currentVotes || {});
+    const submissions: string[][] = rawSubmissions.filter((s: any) => Array.isArray(s));
+
+    const scores: Record<string, number> = {};
+    items.forEach(it => { scores[it.id] = 0; });
+
+    const totalSubmissions = submissions.length;
+    submissions.forEach(order => {
+      order.forEach((id, rankIdx) => {
+        const pts = Math.max(0, items.length - rankIdx);
+        scores[id] = (scores[id] || 0) + pts;
+      });
+    });
+
+    const maxPossibleScore = totalSubmissions > 0 ? totalSubmissions * items.length : 1;
+
+    return items.map(item => {
+      const score = scores[item.id] || 0;
+      const percent = totalSubmissions > 0 ? Math.round((score / maxPossibleScore) * 100) : 0;
+      return { ...item, score, percent, totalSubmissions };
+    }).sort((a, b) => b.score - a.score);
+  }, [activeSlide, currentVotes]);
+
+  // 1-Click Export to Classroom Board (Digital Blackboard)
+  const handleExportToBoard = () => {
+    try {
+      const STORAGE_KEY = 'hbs_board_deck_v1';
+      const saved = localStorage.getItem(STORAGE_KEY);
+      let screens = [];
+      if (saved) {
+        try { screens = JSON.parse(saved); } catch (e) { screens = []; }
+      }
+      if (!Array.isArray(screens) || screens.length === 0) {
+        screens = [{ id: 'screen-1', title: 'Tafel 1', backgroundId: 'chalkboard', widgets: [] }];
+      }
+
+      let resultText = `📊 MENTI-ERGEBNIS: ${activeSlide.question}\n\n`;
+      if (activeSlide.type === 'wordcloud') {
+        resultText += `Wortwolke (${wordCloudData.length} Begriffe):\n` +
+          wordCloudData.map(w => `• ${w.word} (${w.count}x)`).join('\n');
+      } else if (activeSlide.type === 'choice' || activeSlide.type === 'quiz') {
+        resultText += `Abstimmung (${choiceData.reduce((a, b) => a + b.count, 0)} Stimmen):\n` +
+          choiceData.map(c => `• ${c.text}: ${c.percent}% (${c.count} Stimmen)`).join('\n');
+      } else if (activeSlide.type === 'scales') {
+        resultText += `Skalen-Bewertung:\n` +
+          scalesData.map(s => `• ${s.statement}: Ø ${s.avg} / 5.0 (${s.count} Stimmen)`).join('\n');
+      } else if (activeSlide.type === 'matrix') {
+        resultText += `2x2 Matrix (${matrixData.count} Positionierungen):\n` +
+          `• Klassen-Mittelwert: X = ${matrixData.avgX}% (${activeSlide.matrixConfig?.xLowLabel} ↔ ${activeSlide.matrixConfig?.xHighLabel})\n` +
+          `• Y = ${matrixData.avgY}% (${activeSlide.matrixConfig?.yLowLabel} ↔ ${activeSlide.matrixConfig?.yHighLabel})`;
+      } else if (activeSlide.type === 'ranking') {
+        resultText += `Rangfolge (${rankingData[0]?.totalSubmissions || 0} Abgaben):\n` +
+          rankingData.map((r, i) => `${i + 1}. ${r.text} (${r.score} Pkt., ${r.percent}%)`).join('\n');
+      } else if (activeSlide.type === 'open') {
+        resultText += `Offene Antworten (${openResponses.length}):\n` +
+          openResponses.map(r => `• "${r.text}"`).join('\n');
+      } else {
+        resultText += `Inhalt: ${(activeSlide.bulletPoints || []).join(' • ')}`;
+      }
+
+      const newWidget = {
+        id: `menti-result-${Date.now()}`,
+        type: 'text',
+        title: `Menti: ${activeSlide.question.slice(0, 24)}...`,
+        x: 60 + Math.floor(Math.random() * 60),
+        y: 80 + Math.floor(Math.random() * 60),
+        width: 440,
+        height: 300,
+        zIndex: 50,
+        data: { text: resultText }
+      };
+
+      screens[0].widgets = [...(screens[0].widgets || []), newWidget];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(screens));
+      setBoardExportToast(true);
+      setTimeout(() => setBoardExportToast(false), 3500);
+    } catch (err) {
+      console.warn('Fehler beim Export auf Tafel:', err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 w-screen h-screen bg-gradient-to-br from-slate-950 via-[#0A192F] to-[#04202C] text-white flex flex-col justify-between font-sans select-none overflow-hidden z-50">
       
@@ -437,6 +563,15 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
             <span className="hidden sm:inline">QR-Code</span>
           </button>
 
+          <button
+            onClick={handleExportToBoard}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-bold border border-emerald-400/30 shadow-xs transition-all active:scale-95 cursor-pointer"
+            title="Aktuelles Ergebnis auf die Digitale Tafel übernehmen"
+          >
+            <Presentation className="w-4 h-4 text-emerald-400" />
+            <span className="hidden md:inline">Auf Tafel übernehmen</span>
+          </button>
+
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs font-bold text-slate-200">
             <Users className="w-3.5 h-3.5 text-emerald-400" />
             <span className="font-mono">{participantsCount}</span>
@@ -452,6 +587,14 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
           </button>
         </div>
       </header>
+
+      {/* Toast notification for board export */}
+      {boardExportToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-5 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2.5 font-bold text-xs sm:text-sm border border-emerald-400 animate-fadeIn">
+          <Check className="w-4 h-4 text-white" />
+          <span>✓ Ergebnis als Widget auf Tafel 1 gespeichert!</span>
+        </div>
+      )}
 
       {/* Main Presentation Stage */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 max-w-6xl w-full mx-auto text-center relative z-20 py-4">
@@ -712,6 +855,136 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
                   <span>{pt}</span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* 2X2 MATRIX STAGE */}
+          {activeSlide.type === 'matrix' && (
+            <div className="w-full max-w-xl mx-auto space-y-2">
+              <div className="text-center text-xs font-black uppercase tracking-wider text-teal-300">
+                ▲ {activeSlide.matrixConfig?.yHighLabel || 'Hoher Aufwand'}
+              </div>
+
+              <div className="relative aspect-square w-full max-h-[440px] mx-auto rounded-3xl bg-slate-900/60 border-2 border-white/20 shadow-2xl overflow-hidden p-4">
+                {/* 4 Quadrants overlay with subtle background tint */}
+                <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
+                  <div className="border-r border-b border-white/15 bg-white/[0.02] p-3 text-[11px] font-bold text-slate-400">II</div>
+                  <div className="border-b border-white/15 bg-teal-500/[0.04] p-3 text-[11px] font-bold text-teal-300/80 text-right">I (Optimal)</div>
+                  <div className="border-r border-white/15 bg-white/[0.01] p-3 text-[11px] font-bold text-slate-400 flex items-end">III</div>
+                  <div className="bg-white/[0.02] p-3 text-[11px] font-bold text-slate-400 flex items-end justify-end">IV</div>
+                </div>
+
+                {/* Axes lines */}
+                <div className="absolute inset-x-0 top-1/2 h-[2px] bg-gradient-to-r from-transparent via-teal-400/40 to-transparent pointer-events-none" />
+                <div className="absolute inset-y-0 left-1/2 w-[2px] bg-gradient-to-b from-transparent via-teal-400/40 to-transparent pointer-events-none" />
+
+                {/* Individual Student Scatter Dots */}
+                {matrixData.points.map((pt, i) => (
+                  <div
+                    key={i}
+                    style={{ left: `${pt.x}%`, bottom: `${pt.y}%` }}
+                    className="absolute w-3.5 h-3.5 -ml-1.5 -mb-1.5 rounded-full bg-teal-400/80 shadow-md ring-2 ring-teal-300/40 transition-all duration-500 animate-pulse"
+                    title={pt.label ? `${pt.label}: (${pt.x}%, ${pt.y}%)` : `Punkt: (${pt.x}%, ${pt.y}%)`}
+                  />
+                ))}
+
+                {/* Centroid / Class Average Marker */}
+                {matrixData.count > 0 ? (
+                  <div
+                    style={{ left: `${matrixData.avgX}%`, bottom: `${matrixData.avgY}%` }}
+                    className="absolute -ml-5 -mb-5 z-20 flex flex-col items-center pointer-events-none transition-all duration-700"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center shadow-lg ring-4 ring-amber-300/50 animate-bounce">
+                      Ø
+                    </div>
+                    <span className="mt-1 px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black shadow-md whitespace-nowrap">
+                      Mittelwert: {matrixData.avgX}% / {matrixData.avgY}%
+                    </span>
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm font-semibold p-6 text-center">
+                    Noch keine Positionierungen eingegangen.<br />Schüler scannen den QR-Code & tippen ins Feld!
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center text-xs font-black uppercase tracking-wider text-slate-400">
+                ▼ {activeSlide.matrixConfig?.yLowLabel || 'Geringer Aufwand'}
+              </div>
+
+              <div className="flex justify-between text-xs font-black uppercase tracking-wider text-slate-300 px-3">
+                <span>◄ {activeSlide.matrixConfig?.xLowLabel || 'Geringer Nutzen'}</span>
+                <span>{activeSlide.matrixConfig?.xHighLabel || 'Hoher Nutzen'} ►</span>
+              </div>
+            </div>
+          )}
+
+          {/* RANKING / RANGFOLGE STAGE */}
+          {activeSlide.type === 'ranking' && (
+            <div className="w-full max-w-2xl mx-auto space-y-4">
+              {rankingData.length === 0 ? (
+                <div className="p-8 rounded-3xl bg-white/5 border border-white/10 text-slate-400 text-sm font-semibold">
+                  Warte auf Rangfolge-Abgaben der Schüler...
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {rankingData.map((item, idx) => {
+                    const isFirst = idx === 0;
+                    const isSecond = idx === 1;
+                    const isThird = idx === 2;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-4 rounded-2xl border transition-all duration-700 relative overflow-hidden text-left ${
+                          isFirst 
+                            ? 'bg-amber-500/20 border-amber-400/50 shadow-lg'
+                            : isSecond
+                            ? 'bg-slate-300/15 border-slate-300/30'
+                            : isThird
+                            ? 'bg-amber-700/20 border-amber-600/30'
+                            : 'bg-white/10 border-white/10'
+                        }`}
+                      >
+                        {/* Fill Progress Bar */}
+                        <div
+                          style={{ width: `${item.percent}%` }}
+                          className={`absolute inset-y-0 left-0 transition-all duration-700 opacity-25 ${
+                            isFirst ? 'bg-amber-400' : 'bg-teal-400'
+                          }`}
+                        />
+
+                        <div className="relative z-10 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <span className={`w-8 h-8 rounded-xl font-mono font-black text-sm flex items-center justify-center shrink-0 ${
+                              isFirst 
+                                ? 'bg-amber-400 text-slate-950 shadow-md' 
+                                : isSecond
+                                ? 'bg-slate-200 text-slate-950'
+                                : isThird
+                                ? 'bg-amber-600 text-white'
+                                : 'bg-white/15 text-slate-200'
+                            }`}>
+                              {idx + 1}
+                            </span>
+                            <span className="text-base font-black text-white truncate">
+                              {item.text}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="font-mono text-sm font-bold text-teal-300">
+                              {item.score} Pkt.
+                            </span>
+                            <span className="text-xs text-slate-400 font-semibold font-mono">
+                              ({item.percent}%)
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

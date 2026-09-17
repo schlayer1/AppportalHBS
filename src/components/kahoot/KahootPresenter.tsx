@@ -23,7 +23,8 @@ import {
   KahootSessionStage, 
   KahootLiveSession, 
   KahootParticipant, 
-  KahootShape 
+  KahootShape,
+  KahootGameMode
 } from '../../types/kahootTypes';
 import { useAuth } from '../../context/AuthContext';
 
@@ -123,6 +124,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
   });
 
   const [stage, setStage] = useState<KahootSessionStage>('lobby');
+  const [gameMode, setGameMode] = useState<KahootGameMode>('individual');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [participants, setParticipants] = useState<KahootParticipant[]>([]);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -158,6 +160,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
       gameTitle: game.title,
       sessionCode,
       stage: partial?.stage || stage,
+      gameMode: partial?.gameMode || gameMode,
       currentQuestionIndex: partial?.currentQuestionIndex !== undefined ? partial.currentQuestionIndex : currentQuestionIndex,
       totalQuestions: game.questions.length,
       activeQuestion: currentQ,
@@ -196,7 +199,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
   // Push updates when stage / index / answer status change
   useEffect(() => {
     syncSessionToCloud();
-  }, [stage, currentQuestionIndex, isAnswerOpen, participants.length]);
+  }, [stage, currentQuestionIndex, isAnswerOpen, participants.length, gameMode]);
 
   // BroadcastChannel listener for local & instant communication
   useEffect(() => {
@@ -471,6 +474,31 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
             </p>
           </div>
 
+          {/* Game Mode Switcher: Einzelspieler vs Tischgruppen (Team-Modus) */}
+          <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/20 shadow-lg">
+            <button
+              onClick={() => setGameMode('individual')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                gameMode === 'individual'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-purple-200 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <span>👤 Einzelspieler</span>
+            </button>
+            <button
+              onClick={() => setGameMode('team')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                gameMode === 'team'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md'
+                  : 'text-purple-200 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>👥 Team-Modus (Tischgruppen)</span>
+            </button>
+          </div>
+
           {/* Center Card with PIN & QR Code */}
           <div className="bg-white/10 backdrop-blur-xl border-2 border-white/20 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center gap-8 shadow-2xl">
             <div className="p-3 bg-white rounded-2xl shadow-lg shrink-0">
@@ -484,7 +512,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
 
             <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-3">
               <span className="text-xs font-black uppercase tracking-widest text-purple-300">
-                Spiel-PIN
+                {gameMode === 'team' ? 'Team-Spiel-PIN' : 'Spiel-PIN'}
               </span>
               <div className="text-5xl sm:text-6xl font-mono font-black text-white tracking-widest bg-black/40 px-6 py-2 rounded-2xl border border-white/20 shadow-inner">
                 {sessionCode.slice(0, 3)} {sessionCode.slice(3)}
@@ -492,6 +520,11 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
               <span className="text-xs text-slate-300 font-mono">
                 {studentJoinUrl}
               </span>
+              {gameMode === 'team' && (
+                <span className="text-xs font-bold text-amber-300 bg-amber-500/20 border border-amber-400/30 px-3 py-1 rounded-xl">
+                  👥 Tischgruppen-Modus: Ein Gerät pro Tisch genügt!
+                </span>
+              )}
             </div>
           </div>
 
@@ -499,22 +532,42 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
           <div className="w-full flex-1 max-h-48 overflow-y-auto px-4 py-2 mt-4">
             <div className="flex items-center justify-center gap-2 mb-2 text-xs font-black uppercase tracking-wider text-purple-300">
               <Users className="w-4 h-4" />
-              <span>In der Lobby: {participants.length} Spieler</span>
+              <span>In der Lobby: {participants.length} {gameMode === 'team' ? 'Teams' : 'Spieler'}</span>
             </div>
 
             {participants.length === 0 ? (
               <div className="text-center text-sm text-purple-300/60 animate-pulse mt-4">
-                Warte auf Spieler... Scanne den QR-Code oder gib den PIN ein!
+                {gameMode === 'team'
+                  ? 'Warte auf Tischgruppen... Schließt euch zusammen und tretet bei!'
+                  : 'Warte auf Spieler... Scanne den QR-Code oder gib den PIN ein!'}
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-center gap-2.5">
                 {participants.map(p => (
                   <div
                     key={p.id}
-                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white/15 border border-white/25 backdrop-blur-md shadow-md animate-bounceIn"
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-2xl border backdrop-blur-md shadow-md animate-bounceIn ${
+                      gameMode === 'team'
+                        ? 'bg-amber-500/20 border-amber-400/40 text-amber-100'
+                        : 'bg-white/15 border-white/25 text-white'
+                    }`}
                   >
-                    <span className="text-lg">{p.avatar || '🦊'}</span>
-                    <span className="text-sm font-bold text-white">{p.nickname}</span>
+                    <span className="text-lg">{p.avatar || (gameMode === 'team' ? '👥' : '🦊')}</span>
+                    <div className="flex flex-col text-left">
+                      <span className="text-sm font-bold text-white flex items-center gap-1">
+                        {gameMode === 'team' && (
+                          <span className="text-[10px] uppercase font-black px-1.5 py-0.2 bg-amber-500/40 text-amber-300 rounded">
+                            Team
+                          </span>
+                        )}
+                        {p.nickname}
+                      </span>
+                      {p.teamMembers && p.teamMembers.length > 0 && (
+                        <span className="text-[10px] text-purple-200/80 font-medium">
+                          {p.teamMembers.join(', ')}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -528,7 +581,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
             className="w-full max-w-md py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black text-lg shadow-xl shadow-purple-600/40 transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play className="w-6 h-6 fill-white" />
-            <span>Quiz starten ({participants.length} bereit)</span>
+            <span>Quiz starten ({participants.length} {gameMode === 'team' ? 'Teams' : 'bereit'})</span>
           </button>
         </main>
       )}
@@ -557,8 +610,16 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
           
           {/* Question Banner */}
           <div className="relative bg-slate-900/90 border-2 border-white/20 rounded-3xl p-6 sm:p-8 shadow-2xl text-center flex flex-col items-center justify-center min-h-[140px]">
-            <div className="absolute top-3 left-4 text-xs font-black uppercase tracking-wider text-purple-300">
-              Frage {currentQuestionIndex + 1} / {game.questions.length}
+            <div className="absolute top-3 left-4 flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-purple-300">
+                Frage {currentQuestionIndex + 1} / {game.questions.length}
+              </span>
+              {gameMode === 'team' && (
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-300 border border-amber-400/40 flex items-center gap-1">
+                  <Users className="w-3 h-3" />
+                  Team-Modus
+                </span>
+              )}
             </div>
 
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-snug max-w-4xl">
@@ -731,8 +792,22 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
                   }`}>
                     {idx + 1}
                   </span>
-                  <span className="text-2xl">{player.avatar || '🦊'}</span>
-                  <span className="text-base sm:text-lg font-black">{player.nickname}</span>
+                  <span className="text-2xl">{player.avatar || (gameMode === 'team' ? '👥' : '🦊')}</span>
+                  <div className="flex flex-col text-left">
+                    <span className="text-base sm:text-lg font-black flex items-center gap-1.5">
+                      {gameMode === 'team' && (
+                        <span className="text-[10px] uppercase font-black px-1.5 py-0.5 bg-amber-500/30 text-amber-300 rounded">
+                          Team
+                        </span>
+                      )}
+                      {player.nickname}
+                    </span>
+                    {player.teamMembers && player.teamMembers.length > 0 && (
+                      <span className="text-xs text-purple-300/80 font-medium">
+                        {player.teamMembers.join(', ')}
+                      </span>
+                    )}
+                  </div>
 
                   {player.streak && player.streak >= 2 && (
                     <span className="px-2 py-0.5 rounded-lg bg-orange-500/30 border border-orange-400/50 text-orange-300 text-xs font-black flex items-center gap-1">
@@ -801,8 +876,14 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
             <div className="flex-1 flex flex-col items-center">
               {participants[1] && (
                 <div className="mb-2 text-center">
-                  <span className="text-3xl sm:text-4xl">{participants[1].avatar || '🚀'}</span>
-                  <div className="text-xs sm:text-sm font-black text-white">{participants[1].nickname}</div>
+                  <span className="text-3xl sm:text-4xl">{participants[1].avatar || (gameMode === 'team' ? '👥' : '🚀')}</span>
+                  <div className="text-xs sm:text-sm font-black text-white">
+                    {gameMode === 'team' && <span className="text-[10px] text-amber-300 mr-1">👥</span>}
+                    {participants[1].nickname}
+                  </div>
+                  {participants[1].teamMembers && participants[1].teamMembers.length > 0 && (
+                    <div className="text-[10px] text-slate-300 truncate max-w-[120px]">{participants[1].teamMembers.join(', ')}</div>
+                  )}
                   <div className="text-xs font-mono text-slate-300">{participants[1].score} Pkt</div>
                 </div>
               )}
@@ -817,8 +898,14 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
               {participants[0] && (
                 <div className="mb-2 text-center animate-bounce">
                   <div className="text-2xl">👑</div>
-                  <span className="text-4xl sm:text-5xl">{participants[0].avatar || '🦊'}</span>
-                  <div className="text-sm sm:text-base font-black text-amber-300">{participants[0].nickname}</div>
+                  <span className="text-4xl sm:text-5xl">{participants[0].avatar || (gameMode === 'team' ? '👥' : '🦊')}</span>
+                  <div className="text-sm sm:text-base font-black text-amber-300">
+                    {gameMode === 'team' && <span className="text-xs text-amber-400 mr-1">👥 Team</span>}
+                    {participants[0].nickname}
+                  </div>
+                  {participants[0].teamMembers && participants[0].teamMembers.length > 0 && (
+                    <div className="text-[11px] text-amber-200/90 font-medium truncate max-w-[140px]">{participants[0].teamMembers.join(', ')}</div>
+                  )}
                   <div className="text-xs font-mono font-black text-amber-200">{participants[0].score} Pkt</div>
                 </div>
               )}
@@ -832,8 +919,14 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
             <div className="flex-1 flex flex-col items-center">
               {participants[2] && (
                 <div className="mb-2 text-center">
-                  <span className="text-3xl sm:text-4xl">{participants[2].avatar || '🦁'}</span>
-                  <div className="text-xs sm:text-sm font-black text-white">{participants[2].nickname}</div>
+                  <span className="text-3xl sm:text-4xl">{participants[2].avatar || (gameMode === 'team' ? '👥' : '🦁')}</span>
+                  <div className="text-xs sm:text-sm font-black text-white">
+                    {gameMode === 'team' && <span className="text-[10px] text-amber-300 mr-1">👥</span>}
+                    {participants[2].nickname}
+                  </div>
+                  {participants[2].teamMembers && participants[2].teamMembers.length > 0 && (
+                    <div className="text-[10px] text-slate-300 truncate max-w-[120px]">{participants[2].teamMembers.join(', ')}</div>
+                  )}
                   <div className="text-xs font-mono text-slate-300">{participants[2].score} Pkt</div>
                 </div>
               )}
