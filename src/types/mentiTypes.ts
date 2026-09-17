@@ -80,6 +80,8 @@ export interface MentiPresentation {
   description?: string;
   subject?: string;
   grade?: string;
+  folder?: string; // e.g. "Klasse 7a", "Vertretung", "Mathematik"
+  tags?: string[];
   authorId: string;
   authorName: string;
   isShared: boolean; // Shared with the whole school

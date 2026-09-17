@@ -206,6 +206,14 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
               <span>•</span>
               <span>{game.grade || 'Stufe'}</span>
               <span>•</span>
+              <input
+                type="text"
+                value={game.folder || ''}
+                onChange={e => setGame({ ...game, folder: e.target.value })}
+                placeholder="📁 Ordner (z.B. Klasse 8b)"
+                className="bg-white/10 hover:bg-white/15 focus:bg-white/20 text-white placeholder:text-purple-300/50 px-2 py-0.5 rounded outline-none w-36 text-[10px]"
+              />
+              <span>•</span>
               <span>{game.questions.length} Fragen</span>
             </div>
           </div>

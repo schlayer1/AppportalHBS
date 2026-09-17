@@ -40,78 +40,8 @@ const SHAPE_CONFIG: Record<KahootShape, { label: string; icon: string; bgClass: 
   square: { label: 'Grün', icon: '🟩', bgClass: 'bg-emerald-600', barColor: 'bg-emerald-500' }
 };
 
-// Web Audio API Sound Effects generator
-class KahootAudio {
-  private ctx: AudioContext | null = null;
-  public enabled: boolean = true;
-
-  private init() {
-    if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) this.ctx = new AudioCtx();
-    }
-  }
-
-  playTick() {
-    if (!this.enabled) return;
-    try {
-      this.init();
-      if (!this.ctx) return;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, this.ctx.currentTime);
-      gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.05);
-    } catch {}
-  }
-
-  playFanfare() {
-    if (!this.enabled) return;
-    try {
-      this.init();
-      if (!this.ctx) return;
-      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
-      notes.forEach((freq, idx) => {
-        const osc = this.ctx!.createOscillator();
-        const gain = this.ctx!.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, this.ctx!.currentTime + idx * 0.12);
-        gain.gain.setValueAtTime(0.15, this.ctx!.currentTime + idx * 0.12);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx!.currentTime + idx * 0.12 + 0.4);
-        osc.connect(gain);
-        gain.connect(this.ctx!.destination);
-        osc.start(this.ctx!.currentTime + idx * 0.12);
-        osc.stop(this.ctx!.currentTime + idx * 0.12 + 0.4);
-      });
-    } catch {}
-  }
-
-  playReveal() {
-    if (!this.enabled) return;
-    try {
-      this.init();
-      if (!this.ctx) return;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.2);
-      gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.25);
-    } catch {}
-  }
-}
-
-const audio = new KahootAudio();
+import { classroomAudio } from '../../utils/classroomAudio';
+const audio = classroomAudio;
 
 export const KahootPresenter: React.FC<KahootPresenterProps> = ({
   game,
@@ -309,9 +239,14 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
     return () => clearInterval(interval);
   }, [stage, currentQ]);
 
-  // Question Timer Countdown
+  // Question Timer Countdown & Tension Loop
   useEffect(() => {
-    if (stage !== 'question' || !isAnswerOpen || timeLeft <= 0) return;
+    if (stage !== 'question' || !isAnswerOpen || timeLeft <= 0) {
+      classroomAudio.stopTensionLoop();
+      return;
+    }
+
+    classroomAudio.startTensionLoop();
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
@@ -321,13 +256,16 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
           return 0;
         }
         if (prev <= 5) {
-          audio.playTick();
+          audio.playTick(true);
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      classroomAudio.stopTensionLoop();
+    };
   }, [stage, isAnswerOpen, timeLeft]);
 
   // Check if all students answered
@@ -341,6 +279,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
   }, [participants, stage, isAnswerOpen]);
 
   const handleTimeUp = () => {
+    classroomAudio.stopTensionLoop();
     setIsAnswerOpen(false);
     audio.playReveal();
     // Calculate points and streaks for participants
@@ -434,11 +373,11 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
-              audio.enabled = !audio.enabled;
-              setIsSoundMuted(!audio.enabled);
+              const muted = classroomAudio.toggleMute();
+              setIsSoundMuted(muted);
             }}
             className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all text-slate-200"
-            title={isSoundMuted ? 'Ton einschalten' : 'Ton stumm'}
+            title={isSoundMuted ? 'Ton einschalten' : 'Ton stummschalten'}
           >
             {isSoundMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
           </button>

@@ -16,13 +16,16 @@ import {
   Clock, 
   Check, 
   Smartphone,
-  Presentation
+  Presentation,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { MentiPresentation, MentiSlide, MentiLiveSession, MentiLiveReaction } from '../../types/mentiTypes';
 import { useAuth } from '../../context/AuthContext';
+import { classroomAudio } from '../../utils/classroomAudio';
 
 interface MentiPresenterProps {
   presentation: MentiPresentation;
@@ -58,6 +61,8 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
   const [timeLeft, setTimeLeft] = useState<number>(activeSlide.timeLimitSeconds || 20);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
 
+  const [isSoundMuted, setIsSoundMuted] = useState<boolean>(classroomAudio.isMuted);
+
   // Direct student join URL
   const studentJoinUrl = typeof window !== 'undefined'
     ? `${window.location.origin}${window.location.pathname}?menti=${sessionCode}`
@@ -71,24 +76,49 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
       setShowLeaderboard(false);
     } else {
       setIsTimerRunning(false);
+      classroomAudio.stopTensionLoop();
     }
   }, [currentSlideIndex, activeSlide]);
 
-  // Quiz countdown
+  // Quiz countdown & audio tension beat
   useEffect(() => {
-    if (!isTimerRunning || timeLeft <= 0) return;
+    if (!isTimerRunning || timeLeft <= 0) {
+      classroomAudio.stopTensionLoop();
+      return;
+    }
+
+    if (activeSlide.type === 'quiz') {
+      classroomAudio.startTensionLoop();
+    }
+
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           setIsVotingOpen(false);
           setIsTimerRunning(false);
+          classroomAudio.stopTensionLoop();
+          classroomAudio.playReveal();
           return 0;
+        }
+        if (prev <= 5) {
+          classroomAudio.playTick(true);
         }
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(timer);
-  }, [isTimerRunning, timeLeft]);
+
+    return () => {
+      clearInterval(timer);
+      classroomAudio.stopTensionLoop();
+    };
+  }, [isTimerRunning, timeLeft, activeSlide.type]);
+
+  // Leaderboard fanfare
+  useEffect(() => {
+    if (showLeaderboard) {
+      classroomAudio.playFanfare();
+    }
+  }, [showLeaderboard]);
 
   const broadcastRef = useRef<BroadcastChannel | null>(null);
 
@@ -577,6 +607,17 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
             <span className="font-mono">{participantsCount}</span>
             <span className="hidden md:inline">im Raum</span>
           </div>
+
+          <button
+            onClick={() => {
+              const muted = classroomAudio.toggleMute();
+              setIsSoundMuted(muted);
+            }}
+            className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all active:scale-95 border border-white/10 text-slate-200"
+            title={isSoundMuted ? 'Ton einschalten' : 'Ton stummschalten'}
+          >
+            {isSoundMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+          </button>
 
           <button
             onClick={onExit}

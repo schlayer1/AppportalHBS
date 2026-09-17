@@ -49,6 +49,43 @@ export const useBoardManager = () => {
 
   const [activeScreenIndex, setActiveScreenIndex] = useState<number>(0);
 
+  // Undo / Redo History Stacks
+  const [pastScreens, setPastScreens] = useState<BoardScreen[][]>([]);
+  const [futureScreens, setFutureScreens] = useState<BoardScreen[][]>([]);
+
+  // Record an undoable snapshot before a mutation
+  const recordSnapshot = useCallback(() => {
+    setPastScreens((prev) => [...prev.slice(-29), JSON.parse(JSON.stringify(screens))]);
+    setFutureScreens([]);
+  }, [screens]);
+
+  // Undo action
+  const undo = useCallback(() => {
+    setPastScreens((prevPast) => {
+      if (prevPast.length === 0) return prevPast;
+      const newPast = [...prevPast];
+      const previousState = newPast.pop()!;
+      setFutureScreens((prevFuture) => [JSON.parse(JSON.stringify(screens)), ...prevFuture]);
+      setScreens(previousState);
+      return newPast;
+    });
+  }, [screens]);
+
+  // Redo action
+  const redo = useCallback(() => {
+    setFutureScreens((prevFuture) => {
+      if (prevFuture.length === 0) return prevFuture;
+      const newFuture = [...prevFuture];
+      const nextState = newFuture.shift()!;
+      setPastScreens((prevPast) => [...prevPast.slice(-29), JSON.parse(JSON.stringify(screens))]);
+      setScreens(nextState);
+      return newFuture;
+    });
+  }, [screens]);
+
+  const canUndo = pastScreens.length > 0;
+  const canRedo = futureScreens.length > 0;
+
   // Autosave to localStorage on changes
   useEffect(() => {
     try {
@@ -201,6 +238,7 @@ export const useBoardManager = () => {
     const safeMaxX = typeof window !== 'undefined' ? Math.max(20, window.innerWidth - w - 20) : 60;
     const safeMaxY = typeof window !== 'undefined' ? Math.max(70, window.innerHeight - h - 100) : 80;
 
+    recordSnapshot();
     const newWidget: BoardWidgetInstance = {
       id: `w-${type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       type,
@@ -222,9 +260,10 @@ export const useBoardManager = () => {
         };
       });
     });
-  }, [activeScreenIndex, activeScreen.widgets, getMaxZIndex]);
+  }, [activeScreenIndex, activeScreen.widgets, getMaxZIndex, recordSnapshot]);
 
   const removeWidget = useCallback((id: string) => {
+    recordSnapshot();
     setScreens((prev) => {
       return prev.map((scr, idx) => {
         if (idx !== activeScreenIndex) return scr;
@@ -234,7 +273,7 @@ export const useBoardManager = () => {
         };
       });
     });
-  }, [activeScreenIndex]);
+  }, [activeScreenIndex, recordSnapshot]);
 
   const updateWidgetPosition = useCallback((id: string, x: number, y: number) => {
     setScreens((prev) => {
@@ -298,6 +337,7 @@ export const useBoardManager = () => {
   }, [activeScreenIndex, getMaxZIndex]);
 
   const setBackground = useCallback((backgroundId: BoardBackgroundId) => {
+    recordSnapshot();
     setScreens((prev) => {
       return prev.map((scr, idx) => {
         if (idx !== activeScreenIndex) return scr;
@@ -307,9 +347,10 @@ export const useBoardManager = () => {
         };
       });
     });
-  }, [activeScreenIndex]);
+  }, [activeScreenIndex, recordSnapshot]);
 
   const addScreen = useCallback(() => {
+    recordSnapshot();
     const newScreenNumber = screens.length + 1;
     const newScreen: BoardScreen = {
       id: `screen-${Date.now()}`,
@@ -319,7 +360,7 @@ export const useBoardManager = () => {
     };
     setScreens((prev) => [...prev, newScreen]);
     setActiveScreenIndex(screens.length);
-  }, [screens.length, activeScreen.backgroundId]);
+  }, [screens.length, activeScreen.backgroundId, recordSnapshot]);
 
   const switchScreen = useCallback((index: number) => {
     if (index >= 0 && index < screens.length) {
@@ -329,20 +370,23 @@ export const useBoardManager = () => {
 
   const deleteScreen = useCallback((index: number) => {
     if (screens.length <= 1) return; // Keep at least one screen
+    recordSnapshot();
     setScreens((prev) => prev.filter((_, i) => i !== index));
     setActiveScreenIndex((prev) => Math.max(0, prev - 1));
-  }, [screens.length]);
+  }, [screens.length, recordSnapshot]);
 
   const clearCurrentScreen = useCallback(() => {
+    recordSnapshot();
     setScreens((prev) => {
       return prev.map((scr, idx) => {
         if (idx !== activeScreenIndex) return scr;
         return { ...scr, widgets: [] };
       });
     });
-  }, [activeScreenIndex]);
+  }, [activeScreenIndex, recordSnapshot]);
 
   const loadPreset = useCallback((presetType: 'begruessung' | 'stillarbeit' | 'gruppenarbeit' | 'test') => {
+    recordSnapshot();
     const timestamp = Date.now();
     let newWidgets: BoardWidgetInstance[] = [];
 
@@ -378,9 +422,10 @@ export const useBoardManager = () => {
         return { ...scr, widgets: newWidgets };
       });
     });
-  }, [activeScreenIndex]);
+  }, [activeScreenIndex, recordSnapshot]);
 
   const loadCustomScreen = useCallback((screenToLoad: BoardScreen) => {
+    recordSnapshot();
     setScreens((prev) => {
       return prev.map((scr, idx) => {
         if (idx !== activeScreenIndex) return scr;
@@ -395,7 +440,7 @@ export const useBoardManager = () => {
         };
       });
     });
-  }, [activeScreenIndex]);
+  }, [activeScreenIndex, recordSnapshot]);
 
   return {
     screens,
@@ -414,6 +459,11 @@ export const useBoardManager = () => {
     deleteScreen,
     clearCurrentScreen,
     loadPreset,
-    loadCustomScreen
+    loadCustomScreen,
+    recordSnapshot,
+    undo,
+    redo,
+    canUndo,
+    canRedo
   };
 };

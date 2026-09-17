@@ -29,6 +29,7 @@ interface BoardWidgetContainerProps {
   onClose: () => void;
   onToggleMinimize: () => void;
   onFocus: () => void;
+  onInteractionStart?: () => void;
   icon?: React.ReactNode;
   children: React.ReactNode;
 }
@@ -40,6 +41,7 @@ export const BoardWidgetContainer: React.FC<BoardWidgetContainerProps> = ({
   onClose,
   onToggleMinimize,
   onFocus,
+  onInteractionStart,
   icon,
   children
 }) => {
@@ -71,6 +73,7 @@ export const BoardWidgetContainer: React.FC<BoardWidgetContainerProps> = ({
     e.preventDefault();
     e.stopPropagation();
     onFocus();
+    onInteractionStart?.();
 
     const element = e.currentTarget;
     element.setPointerCapture(e.pointerId);
@@ -113,6 +116,7 @@ export const BoardWidgetContainer: React.FC<BoardWidgetContainerProps> = ({
     e.preventDefault();
     e.stopPropagation();
     onFocus();
+    onInteractionStart?.();
 
     const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);

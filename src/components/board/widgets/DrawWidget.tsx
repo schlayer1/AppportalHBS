@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Pen, Highlighter, Eraser, RotateCcw, Trash2 } from 'lucide-react';
+import { Pen, Highlighter, Eraser, RotateCcw, Trash2, PenLine } from 'lucide-react';
 
 interface Point {
   x: number;
@@ -33,6 +33,7 @@ export const DrawWidget: React.FC<DrawWidgetProps> = ({ data, onUpdateData }) =>
   const [tool, setTool] = useState<'pen' | 'highlighter' | 'eraser'>('pen');
   const [color, setColor] = useState('#091D2E');
   const [strokeWidth, setStrokeWidth] = useState(4);
+  const [penOnly, setPenOnly] = useState<boolean>(data?.penOnly || false);
   const [paths, setPaths] = useState<Path[]>(data?.paths || []);
   const currentPathRef = useRef<Path | null>(null);
   const isDrawingRef = useRef(false);
@@ -95,6 +96,11 @@ export const DrawWidget: React.FC<DrawWidgetProps> = ({ data, onUpdateData }) =>
   }, [paths]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    // Palm Rejection: Ignore touch (finger / palm) when stylus-only mode is enabled
+    if (penOnly && e.pointerType === 'touch') {
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -111,6 +117,7 @@ export const DrawWidget: React.FC<DrawWidgetProps> = ({ data, onUpdateData }) =>
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (penOnly && e.pointerType === 'touch') return;
     if (!isDrawingRef.current || !currentPathRef.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -140,7 +147,8 @@ export const DrawWidget: React.FC<DrawWidgetProps> = ({ data, onUpdateData }) =>
     }
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e?: React.PointerEvent<HTMLCanvasElement>) => {
+    if (penOnly && e && e.pointerType === 'touch') return;
     if (isDrawingRef.current && currentPathRef.current) {
       isDrawingRef.current = false;
       setPaths((prev) => [...prev, currentPathRef.current!]);
@@ -220,6 +228,26 @@ export const DrawWidget: React.FC<DrawWidgetProps> = ({ data, onUpdateData }) =>
           </div>
         )}
 
+        {/* Palm Rejection (Stylus Only) Toggle */}
+        <button
+          onClick={() => {
+            const next = !penOnly;
+            setPenOnly(next);
+            if (onUpdateData) {
+              onUpdateData({ paths, penOnly: next });
+            }
+          }}
+          className={`p-1.5 rounded-lg flex items-center gap-1 border transition-all text-xs font-bold ${
+            penOnly
+              ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
+              : 'bg-white/70 hover:bg-white text-hbs-slate-muted border-white/80'
+          }`}
+          title={penOnly ? "Handballenschutz AKTIV: Reagiert nur auf Stift/Stylus (Finger werden ignoriert)" : "Handballenschutz aktivieren: Nur Stift (Apple Pencil / Stylus) zeichnet"}
+        >
+          <PenLine className="w-3.5 h-3.5" />
+          <span className="text-[10px] hidden sm:inline">{penOnly ? 'Nur Stift' : 'Stift'}</span>
+        </button>
+
         {/* Actions (Undo & Clear) */}
         <div className="flex items-center gap-1">
           <button
@@ -243,6 +271,12 @@ export const DrawWidget: React.FC<DrawWidgetProps> = ({ data, onUpdateData }) =>
 
       {/* Canvas Area */}
       <div ref={containerRef} className="flex-1 min-h-0 rounded-2xl bg-white/90 border border-white shadow-inner overflow-hidden relative touch-none">
+        {penOnly && (
+          <div className="absolute top-2 right-2 z-10 bg-amber-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full pointer-events-none shadow-xs backdrop-blur-xs flex items-center gap-1">
+            <PenLine className="w-2.5 h-2.5" />
+            <span>Handballenschutz aktiv</span>
+          </div>
+        )}
         <canvas
           ref={canvasRef}
           width={360}

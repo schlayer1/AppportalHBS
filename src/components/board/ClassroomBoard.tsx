@@ -59,7 +59,9 @@ import {
   Sparkles, 
   Trash2, 
   ArrowLeft,
-  RotateCcw,
+  Undo2,
+  Redo2,
+  Compass,
   Palette,
   Save,
   FolderOpen
@@ -89,7 +91,12 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
     addScreen,
     switchScreen,
     clearCurrentScreen,
-    loadCustomScreen
+    loadCustomScreen,
+    recordSnapshot,
+    undo,
+    redo,
+    canUndo,
+    canRedo
   } = useBoardManager();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -124,17 +131,32 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
     }
   };
 
-  // Keyboard Shortcuts (F = Fullscreen, Esc = Exit)
+  // Keyboard Shortcuts (Ctrl+Z / Cmd+Z = Undo, Ctrl+Y / Cmd+Shift+Z = Redo, F = Fullscreen)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // Undo (Ctrl+Z / Cmd+Z)
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      // Redo (Ctrl+Y / Cmd+Shift+Z / Ctrl+Shift+Z)
+      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
       if (e.key === 'f' || e.key === 'F') {
         toggleFullscreen();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [undo, redo]);
 
   // Find active background preset
   const activeBgPreset = BACKGROUND_PRESETS.find((p) => p.id === activeScreen.backgroundId) || BACKGROUND_PRESETS[0];
@@ -171,6 +193,34 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
         </div>
 
         <div className="flex items-center gap-2 pointer-events-auto relative">
+          {/* Undo & Redo Quick Buttons */}
+          <div className="flex items-center gap-0.5 ios-glass p-0.5 rounded-full shadow-sm">
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className={`p-1.5 rounded-full transition-all flex items-center justify-center ${
+                canUndo
+                  ? 'text-hbs-slate-dark hover:bg-white active:scale-90 cursor-pointer shadow-2xs'
+                  : 'text-slate-300 dark:text-slate-600 opacity-40 cursor-not-allowed'
+              }`}
+              title="Rückgängig (Strg+Z / ⌘Z)"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              className={`p-1.5 rounded-full transition-all flex items-center justify-center ${
+                canRedo
+                  ? 'text-hbs-slate-dark hover:bg-white active:scale-90 cursor-pointer shadow-2xs'
+                  : 'text-slate-300 dark:text-slate-600 opacity-40 cursor-not-allowed'
+              }`}
+              title="Wiederholen (Strg+Y / ⌘⇧Z)"
+            >
+              <Redo2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {/* Direct Background Picker Button */}
           <button
             onClick={() => setIsBackgroundPickerOpen(true)}
@@ -187,7 +237,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-slate-dark hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
             title="Tafelansicht auf Start zentrieren"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-hbs-blue" />
+            <Compass className="w-3.5 h-3.5 text-hbs-blue" />
             <span className="hidden md:inline">Zentrieren</span>
           </button>
 
@@ -354,6 +404,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
                 onClose={() => removeWidget(widget.id)}
                 onToggleMinimize={() => toggleMinimize(widget.id)}
                 onFocus={() => bringToFront(widget.id)}
+                onInteractionStart={recordSnapshot}
               >
                 {widgetContent}
               </BoardWidgetContainer>

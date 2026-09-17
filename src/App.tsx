@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { PasswordGate } from './components/PasswordGate';
 import { Header, ViewMode } from './components/Header';
 import { PortalViewMode } from './types/user';
@@ -6,30 +6,38 @@ import { AppCard } from './components/AppCard';
 import { CompactAppCard } from './components/CompactAppCard';
 import { AppDetailSheet } from './components/AppDetailSheet';
 import { QrCodeModal } from './components/QrCodeModal';
-import { InstallGuideModal } from './components/InstallGuideModal';
 import { QuickToolsDrawer } from './components/QuickToolsDrawer';
 import { FloatingDock } from './components/FloatingDock';
 import { ExternalLinks } from './components/ExternalLinks';
-import { ClassroomBoard } from './components/board/ClassroomBoard';
-import { StudentPollVoter } from './components/board/StudentPollVoter';
-import { MentiDashboard } from './components/menti/MentiDashboard';
-import { MentiEditor } from './components/menti/MentiEditor';
-import { MentiPresenter } from './components/menti/MentiPresenter';
-import { MentiStudentVoter } from './components/menti/MentiStudentVoter';
-import { MentiPresentation } from './types/mentiTypes';
-import { KahootDashboard } from './components/kahoot/KahootDashboard';
-import { KahootEditor } from './components/kahoot/KahootEditor';
-import { KahootPresenter } from './components/kahoot/KahootPresenter';
-import { KahootStudentPlayer } from './components/kahoot/KahootStudentPlayer';
-import { StudentBoardViewer } from './components/board/StudentBoardViewer';
-import { KahootGame } from './types/kahootTypes';
-import { OncooDashboard } from './components/oncoo/OncooDashboard';
-import { OncooPresenter } from './components/oncoo/OncooPresenter';
-import { OncooStudentClient } from './components/oncoo/OncooStudentClient';
-import { OncooSession } from './types/oncooTypes';
-import { AdminPanelModal } from './components/admin/AdminPanelModal';
-import { AddCustomLinkModal } from './components/links/AddCustomLinkModal';
-import { TableTentGeneratorModal } from './components/tools/TableTentGeneratorModal';
+import { LoadingSpinner } from './components/ui/LoadingSpinner';
+
+// Lazy-loaded standalone sub-applications & heavy screens
+const ClassroomBoard = lazy(() => import('./components/board/ClassroomBoard').then(m => ({ default: m.ClassroomBoard })));
+const StudentPollVoter = lazy(() => import('./components/board/StudentPollVoter').then(m => ({ default: m.StudentPollVoter })));
+const StudentBoardViewer = lazy(() => import('./components/board/StudentBoardViewer').then(m => ({ default: m.StudentBoardViewer })));
+
+const MentiDashboard = lazy(() => import('./components/menti/MentiDashboard').then(m => ({ default: m.MentiDashboard })));
+const MentiEditor = lazy(() => import('./components/menti/MentiEditor').then(m => ({ default: m.MentiEditor })));
+const MentiPresenter = lazy(() => import('./components/menti/MentiPresenter').then(m => ({ default: m.MentiPresenter })));
+const MentiStudentVoter = lazy(() => import('./components/menti/MentiStudentVoter').then(m => ({ default: m.MentiStudentVoter })));
+import type { MentiPresentation } from './types/mentiTypes';
+
+const KahootDashboard = lazy(() => import('./components/kahoot/KahootDashboard').then(m => ({ default: m.KahootDashboard })));
+const KahootEditor = lazy(() => import('./components/kahoot/KahootEditor').then(m => ({ default: m.KahootEditor })));
+const KahootPresenter = lazy(() => import('./components/kahoot/KahootPresenter').then(m => ({ default: m.KahootPresenter })));
+const KahootStudentPlayer = lazy(() => import('./components/kahoot/KahootStudentPlayer').then(m => ({ default: m.KahootStudentPlayer })));
+import type { KahootGame } from './types/kahootTypes';
+
+const OncooDashboard = lazy(() => import('./components/oncoo/OncooDashboard').then(m => ({ default: m.OncooDashboard })));
+const OncooPresenter = lazy(() => import('./components/oncoo/OncooPresenter').then(m => ({ default: m.OncooPresenter })));
+const OncooStudentClient = lazy(() => import('./components/oncoo/OncooStudentClient').then(m => ({ default: m.OncooStudentClient })));
+import type { OncooSession } from './types/oncooTypes';
+
+// Lazy-loaded heavy modal dialogues
+const InstallGuideModal = lazy(() => import('./components/InstallGuideModal').then(m => ({ default: m.InstallGuideModal })));
+const AdminPanelModal = lazy(() => import('./components/admin/AdminPanelModal').then(m => ({ default: m.AdminPanelModal })));
+const AddCustomLinkModal = lazy(() => import('./components/links/AddCustomLinkModal').then(m => ({ default: m.AddCustomLinkModal })));
+const TableTentGeneratorModal = lazy(() => import('./components/tools/TableTentGeneratorModal').then(m => ({ default: m.TableTentGeneratorModal })));
 import { EmptyState } from './components/ui/empty-state';
 import { CardTilt } from './components/ui/card-tilt';
 import { AuroraBackground } from './components/ui/aurora-background';
@@ -328,14 +336,16 @@ export default function App() {
 
   if (isMentiVoter) {
     return (
-      <MentiStudentVoter 
-        onClose={() => {
-          const url = new URL(window.location.href);
-          url.searchParams.delete('menti');
-          window.history.replaceState({}, '', url.pathname);
-          window.location.reload();
-        }} 
-      />
+      <Suspense fallback={<LoadingSpinner message="Menti Abstimmung wird geladen..." />}>
+        <MentiStudentVoter 
+          onClose={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('menti');
+            window.history.replaceState({}, '', url.pathname);
+            window.location.reload();
+          }} 
+        />
+      </Suspense>
     );
   }
 
@@ -347,14 +357,16 @@ export default function App() {
 
   if (isKahootPlayer) {
     return (
-      <KahootStudentPlayer 
-        onClose={() => {
-          const url = new URL(window.location.href);
-          url.searchParams.delete('kahoot');
-          window.history.replaceState({}, '', url.pathname);
-          window.location.reload();
-        }} 
-      />
+      <Suspense fallback={<LoadingSpinner message="Kahoot Quiz wird geladen..." />}>
+        <KahootStudentPlayer 
+          onClose={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('kahoot');
+            window.history.replaceState({}, '', url.pathname);
+            window.location.reload();
+          }} 
+        />
+      </Suspense>
     );
   }
 
@@ -366,14 +378,16 @@ export default function App() {
 
   if (isOncooPlayer) {
     return (
-      <OncooStudentClient 
-        onClose={() => {
-          const url = new URL(window.location.href);
-          url.searchParams.delete('oncoo');
-          window.history.replaceState({}, '', url.pathname);
-          window.location.reload();
-        }} 
-      />
+      <Suspense fallback={<LoadingSpinner message="Oncoo Werkzeug wird geladen..." />}>
+        <OncooStudentClient 
+          onClose={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('oncoo');
+            window.history.replaceState({}, '', url.pathname);
+            window.location.reload();
+          }} 
+        />
+      </Suspense>
     );
   }
 
@@ -385,14 +399,16 @@ export default function App() {
 
   if (isBoardShare) {
     return (
-      <StudentBoardViewer 
-        onClose={() => {
-          const url = new URL(window.location.href);
-          url.searchParams.delete('boardShare');
-          window.history.replaceState({}, '', url.pathname);
-          window.location.reload();
-        }} 
-      />
+      <Suspense fallback={<LoadingSpinner message="Tafelbild wird geladen..." />}>
+        <StudentBoardViewer 
+          onClose={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('boardShare');
+            window.history.replaceState({}, '', url.pathname);
+            window.location.reload();
+          }} 
+        />
+      </Suspense>
     );
   }
 
@@ -410,16 +426,18 @@ export default function App() {
   // Fullscreen Classroom Board View (Classroomscreen Replica)
   if (viewMode === 'tafel') {
     return (
-      <ClassroomBoard 
-        onExit={() => {
-          if (isGuest) {
-            logout();
-          } else {
-            handleExitToPortal();
-          }
-        }} 
-        isGuest={isGuest}
-      />
+      <Suspense fallback={<LoadingSpinner message="Digitale Tafel wird geladen..." />}>
+        <ClassroomBoard 
+          onExit={() => {
+            if (isGuest) {
+              logout();
+            } else {
+              handleExitToPortal();
+            }
+          }} 
+          isGuest={isGuest}
+        />
+      </Suspense>
     );
   }
 
@@ -427,38 +445,44 @@ export default function App() {
   if (viewMode === 'menti') {
     if (mentiSubView === 'editor' && activeMentiPresentation) {
       return (
-        <MentiEditor
-          initialPresentation={activeMentiPresentation}
-          onClose={() => setMentiSubView('dashboard')}
-          onStartPresenter={(pres) => {
-            setActiveMentiPresentation(pres);
-            setMentiSubView('presenter');
-          }}
-        />
+        <Suspense fallback={<LoadingSpinner message="Menti Editor wird geladen..." />}>
+          <MentiEditor
+            initialPresentation={activeMentiPresentation}
+            onClose={() => setMentiSubView('dashboard')}
+            onStartPresenter={(pres) => {
+              setActiveMentiPresentation(pres);
+              setMentiSubView('presenter');
+            }}
+          />
+        </Suspense>
       );
     }
 
     if (mentiSubView === 'presenter' && activeMentiPresentation) {
       return (
-        <MentiPresenter
-          presentation={activeMentiPresentation}
-          onExit={() => setMentiSubView('dashboard')}
-        />
+        <Suspense fallback={<LoadingSpinner message="Menti Präsentation wird geladen..." />}>
+          <MentiPresenter
+            presentation={activeMentiPresentation}
+            onExit={() => setMentiSubView('dashboard')}
+          />
+        </Suspense>
       );
     }
 
     return (
-      <MentiDashboard
-        onBackToPortal={handleExitToPortal}
-        onEditPresentation={(pres) => {
-          setActiveMentiPresentation(pres);
-          setMentiSubView('editor');
-        }}
-        onStartPresenter={(pres) => {
-          setActiveMentiPresentation(pres);
-          setMentiSubView('presenter');
-        }}
-      />
+      <Suspense fallback={<LoadingSpinner message="Menti Studio wird geladen..." />}>
+        <MentiDashboard
+          onBackToPortal={handleExitToPortal}
+          onEditPresentation={(pres) => {
+            setActiveMentiPresentation(pres);
+            setMentiSubView('editor');
+          }}
+          onStartPresenter={(pres) => {
+            setActiveMentiPresentation(pres);
+            setMentiSubView('presenter');
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -466,38 +490,44 @@ export default function App() {
   if (viewMode === 'kahoot') {
     if (kahootSubView === 'editor' && activeKahootGame) {
       return (
-        <KahootEditor
-          initialGame={activeKahootGame}
-          onClose={() => setKahootSubView('dashboard')}
-          onStartPresenter={(game) => {
-            setActiveKahootGame(game);
-            setKahootSubView('presenter');
-          }}
-        />
+        <Suspense fallback={<LoadingSpinner message="Quiz Editor wird geladen..." />}>
+          <KahootEditor
+            initialGame={activeKahootGame}
+            onClose={() => setKahootSubView('dashboard')}
+            onStartPresenter={(game) => {
+              setActiveKahootGame(game);
+              setKahootSubView('presenter');
+            }}
+          />
+        </Suspense>
       );
     }
 
     if (kahootSubView === 'presenter' && activeKahootGame) {
       return (
-        <KahootPresenter
-          game={activeKahootGame}
-          onExit={() => setKahootSubView('dashboard')}
-        />
+        <Suspense fallback={<LoadingSpinner message="Live-Quiz Arena wird gestartet..." />}>
+          <KahootPresenter
+            game={activeKahootGame}
+            onExit={() => setKahootSubView('dashboard')}
+          />
+        </Suspense>
       );
     }
 
     return (
-      <KahootDashboard
-        onBackToPortal={handleExitToPortal}
-        onEditGame={(game) => {
-          setActiveKahootGame(game);
-          setKahootSubView('editor');
-        }}
-        onStartGame={(game) => {
-          setActiveKahootGame(game);
-          setKahootSubView('presenter');
-        }}
-      />
+      <Suspense fallback={<LoadingSpinner message="Kahoot Studio wird geladen..." />}>
+        <KahootDashboard
+          onBackToPortal={handleExitToPortal}
+          onEditGame={(game) => {
+            setActiveKahootGame(game);
+            setKahootSubView('editor');
+          }}
+          onStartGame={(game) => {
+            setActiveKahootGame(game);
+            setKahootSubView('presenter');
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -505,21 +535,25 @@ export default function App() {
   if (viewMode === 'oncoo') {
     if (oncooSubView === 'presenter' && activeOncooPresentationSession) {
       return (
-        <OncooPresenter
-          session={activeOncooPresentationSession}
-          onExit={() => setOncooSubView('dashboard')}
-        />
+        <Suspense fallback={<LoadingSpinner message="Oncoo Sitzung wird vorbereitet..." />}>
+          <OncooPresenter
+            session={activeOncooPresentationSession}
+            onExit={() => setOncooSubView('dashboard')}
+          />
+        </Suspense>
       );
     }
 
     return (
-      <OncooDashboard
-        onBackToPortal={handleExitToPortal}
-        onStartSession={(session) => {
-          setActiveOncooPresentationSession(session);
-          setOncooSubView('presenter');
-        }}
-      />
+      <Suspense fallback={<LoadingSpinner message="Oncoo Studio wird geladen..." />}>
+        <OncooDashboard
+          onBackToPortal={handleExitToPortal}
+          onStartSession={(session) => {
+            setActiveOncooPresentationSession(session);
+            setOncooSubView('presenter');
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -832,11 +866,40 @@ export default function App() {
         }}
       />
 
-      {/* PWA Homescreen Guide Modal */}
-      <InstallGuideModal
-        isOpen={isInstallGuideOpen}
-        onClose={() => setIsInstallGuideOpen(false)}
-      />
+      {/* Suspense Container for Heavy Modal Dialogues */}
+      <Suspense fallback={null}>
+        {/* PWA Homescreen Guide Modal */}
+        {isInstallGuideOpen && (
+          <InstallGuideModal
+            isOpen={isInstallGuideOpen}
+            onClose={() => setIsInstallGuideOpen(false)}
+          />
+        )}
+
+        {/* Admin Panel Modal */}
+        {isAdminPanelOpen && (
+          <AdminPanelModal
+            isOpen={isAdminPanelOpen}
+            onClose={() => setIsAdminPanelOpen(false)}
+          />
+        )}
+
+        {/* Add Custom Link Modal */}
+        {isAddCustomLinkOpen && (
+          <AddCustomLinkModal
+            isOpen={isAddCustomLinkOpen}
+            onClose={() => setIsAddCustomLinkOpen(false)}
+          />
+        )}
+
+        {/* QR-Code Table Tent Generator Modal */}
+        {isTableTentOpen && (
+          <TableTentGeneratorModal
+            isOpen={isTableTentOpen}
+            onClose={() => setIsTableTentOpen(false)}
+          />
+        )}
+      </Suspense>
 
       {/* Quick Tools Slide-Over Drawer */}
       <QuickToolsDrawer
@@ -844,25 +907,6 @@ export default function App() {
         onClose={() => setIsQuickToolsOpen(false)}
         onOpenTableTent={() => setIsTableTentOpen(true)}
       />
-
-      {/* Admin Panel Modal */}
-      <AdminPanelModal
-        isOpen={isAdminPanelOpen}
-        onClose={() => setIsAdminPanelOpen(false)}
-      />
-
-      {/* Add Custom Link Modal */}
-      <AddCustomLinkModal
-        isOpen={isAddCustomLinkOpen}
-        onClose={() => setIsAddCustomLinkOpen(false)}
-      />
-
-      {/* QR-Code Table Tent Generator Modal */}
-      <TableTentGeneratorModal
-        isOpen={isTableTentOpen}
-        onClose={() => setIsTableTentOpen(false)}
-      />
-
     </AuroraBackground>
   );
 }

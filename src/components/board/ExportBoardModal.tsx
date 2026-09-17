@@ -159,12 +159,38 @@ export const ExportBoardModal: React.FC<ExportBoardModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownloadSnapshot = () => {
+  const handleDownloadSnapshot = (format: 'png' | 'jpeg' = 'png') => {
     if (!snapshotUrl) return;
+    const cleanTitle = (activeScreen.title || 'Tafelbild').replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_');
+    const filename = `Tafelbild_HBS_${cleanTitle}_${new Date().toISOString().split('T')[0]}.${format === 'jpeg' ? 'jpg' : 'png'}`;
+
+    if (format === 'jpeg') {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          const jpegUrl = canvas.toDataURL('image/jpeg', 0.92);
+          const a = document.createElement('a');
+          a.href = jpegUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      };
+      img.src = snapshotUrl;
+      return;
+    }
+
     const a = document.createElement('a');
     a.href = snapshotUrl;
-    const cleanTitle = (activeScreen.title || 'Tafelbild').replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_');
-    a.download = `Tafelbild_HBS_${cleanTitle}_${new Date().toISOString().split('T')[0]}.png`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -508,18 +534,30 @@ export const ExportBoardModal: React.FC<ExportBoardModalProps> = ({
 
                 <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={handleDownloadSnapshot}
+                    onClick={() => handleDownloadSnapshot('png')}
                     disabled={!snapshotUrl || isCapturing}
                     className="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 disabled:opacity-50"
+                    title="Verlustfreies PNG herunterladen"
                   >
                     <Download className="w-4 h-4 text-slate-600" />
-                    <span>PNG Bild</span>
+                    <span>PNG</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDownloadSnapshot('jpeg')}
+                    disabled={!snapshotUrl || isCapturing}
+                    className="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 disabled:opacity-50"
+                    title="Kompaktes JPEG herunterladen"
+                  >
+                    <Download className="w-4 h-4 text-slate-600" />
+                    <span>JPG</span>
                   </button>
 
                   <button
                     onClick={handlePrintVisualBoard}
                     disabled={!snapshotUrl || isCapturing || isPrinting}
                     className="px-4 py-2 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                    title="Als PDF drucken oder speichern"
                   >
                     {isPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
                     <span>Als PDF drucken</span>

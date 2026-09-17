@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Plus, 
   Play, 
@@ -62,7 +62,19 @@ export const MentiDashboard: React.FC<MentiDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'mine' | 'school' | 'archive'>('mine');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('Alle Fächer');
+  const [selectedFolder, setSelectedFolder] = useState('Alle Ordner');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Extract distinct folders
+  const availableFolders = useMemo(() => {
+    const folders = new Set<string>();
+    mentiPresentations.forEach(p => {
+      if (p.folder && p.folder.trim()) {
+        folders.add(p.folder.trim());
+      }
+    });
+    return Array.from(folders).sort();
+  }, [mentiPresentations]);
 
   // Filter lists
   const myPresentations = mentiPresentations.filter(
@@ -87,13 +99,32 @@ export const MentiDashboard: React.FC<MentiDashboardProps> = ({
     const matchesSearch = 
       p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (p.authorName && p.authorName.toLowerCase().includes(searchQuery.toLowerCase()));
+      (p.authorName && p.authorName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (p.folder && p.folder.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesSubject = 
       selectedSubject === 'Alle Fächer' || p.subject === selectedSubject;
 
-    return matchesSearch && matchesSubject;
+    const matchesFolder = 
+      selectedFolder === 'Alle Ordner' || 
+      (selectedFolder === 'Ohne Ordner' ? !p.folder : p.folder === selectedFolder);
+
+    return matchesSearch && matchesSubject && matchesFolder;
   });
+
+  const handleAssignFolder = (pres: MentiPresentation) => {
+    const folderName = window.prompt(
+      `Ordner für "${pres.title}" eingeben oder auswählen (z.B. "Klasse 7a", "Vertretung", "Mathematik"):`,
+      pres.folder || ''
+    );
+    if (folderName !== null) {
+      saveMentiPresentation({
+        ...pres,
+        folder: folderName.trim() || undefined,
+        updatedAt: Date.now()
+      });
+    }
+  };
 
   const handleCreateNew = () => {
     const newPresentation: MentiPresentation = {
@@ -275,8 +306,58 @@ export const MentiDashboard: React.FC<MentiDashboardProps> = ({
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
+
+            <select
+              value={selectedFolder}
+              onChange={(e) => setSelectedFolder(e.target.value)}
+              className="py-1.5 px-3 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+            >
+              <option value="Alle Ordner">📁 Alle Ordner</option>
+              <option value="Ohne Ordner">Ohne Ordner</option>
+              {availableFolders.map((f) => (
+                <option key={f} value={f}>📁 {f}</option>
+              ))}
+            </select>
           </div>
         </div>
+
+        {/* Quick Folder Navigation Pills */}
+        {availableFolders.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5">
+            <span className="text-[11px] font-bold text-slate-400 shrink-0 flex items-center gap-1">
+              <FolderOpen className="w-3 h-3 text-slate-400" />
+              <span>Ordner:</span>
+            </span>
+            <button
+              onClick={() => setSelectedFolder('Alle Ordner')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                selectedFolder === 'Alle Ordner'
+                  ? 'bg-teal-600 text-white shadow-2xs'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              Alle ({currentList.length})
+            </button>
+            {availableFolders.map((f) => {
+              const count = currentList.filter(p => p.folder === f).length;
+              return (
+                <button
+                  key={f}
+                  onClick={() => setSelectedFolder(f)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+                    selectedFolder === f
+                      ? 'bg-amber-500 text-white shadow-2xs'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <FolderOpen className="w-3 h-3" />
+                  <span>{f}</span>
+                  <span className="opacity-70 text-[10px]">({count})</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Presentations Grid */}
         {filteredList.length === 0 ? (
@@ -321,6 +402,22 @@ export const MentiDashboard: React.FC<MentiDashboardProps> = ({
                             {pres.subject}
                           </span>
                         )}
+                        {/* Folder Badge & Quick Assign */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAssignFolder(pres);
+                          }}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                            pres.folder
+                              ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-500 border-slate-200'
+                          }`}
+                          title="Ordner zuweisen oder ändern"
+                        >
+                          <FolderOpen className="w-2.5 h-2.5 text-amber-600" />
+                          <span>{pres.folder || '+ Ordner'}</span>
+                        </button>
                         {pres.grade && (
                           <span className="px-2 py-0.5 rounded-lg bg-purple-50 text-purple-800 text-[10px] font-bold border border-purple-100">
                             {pres.grade}

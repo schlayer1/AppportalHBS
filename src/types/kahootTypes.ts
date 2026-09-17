@@ -25,6 +25,8 @@ export interface KahootGame {
   description?: string;
   subject?: string;
   grade?: string;
+  folder?: string; // e.g. "Klasse 8b", "Vertretung", "Geschichte"
+  tags?: string[];
   authorId: string;
   authorName: string;
   isShared: boolean;

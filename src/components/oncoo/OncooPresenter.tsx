@@ -16,7 +16,10 @@ import {
   Check, 
   Clock, 
   Copy,
-  UserCheck
+  UserCheck,
+  Printer,
+  Download,
+  Presentation
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -366,6 +369,204 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
     return 4;
   }, [session]);
 
+  const [boardExportToast, setBoardExportToast] = useState<boolean>(false);
+
+  // 1. Export clustered cards to Digital Blackboard (ClassroomBoard)
+  const handleExportToBoard = () => {
+    try {
+      const STORAGE_KEY = 'hbs_board_deck_v1';
+      const saved = localStorage.getItem(STORAGE_KEY);
+      let screens = [];
+      if (saved) {
+        try { screens = JSON.parse(saved); } catch (e) { screens = []; }
+      }
+      if (!Array.isArray(screens) || screens.length === 0) {
+        screens = [{ id: 'screen-1', title: 'Tafel 1', backgroundId: 'chalkboard', widgets: [] }];
+      }
+
+      const q = session.kartenabfrage?.question || session.title;
+      let text = `📌 ONCOO KARTENABFRAGE: ${q}\n\n`;
+
+      session.kartenabfrage?.columns.forEach((col) => {
+        const colCards = session.kartenabfrage!.cards.filter(c => c.columnId === col.id);
+        text += `📁 ${col.title} (${colCards.length} Karten):\n`;
+        if (colCards.length === 0) {
+          text += `  (Keine Karten zugeordnet)\n`;
+        } else {
+          colCards.forEach(c => {
+            text += `  • ${c.text}${c.authorAlias ? ` [${c.authorAlias}]` : ''}\n`;
+          });
+        }
+        text += `\n`;
+      });
+
+      const unassigned = session.kartenabfrage?.cards.filter(c => !c.columnId) || [];
+      if (unassigned.length > 0) {
+        text += `📥 Ungeordnete Ideen (${unassigned.length}):\n`;
+        unassigned.forEach(c => {
+          text += `  • ${c.text}\n`;
+        });
+      }
+
+      const newWidget = {
+        id: `oncoo-result-${Date.now()}`,
+        type: 'text' as const,
+        title: `Oncoo: ${q.slice(0, 20)}...`,
+        x: 60 + Math.floor(Math.random() * 60),
+        y: 80 + Math.floor(Math.random() * 60),
+        width: 440,
+        height: 320,
+        zIndex: 50,
+        data: { text }
+      };
+
+      screens[0].widgets = [...(screens[0].widgets || []), newWidget];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(screens));
+      setBoardExportToast(true);
+      setTimeout(() => setBoardExportToast(false), 3500);
+    } catch (err) {
+      console.warn('Fehler beim Export auf Tafel:', err);
+    }
+  };
+
+  // 2. Printable Handout in DIN A4
+  const handlePrintKartenabfrage = () => {
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow?.document;
+    if (frameDoc) {
+      const q = session.kartenabfrage?.question || session.title;
+      const columnsHtml = (session.kartenabfrage?.columns || []).map((col) => {
+        const colCards = (session.kartenabfrage?.cards || []).filter(c => c.columnId === col.id);
+        return `
+          <div style="flex: 1; min-width: 180px; border: 1.5px solid #003366; border-radius: 8px; overflow: hidden; background: #ffffff; margin: 4px;">
+            <div style="background: #003366; color: #ffffff; padding: 6px 10px; font-weight: 800; font-size: 10.5pt; display: flex; justify-content: space-between;">
+              <span>${col.title}</span>
+              <span style="opacity: 0.8; font-size: 9pt;">(${colCards.length})</span>
+            </div>
+            <div style="padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+              ${colCards.length === 0 ? '<div style="font-size: 8.5pt; color: #94a3b8; font-style: italic;">Keine Karten zugeordnet</div>' : ''}
+              ${colCards.map(c => `
+                <div style="padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 9pt; color: #0f172a; line-height: 1.35;">
+                  ${c.text}
+                  ${c.authorAlias ? `<div style="font-size: 7pt; color: #64748b; font-weight: bold; margin-top: 2px;">— ${c.authorAlias}</div>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const unassignedCards = (session.kartenabfrage?.cards || []).filter(c => !c.columnId);
+      const unassignedHtml = unassignedCards.length > 0 ? `
+        <div style="margin-top: 14px; padding: 10px; border: 1px dashed #94a3b8; border-radius: 8px; background: #f1f5f9;">
+          <div style="font-size: 9pt; font-weight: bold; text-transform: uppercase; color: #475569; margin-bottom: 6px;">
+            Weitere Ideen / Ungeordnete Karten (${unassignedCards.length}):
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            ${unassignedCards.map(c => `
+              <div style="padding: 4px 8px; background: white; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 8.5pt; color: #1e293b;">
+                ${c.text} ${c.authorAlias ? `<span style="color: #64748b; font-size: 7pt;">(${c.authorAlias})</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : '';
+
+      frameDoc.open();
+      frameDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Oncoo Kartenabfrage - ${q}</title>
+            <style>
+              @page { size: landscape; margin: 10mm; }
+              * { box-sizing: border-box; }
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; color: #0f172a; background: white; }
+              .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #003366; padding-bottom: 6px; margin-bottom: 12px; }
+              .school { font-size: 8pt; font-weight: 800; color: #003366; text-transform: uppercase; letter-spacing: 0.05em; }
+              .title { font-size: 14pt; font-weight: 900; margin: 2px 0; }
+              .meta { font-size: 8.5pt; color: #64748b; }
+              .crest { height: 40px; }
+              .columns-container { display: flex; align-items: flex-start; justify-content: stretch; gap: 8px; flex-wrap: wrap; }
+              .footer { margin-top: 14px; padding-top: 6px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 7.5pt; color: #94a3b8; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div>
+                <div class="school">Staatliche Regelschule „Geschwister Scholl“ Kahla • Oncoo Kartenabfrage</div>
+                <div class="title">Thema: ${q}</div>
+                <div class="meta">Datum: ${new Date().toLocaleDateString('de-DE')} • PIN: ${session.pinCode} • Karten gesamt: ${session.kartenabfrage?.cards.length || 0}</div>
+              </div>
+              <img src="/Siegel_bunt.png" class="crest" alt="Siegel" />
+            </div>
+            <div class="columns-container">
+              ${columnsHtml}
+            </div>
+            ${unassignedHtml}
+            <div class="footer">
+              <span>HBS App-Portal • Kooperatives Lernen (Oncoo)</span>
+              <span>Seite 1 / 1</span>
+            </div>
+          </body>
+        </html>
+      `);
+      frameDoc.close();
+
+      setTimeout(() => {
+        printFrame.contentWindow?.focus();
+        printFrame.contentWindow?.print();
+        setTimeout(() => {
+          if (document.body.contains(printFrame)) {
+            document.body.removeChild(printFrame);
+          }
+        }, 2000);
+      }, 400);
+    }
+  };
+
+  // 3. Download Markdown / Text Documentation
+  const handleDownloadText = () => {
+    const q = session.kartenabfrage?.question || session.title;
+    let md = `# Oncoo Kartenabfrage: ${q}\n`;
+    md += `Datum: ${new Date().toLocaleDateString('de-DE')} • PIN: ${session.pinCode}\n\n`;
+
+    session.kartenabfrage?.columns.forEach(col => {
+      const colCards = session.kartenabfrage!.cards.filter(c => c.columnId === col.id);
+      md += `## ${col.title} (${colCards.length} Karten)\n`;
+      colCards.forEach(c => {
+        md += `- ${c.text}${c.authorAlias ? ` (von ${c.authorAlias})` : ''}\n`;
+      });
+      md += `\n`;
+    });
+
+    const unassigned = session.kartenabfrage?.cards.filter(c => !c.columnId) || [];
+    if (unassigned.length > 0) {
+      md += `## Weitere ungeordnete Karten (${unassigned.length})\n`;
+      unassigned.forEach(c => {
+        md += `- ${c.text}\n`;
+      });
+    }
+
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Oncoo_Kartenabfrage_${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-white font-sans flex flex-col justify-between select-none">
       
@@ -509,6 +710,39 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
                     />
                   ))}
                 </div>
+
+                {/* Print Handout PDF */}
+                <button
+                  type="button"
+                  onClick={handlePrintKartenabfrage}
+                  className="px-3 py-1.5 rounded-xl bg-blue-700/80 hover:bg-blue-600 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                  title="Druckbogen im DIN A4 Querformat drucken / als PDF speichern"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Druckbogen</span>
+                </button>
+
+                {/* Export to Blackboard */}
+                <button
+                  type="button"
+                  onClick={handleExportToBoard}
+                  className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                  title="Ergebnisse als Widget auf die Digitale Tafel exportieren"
+                >
+                  <Presentation className="w-3.5 h-3.5" />
+                  <span>Auf Tafel</span>
+                </button>
+
+                {/* Download Text / Markdown */}
+                <button
+                  type="button"
+                  onClick={handleDownloadText}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold flex items-center gap-1.5 transition-all"
+                  title="Karten als Textdatei (.md) herunterladen"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden xl:inline">Export</span>
+                </button>
 
                 {/* Add Column Button */}
                 <button
@@ -1314,6 +1548,17 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Toast for Board Export */}
+      {boardExportToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-emerald-400/40 animate-bounce">
+          <Presentation className="w-5 h-5 text-emerald-200 shrink-0" />
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wider">Erfolgreich übertragen!</div>
+            <div className="text-xs opacity-90">Die Kartenabfrage wurde als Text-Widget auf der Digitalen Tafel abgelegt.</div>
           </div>
         </div>
       )}

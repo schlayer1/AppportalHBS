@@ -228,6 +228,17 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
             ))}
           </select>
 
+          <input
+            type="text"
+            value={presentation.folder || ''}
+            onChange={(e) => {
+              setPresentation(prev => ({ ...prev, folder: e.target.value }));
+              setIsSaved(false);
+            }}
+            placeholder="📁 Ordner (z.B. Klasse 7a)"
+            className="hidden lg:block py-1.5 px-2.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 outline-none w-36 placeholder:text-slate-400"
+          />
+
           <button
             onClick={handleSave}
             disabled={isSaved}
