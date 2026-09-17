@@ -7,7 +7,8 @@ import {
   Key, 
   AlertCircle, 
   Loader2, 
-  ArrowRight
+  ArrowRight,
+  Settings2
 } from 'lucide-react';
 import { 
   AiQuizRequest, 
@@ -16,6 +17,7 @@ import {
   setStoredApiKey, 
   convertDraftToKahootQuestion 
 } from '../../services/aiQuizGenerator';
+import { geminiService } from '../../services/geminiService';
 import { AiGeneratedQuestionDraft, KahootQuestion } from '../../types/kahootTypes';
 
 interface KahootAiModalProps {
@@ -24,6 +26,7 @@ interface KahootAiModalProps {
   onImportQuestions: (questions: KahootQuestion[]) => void;
   defaultSubject?: string;
   defaultGrade?: string;
+  onOpenSettings?: () => void;
 }
 
 const SUBJECTS = [
@@ -41,7 +44,8 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
   onClose,
   onImportQuestions,
   defaultSubject = 'Biologie',
-  defaultGrade = 'Klasse 7'
+  defaultGrade = 'Klasse 7',
+  onOpenSettings
 }) => {
   // Close modal on Escape key
   useEffect(() => {
@@ -298,31 +302,53 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
                 />
               </div>
 
-              {/* API Key Toggle & Input */}
-              <div className="pt-2 border-t border-slate-100">
+              {/* API Key Toggle & Settings */}
+              <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                    <span className="font-bold text-slate-700">
+                      {geminiService.isUsingCustomKey() 
+                        ? '✓ Eigener Gemini Key aktiv' 
+                        : '✓ HBS-Schulschlüssel aktiv'}
+                    </span>
+                  </div>
+
+                  {onOpenSettings && (
+                    <button
+                      type="button"
+                      onClick={onOpenSettings}
+                      className="text-xs text-purple-700 hover:text-purple-900 font-bold hover:underline flex items-center gap-1"
+                    >
+                      <Settings2 className="w-3.5 h-3.5" />
+                      <span>KI-Einstellungen</span>
+                    </button>
+                  )}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setShowKeyInput(!showKeyInput)}
-                  className="text-xs font-bold text-slate-500 hover:text-purple-600 flex items-center gap-1.5"
+                  className="text-[11px] font-semibold text-slate-500 hover:text-purple-600 flex items-center gap-1.5"
                 >
-                  <Key className="w-3.5 h-3.5" />
-                  <span>{apiKey ? '✓ Gemini API-Key hinterlegt (Klicken zum Ändern)' : 'Gemini API-Key eingeben (optional)'}</span>
+                  <Key className="w-3 h-3" />
+                  <span>{showKeyInput ? 'Schlüsseleingabe ausblenden' : 'Anderen API-Key eingeben'}</span>
                 </button>
 
                 {showKeyInput && (
-                  <div className="mt-2 p-3 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-1.5 animate-fadeIn">
+                  <div className="p-3 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-1.5 animate-fadeIn">
                     <span className="text-[11px] text-purple-950 font-bold block">
-                      Google Gemini API-Key:
+                      Google Gemini API-Key anpassen:
                     </span>
                     <input
                       type="password"
                       value={apiKey}
                       onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="AIzaSy..."
+                      placeholder="AQ... oder AIzaSy..."
                       className="w-full p-2 rounded-xl bg-white border border-purple-200 text-xs font-mono text-slate-800 focus:outline-none"
                     />
                     <p className="text-[10px] text-slate-500">
-                      Wird sicher in deinem lokalen Browser gespeichert. Wenn kein Key hinterlegt ist, erstellt die KI automatisch qualitativ hochwertige Lehrplan-Vorlagen.
+                      Wird sicher in Ihrem Browser gespeichert. Standardmäßig nutzt das Portal den Schulschlüssel der Heimbürgeschule.
                     </p>
                   </div>
                 )}

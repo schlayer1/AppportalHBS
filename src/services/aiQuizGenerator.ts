@@ -1,4 +1,5 @@
 import { AiGeneratedQuestionDraft, KahootOption, KahootShape } from '../types/kahootTypes';
+import { geminiService } from './geminiService';
 
 export interface AiQuizRequest {
   subject: string;
@@ -10,17 +11,12 @@ export interface AiQuizRequest {
   apiKey?: string;
 }
 
-const STORAGE_KEY_API = 'hbs_ai_quiz_api_key';
-
 export const getStoredApiKey = (): string => {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem(STORAGE_KEY_API) || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+  return geminiService.getApiKey();
 };
 
 export const setStoredApiKey = (key: string) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY_API, key.trim());
-  }
+  geminiService.saveApiKey(key);
 };
 
 /**
@@ -29,7 +25,7 @@ export const setStoredApiKey = (key: string) => {
 export const generateQuizQuestionsWithAi = async (
   request: AiQuizRequest
 ): Promise<AiGeneratedQuestionDraft[]> => {
-  const activeKey = request.apiKey?.trim() || getStoredApiKey();
+  const activeKey = request.apiKey?.trim() || geminiService.getApiKey();
 
   if (activeKey) {
     try {
@@ -38,7 +34,7 @@ export const generateQuizQuestionsWithAi = async (
         return questions;
       }
     } catch (err) {
-      console.warn('Gemini API call failed, falling back to curriculum template generator:', err);
+      console.warn('[AiQuizGenerator] Gemini API fehlgeschlagen, nutze Fallback-Generator:', err);
       // fallback proceeds below
     }
   }
@@ -51,60 +47,41 @@ async function fetchGeminiQuizQuestions(
   request: AiQuizRequest,
   apiKey: string
 ): Promise<AiGeneratedQuestionDraft[]> {
-  const prompt = `Du bist ein erfahrener Lehrer an der Heimbürgeschule Kahla.
-Erstelle genau ${request.questionCount} abwechslungsreiche Multiple-Choice-Quizfragen für den Unterricht im Fach "${request.subject}" (Klassenstufe: ${request.grade}, Schwierigkeit: ${request.difficulty}).
-Thema: "${request.topic}".
-${request.contextText ? `Orientierungs-Text / Lehrplantext:\n"${request.contextText}"\n` : ''}
+  const prompt = `Du bist ein erfahrener Fachlehrer an der Staatlichen Regelschule Heimbürgeschule Kahla.
+Erstelle genau ${request.questionCount} didaktisch wertvolle Multiple-Choice-Quizfragen für das Fach "${request.subject}" (Klassenstufe: ${request.grade}, Schwierigkeitsgrad: ${request.difficulty}).
+Unterrichtsthema: "${request.topic}".
+${request.contextText ? `Zusatzkontext / Lehrplantext:\n"${request.contextText}"\n` : ''}
 
-WICHTIGE REGELN:
-1. Jede Frage MUSS genau 4 Antwortmöglichkeiten haben (eine eindeutig richtige Antwort, drei plausible aber falsche Distraktoren).
-2. Die Fragen müssen altersgerecht, didaktisch präzise und für ein Schulschnellquiz geeignet sein.
-3. Antworte AUSSCHLIESSLICH im folgenden JSON-Format ohne Markdown-Codeblöcke:
+WICHTIGE DIDAKTISCHE VORGABEN:
+1. Jede Frage MUSS genau 4 Antwortmöglichkeiten haben (1 eindeutig fachlich korrekte Antwort, 3 plausible Schülertäuschungen/Distraktoren).
+2. Die Fragen müssen altersgerecht, motivierend und direkt für Schüler verständlich formuliert sein.
+3. Antworte STRIKT als valides JSON-Array ohne Markdown-Backticks:
 [
   {
     "question": "Fragetext hier",
     "options": [
-      { "text": "Antwort 1", "isCorrect": true },
-      { "text": "Antwort 2", "isCorrect": false },
-      { "text": "Antwort 3", "isCorrect": false },
-      { "text": "Antwort 4", "isCorrect": false }
+      { "text": "Richtige Antwort", "isCorrect": true },
+      { "text": "Falsche Antwort 1", "isCorrect": false },
+      { "text": "Falsche Antwort 2", "isCorrect": false },
+      { "text": "Falsche Antwort 3", "isCorrect": false }
     ],
-    "explanation": "Kurze Erklärung für die Auswertung",
+    "explanation": "Kurze prägnante Erklärung für die gemeinsame Auswertung",
     "timeLimitSeconds": 20
   }
 ]`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [{ text: prompt }]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.4,
-        topP: 0.8,
-        maxOutputTokens: 2048
-      }
-    })
+  const result = await geminiService.executeWithCascade({
+    key: apiKey,
+    prompt,
+    systemInstruction: 'Du bist ein erfahrener Pädagoge und erstellst hochwertige Schul-Quizfragen im strikten JSON-Format.',
+    temperature: 0.35,
+    responseMimeType: 'application/json',
   });
 
-  if (!response.ok) {
-    throw new Error(`Gemini API HTTP Error: ${response.status} ${response.statusText}`);
-  }
-
-  const json = await response.json();
-  const textContent = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  
-  // Clean JSON markup
-  const cleanJson = textContent.replace(/```json/g, '').replace(/```/g, '').trim();
+  const cleanJson = geminiService.cleanJsonOutput(result.text);
   const parsed = JSON.parse(cleanJson);
 
-  if (Array.isArray(parsed)) {
+  if (Array.isArray(parsed) && parsed.length > 0) {
     return parsed.map((item: any) => ({
       question: String(item.question || 'Frage'),
       options: Array.isArray(item.options) ? item.options.map((o: any) => ({
@@ -116,7 +93,7 @@ WICHTIGE REGELN:
     }));
   }
 
-  throw new Error('Could not parse valid questions array from Gemini');
+  throw new Error('Ungültiges Fragenformat von der Gemini-Schnittstelle empfangen.');
 }
 
 /**

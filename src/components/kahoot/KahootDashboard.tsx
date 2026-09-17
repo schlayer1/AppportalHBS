@@ -21,6 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import { KahootGame, KahootQuestion } from '../../types/kahootTypes';
 import { KahootAiModal } from './KahootAiModal';
 import { KahootWorksheetModal } from './KahootWorksheetModal';
+import { GeminiSettingsModal } from '../gemini/GeminiSettingsModal';
 
 interface KahootDashboardProps {
   onBackToPortal: () => void;
@@ -78,8 +79,9 @@ export const KahootDashboard: React.FC<KahootDashboardProps> = ({
     return Array.from(folders).sort();
   }, [kahootGames]);
 
-  // AI Modal state
+  // AI Quiz Generator Modal state
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isGeminiSettingsOpen, setIsGeminiSettingsOpen] = useState(false);
   const [targetGameForAi, setTargetGameForAi] = useState<KahootGame | null>(null);
 
   // Worksheet Modal state
@@ -235,6 +237,15 @@ export const KahootDashboard: React.FC<KahootDashboardProps> = ({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsGeminiSettingsOpen(true)}
+            className="px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold text-xs transition-all active:scale-95 flex items-center gap-1.5 shrink-0 border border-purple-200"
+            title="Google Gemini KI-Optionen & Modellstatus"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+            <span className="hidden sm:inline">KI-Optionen</span>
+          </button>
+
           <button
             onClick={handleOpenAiNew}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:opacity-95 text-white font-black text-xs shadow-sm transition-all active:scale-95"
@@ -576,7 +587,19 @@ export const KahootDashboard: React.FC<KahootDashboardProps> = ({
         onImportQuestions={handleImportAiQuestions}
         defaultSubject={targetGameForAi?.subject || selectedSubject !== 'Alle Fächer' ? selectedSubject : 'Mathematik'}
         defaultGrade={targetGameForAi?.grade || 'Klasse 7'}
+        onOpenSettings={() => {
+          setIsAiModalOpen(false);
+          setIsGeminiSettingsOpen(true);
+        }}
       />
+
+      {/* Google Gemini AI Settings Modal */}
+      {isGeminiSettingsOpen && (
+        <GeminiSettingsModal
+          isOpen={isGeminiSettingsOpen}
+          onClose={() => setIsGeminiSettingsOpen(false)}
+        />
+      )}
 
       {/* Emergency Worksheet Modal */}
       {worksheetGame && (

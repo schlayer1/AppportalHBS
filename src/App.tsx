@@ -40,6 +40,7 @@ const AddCustomLinkModal = lazy(() => import('./components/links/AddCustomLinkMo
 const TableTentGeneratorModal = lazy(() => import('./components/tools/TableTentGeneratorModal').then(m => ({ default: m.TableTentGeneratorModal })));
 const HandbookModal = lazy(() => import('./components/handbook/HandbookModal').then(m => ({ default: m.HandbookModal })));
 const OnboardingTourModal = lazy(() => import('./components/onboarding/OnboardingTourModal').then(m => ({ default: m.OnboardingTourModal })));
+const GeminiSettingsModal = lazy(() => import('./components/gemini/GeminiSettingsModal').then(m => ({ default: m.GeminiSettingsModal })));
 import { EmptyState } from './components/ui/empty-state';
 import { CardTilt } from './components/ui/card-tilt';
 import { AuroraBackground } from './components/ui/aurora-background';
@@ -184,6 +185,7 @@ export default function App() {
   const [isReorderMode, setIsReorderMode] = useState<boolean>(false);
   const [isHandbookOpen, setIsHandbookOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
+  const [isGeminiSettingsOpen, setIsGeminiSettingsOpen] = useState<boolean>(false);
 
   // Menti presentation state
   const [activeMentiPresentation, setActiveMentiPresentation] = useState<MentiPresentation | null>(null);
@@ -219,7 +221,7 @@ export default function App() {
     }
   }, [isAuthenticated, isGuest]);
 
-  // Listen to #menti, #kahoot, #oncoo, #tafel and #handbuch hashes in URL
+  // Listen to #menti, #kahoot, #oncoo, #tafel, #handbuch and #gemini hashes in URL
   useEffect(() => {
     const checkHash = () => {
       const hash = window.location.hash;
@@ -233,6 +235,13 @@ export default function App() {
         setViewMode('tafel');
       } else if (hash === '#handbuch') {
         setIsHandbookOpen(true);
+        try {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        } catch {
+          window.location.hash = '';
+        }
+      } else if (hash === '#gemini' || hash === '#ai') {
+        setIsGeminiSettingsOpen(true);
         try {
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
         } catch {
@@ -602,6 +611,7 @@ export default function App() {
         onOpenAddCustomLink={() => setIsAddCustomLinkOpen(true)}
         onOpenHandbook={() => setIsHandbookOpen(true)}
         onOpenTour={() => setIsOnboardingOpen(true)}
+        onOpenGeminiSettings={() => setIsGeminiSettingsOpen(true)}
         isReorderMode={isReorderMode}
         onToggleReorderMode={() => setIsReorderMode(!isReorderMode)}
         viewMode={viewMode}
@@ -957,6 +967,14 @@ export default function App() {
             }}
           />
         )}
+
+        {/* Google Gemini AI Settings & Model Manager Modal */}
+        {isGeminiSettingsOpen && (
+          <GeminiSettingsModal
+            isOpen={isGeminiSettingsOpen}
+            onClose={() => setIsGeminiSettingsOpen(false)}
+          />
+        )}
       </Suspense>
 
       {/* Quick Tools Slide-Over Drawer */}
@@ -964,6 +982,7 @@ export default function App() {
         isOpen={isQuickToolsOpen}
         onClose={() => setIsQuickToolsOpen(false)}
         onOpenTableTent={() => setIsTableTentOpen(true)}
+        onOpenGeminiSettings={() => setIsGeminiSettingsOpen(true)}
       />
     </AuroraBackground>
   );

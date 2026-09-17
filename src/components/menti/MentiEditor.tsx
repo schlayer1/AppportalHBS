@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { MentiPresentation, MentiSlide, MentiSlideType } from '../../types/mentiTypes';
 import { useAuth } from '../../context/AuthContext';
+import { MentiAiModal } from './MentiAiModal';
+import { GeminiSettingsModal } from '../gemini/GeminiSettingsModal';
 
 interface MentiEditorProps {
   initialPresentation: MentiPresentation;
@@ -70,6 +72,20 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
   const [isSaved, setIsSaved] = useState<boolean>(true);
   const [showTypeSelector, setShowTypeSelector] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<'slides' | 'preview' | 'settings'>('preview');
+
+  // Gemini AI Modal States
+  const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
+  const [isGeminiSettingsOpen, setIsGeminiSettingsOpen] = useState<boolean>(false);
+
+  const handleAppendAiSlides = (newSlides: MentiSlide[]) => {
+    setPresentation((prev) => ({
+      ...prev,
+      slides: [...prev.slides, ...newSlides],
+      updatedAt: Date.now(),
+    }));
+    setIsSaved(false);
+    setActiveSlideIndex(presentation.slides.length);
+  };
 
   // Close modal on Escape key
   useEffect(() => {
@@ -322,13 +338,23 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
             <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
               Folien ({presentation.slides.length})
             </span>
-            <button
-              onClick={() => setShowTypeSelector(true)}
-              className="p-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold transition-all flex items-center gap-1 px-2"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Neu</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsAiModalOpen(true)}
+                className="p-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold transition-all flex items-center gap-1 px-2 border border-purple-200"
+                title="Neue Folien mit Gemini KI generieren"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                <span>KI</span>
+              </button>
+              <button
+                onClick={() => setShowTypeSelector(true)}
+                className="p-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold transition-all flex items-center gap-1 px-2"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Neu</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
@@ -1133,6 +1159,27 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Menti AI Slide Generation Modal */}
+      {isAiModalOpen && (
+        <MentiAiModal
+          isOpen={isAiModalOpen}
+          onClose={() => setIsAiModalOpen(false)}
+          onApplySlides={handleAppendAiSlides}
+          onOpenSettings={() => {
+            setIsAiModalOpen(false);
+            setIsGeminiSettingsOpen(true);
+          }}
+        />
+      )}
+
+      {/* Google Gemini AI Settings Modal */}
+      {isGeminiSettingsOpen && (
+        <GeminiSettingsModal
+          isOpen={isGeminiSettingsOpen}
+          onClose={() => setIsGeminiSettingsOpen(false)}
+        />
       )}
     </div>
   );

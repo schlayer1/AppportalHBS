@@ -18,7 +18,8 @@ import {
   Wind,
   Calculator,
   BookOpen,
-  Presentation
+  Presentation,
+  Sparkles
 } from 'lucide-react';
 
 interface AnimatedAppIconProps {
@@ -178,6 +179,14 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
     return (
       <div className="relative flex items-center justify-center group/icon">
         <Presentation className={`${className} transition-transform duration-300 group-hover/icon:scale-110 text-emerald-600`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Sparkles') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Sparkles className={`${className} transition-all duration-500 group-hover/icon:scale-125 group-hover/icon:rotate-12 text-purple-600 animate-pulse`} size={size} />
       </div>
     );
   }

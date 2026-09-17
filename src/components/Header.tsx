@@ -39,6 +39,7 @@ interface HeaderProps {
   onOpenAddCustomLink?: () => void;
   onOpenHandbook?: () => void;
   onOpenTour?: () => void;
+  onOpenGeminiSettings?: () => void;
   isReorderMode?: boolean;
   onToggleReorderMode?: () => void;
   viewMode: ViewMode;
@@ -69,6 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAddCustomLink,
   onOpenHandbook,
   onOpenTour,
+  onOpenGeminiSettings,
   isReorderMode,
   onToggleReorderMode,
   viewMode,
@@ -235,6 +237,19 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
+            {/* Gemini KI-Studio trigger (lg:flex) */}
+            {onOpenGeminiSettings && (
+              <button
+                onClick={onOpenGeminiSettings}
+                className="hidden lg:flex h-9 p-2 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-900 border border-purple-300/60 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                title="Google Gemini KI-Optionen & Modellstatus öffnen"
+                aria-label="KI-Studio"
+              >
+                <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
+                <span>KI-Studio</span>
+              </button>
+            )}
+
             {/* Table Tent Generator modal trigger (xl:flex) */}
             {onOpenTableTent && (
               <button
@@ -332,6 +347,16 @@ export const Header: React.FC<HeaderProps> = ({
                       >
                         <BookOpen className="w-3.5 h-3.5 text-hbs-blue" />
                         <span>Kollegiums-Handbuch (PDF)</span>
+                      </button>
+                    )}
+
+                    {onOpenGeminiSettings && (
+                      <button
+                        onClick={() => { onOpenGeminiSettings(); setIsMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-purple-900 hover:bg-purple-50 flex items-center gap-2"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                        <span>Google Gemini KI-Studio</span>
                       </button>
                     )}
 

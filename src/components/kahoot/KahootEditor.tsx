@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { KahootGame, KahootQuestion, KahootOption, KahootShape } from '../../types/kahootTypes';
 import { KahootAiModal } from './KahootAiModal';
 import { KahootWorksheetModal } from './KahootWorksheetModal';
+import { GeminiSettingsModal } from '../gemini/GeminiSettingsModal';
 
 interface KahootEditorProps {
   initialGame: KahootGame;
@@ -53,6 +54,7 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState<number>(0);
   const [isSavedRecently, setIsSavedRecently] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isGeminiSettingsOpen, setIsGeminiSettingsOpen] = useState(false);
   const [isWorksheetOpen, setIsWorksheetOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<'deck' | 'editor'>('editor');
 
@@ -612,7 +614,19 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
         onImportQuestions={handleImportAiQuestions}
         defaultSubject={game.subject || 'Mathematik'}
         defaultGrade={game.grade || 'Klasse 7'}
+        onOpenSettings={() => {
+          setIsAiModalOpen(false);
+          setIsGeminiSettingsOpen(true);
+        }}
       />
+
+      {/* Google Gemini AI Settings Modal */}
+      {isGeminiSettingsOpen && (
+        <GeminiSettingsModal
+          isOpen={isGeminiSettingsOpen}
+          onClose={() => setIsGeminiSettingsOpen(false)}
+        />
+      )}
 
       {/* Emergency Worksheet Modal */}
       {isWorksheetOpen && (

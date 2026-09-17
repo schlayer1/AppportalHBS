@@ -19,6 +19,7 @@ interface QuickToolsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenTableTent?: () => void;
+  onOpenGeminiSettings?: () => void;
 }
 
 // Simple Web Audio Bell synthesizer (no external audio file required)
@@ -50,7 +51,8 @@ const playChime = () => {
 export const QuickToolsDrawer: React.FC<QuickToolsDrawerProps> = ({ 
   isOpen, 
   onClose,
-  onOpenTableTent 
+  onOpenTableTent,
+  onOpenGeminiSettings
 }) => {
   const [activeTab, setActiveTab] = useState<'timer' | 'picker' | 'noise'>('timer');
 
@@ -509,20 +511,37 @@ export const QuickToolsDrawer: React.FC<QuickToolsDrawerProps> = ({
 
         {/* Footer */}
         <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-2">
-          {onOpenTableTent ? (
-            <button
-              onClick={() => {
-                stopMic();
-                onClose();
-                onOpenTableTent();
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-teal-800 text-xs font-bold hover:bg-teal-50 transition-colors shadow-2xs"
-              title="QR-Code Tischaufsteller für Schülertische drucken"
-            >
-              <QrCode className="w-3.5 h-3.5 text-teal-600" />
-              <span>Tischaufsteller</span>
-            </button>
-          ) : <div />}
+          <div className="flex items-center gap-2">
+            {onOpenTableTent && (
+              <button
+                onClick={() => {
+                  stopMic();
+                  onClose();
+                  onOpenTableTent();
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-teal-800 text-xs font-bold hover:bg-teal-50 transition-colors shadow-2xs"
+                title="QR-Code Tischaufsteller für Schülertische drucken"
+              >
+                <QrCode className="w-3.5 h-3.5 text-teal-600" />
+                <span>Tischaufsteller</span>
+              </button>
+            )}
+
+            {onOpenGeminiSettings && (
+              <button
+                onClick={() => {
+                  stopMic();
+                  onClose();
+                  onOpenGeminiSettings();
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-bold hover:bg-purple-100 transition-colors shadow-2xs"
+                title="Google Gemini KI-Einstellungen & Modell öffnen"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                <span>KI-Studio</span>
+              </button>
+            )}
+          </div>
 
           <button
             onClick={() => {
