@@ -205,6 +205,10 @@ export const BoardWidgetContainer: React.FC<BoardWidgetContainerProps> = ({
       {/* Content Body with Dynamic Realtime Content Scaling */}
       {!widget.isMinimized && (
         <div className="p-2 flex-1 w-full h-full min-h-0 overflow-hidden flex items-center justify-center bg-white/20 relative">
+          {/* Prevent iframes or embedded objects from capturing pointer events during drag or resize */}
+          {(isDragging || isResizing) && (
+            <div className="absolute inset-0 z-50 bg-transparent cursor-move" />
+          )}
           {baseDim ? (
             <div
               style={{
