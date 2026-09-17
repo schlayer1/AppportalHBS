@@ -18,9 +18,13 @@ import { useAuth } from '../context/AuthContext';
 
 interface PasswordGateProps {
   onAuthenticated: () => void;
+  onStartGuestBoard?: () => void;
 }
 
-export const PasswordGate: React.FC<PasswordGateProps> = ({ onAuthenticated }) => {
+export const PasswordGate: React.FC<PasswordGateProps> = ({ 
+  onAuthenticated,
+  onStartGuestBoard
+}) => {
   const { users, loginWithUser, loginWithAdminMaster, loginAsGuest } = useAuth();
 
   const [mode, setMode] = useState<'teacher' | 'admin' | 'guest'>('teacher');
@@ -87,7 +91,11 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({ onAuthenticated }) =
   // Handle Guest Login
   const handleGuestSubmit = () => {
     loginAsGuest();
-    onAuthenticated();
+    if (onStartGuestBoard) {
+      onStartGuestBoard();
+    } else {
+      onAuthenticated();
+    }
   };
 
   return (

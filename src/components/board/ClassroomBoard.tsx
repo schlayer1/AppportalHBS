@@ -70,9 +70,10 @@ import { ExportBoardModal } from './ExportBoardModal';
 
 interface ClassroomBoardProps {
   onExit: () => void;
+  isGuest?: boolean;
 }
 
-export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
+export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest }) => {
   const {
     screens,
     activeScreen,
@@ -151,11 +152,11 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
           <button
             onClick={onExit}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-full ios-glass text-hbs-slate-dark text-xs font-black shadow-md hover:bg-white transition-all active:scale-95"
-            title="Zurück zur Hub-Übersicht"
+            title={isGuest ? "Tafel beenden (Abmelden)" : "Zurück zur Hub-Übersicht"}
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Zurück zum Portal</span>
-            <span className="xs:hidden">Zurück</span>
+            <span className="hidden xs:inline">{isGuest ? "Tafel beenden" : "Zurück zum Portal"}</span>
+            <span className="xs:hidden">{isGuest ? "Beenden" : "Zurück"}</span>
           </button>
 
           <button
@@ -386,6 +387,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
           isFullscreen={isFullscreen}
           onToggleFullscreen={toggleFullscreen}
           onExitBoard={onExit}
+          isGuest={isGuest}
         />
       </div>
 

@@ -46,6 +46,7 @@ interface BoardDockProps {
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   onExitBoard: () => void;
+  isGuest?: boolean;
 }
 
 export const BoardDock: React.FC<BoardDockProps> = ({
@@ -57,7 +58,8 @@ export const BoardDock: React.FC<BoardDockProps> = ({
   onAddScreen,
   isFullscreen,
   onToggleFullscreen,
-  onExitBoard
+  onExitBoard,
+  isGuest
 }) => {
   const [showMoreFlyout, setShowMoreFlyout] = useState(false);
 
@@ -268,8 +270,8 @@ export const BoardDock: React.FC<BoardDockProps> = ({
         <button
           onClick={onExitBoard}
           className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-red-500/15 hover:bg-red-500 text-red-700 hover:text-white flex items-center justify-center border border-red-300/60 shadow-xs transition-all active:scale-90"
-          title="Tafelmodus verlassen (zurück zum Portal)"
-          aria-label="Tafel verlassen"
+          title={isGuest ? "Tafel beenden (Abmelden)" : "Tafelmodus verlassen (zurück zum Portal)"}
+          aria-label={isGuest ? "Tafel beenden" : "Tafel verlassen"}
         >
           <LogOut className="w-5 h-5" />
         </button>

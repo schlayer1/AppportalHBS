@@ -73,7 +73,8 @@ export default function App() {
     removeCustomApp, 
     updatePortalViewMode,
     currentUser, 
-    isAdmin 
+    isAdmin,
+    isGuest
   } = useAuth();
 
   // Remembered preferred portal view mode (bento | compact | smartboard)
@@ -91,9 +92,19 @@ export default function App() {
       if (hash === '#menti') return 'menti';
       if (hash === '#kahoot') return 'kahoot';
       if (hash === '#oncoo') return 'oncoo';
+      if (localStorage.getItem('hbs_guest_portal_mode_v1') === 'true') {
+        return 'tafel';
+      }
     }
     return getInitialPortalView();
   });
+
+  // Guest mode is dedicated solely to the Digital Blackboard (ClassroomBoard)
+  useEffect(() => {
+    if (isGuest && viewMode !== 'tafel') {
+      setViewMode('tafel');
+    }
+  }, [isGuest, viewMode]);
 
   // Synchronize preferred portal view from user profile if saved in cloud
   useEffect(() => {
@@ -384,12 +395,30 @@ export default function App() {
   }
 
   if (!isAuthenticated) {
-    return <PasswordGate onAuthenticated={() => {}} />;
+    return (
+      <PasswordGate 
+        onAuthenticated={() => {}} 
+        onStartGuestBoard={() => {
+          setViewMode('tafel');
+        }}
+      />
+    );
   }
 
   // Fullscreen Classroom Board View (Classroomscreen Replica)
   if (viewMode === 'tafel') {
-    return <ClassroomBoard onExit={handleExitToPortal} />;
+    return (
+      <ClassroomBoard 
+        onExit={() => {
+          if (isGuest) {
+            logout();
+          } else {
+            handleExitToPortal();
+          }
+        }} 
+        isGuest={isGuest}
+      />
+    );
   }
 
   // Fullscreen / Dedicated HBS Menti System (Mentimeter Clone)
