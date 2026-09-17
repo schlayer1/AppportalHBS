@@ -19,7 +19,9 @@ import {
   ArrowUpDown,
   MoreVertical,
   BarChart2,
-  Flame
+  Flame,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
@@ -43,6 +45,15 @@ interface HeaderProps {
   appCount: number;
 }
 
+const VIEW_MODES = [
+  { id: 'bento' as ViewMode, label: 'Bento-Grid', shortLabel: 'Bento', icon: LayoutGrid, color: 'text-hbs-blue', bgActive: 'bg-white text-hbs-blue shadow-xs' },
+  { id: 'compact' as ViewMode, label: 'Kompakte Kacheln', shortLabel: 'Kompakt', icon: Grid2X2, color: 'text-hbs-blue', bgActive: 'bg-white text-hbs-blue shadow-xs' },
+  { id: 'smartboard' as ViewMode, label: 'Smartboard', shortLabel: 'Beamer', icon: Projector, color: 'text-hbs-amber', bgActive: 'bg-hbs-amber text-white shadow-xs' },
+  { id: 'tafel' as ViewMode, label: 'Digitale Tafel', shortLabel: 'Tafel', icon: Presentation, color: 'text-emerald-600', bgActive: 'bg-emerald-600 text-white shadow-xs' },
+  { id: 'menti' as ViewMode, label: 'HBS Menti', shortLabel: 'Menti', icon: BarChart2, color: 'text-teal-600', bgActive: 'bg-teal-600 text-white shadow-xs' },
+  { id: 'kahoot' as ViewMode, label: 'HBS Kahoot!', shortLabel: 'Kahoot', icon: Flame, color: 'text-purple-600', bgActive: 'bg-purple-600 text-white shadow-xs' },
+];
+
 export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenInstallGuide,
@@ -61,16 +72,20 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { currentUser, isAdmin, isGuest } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [isViewDropdownOpen, setIsViewDropdownOpen] = useState<boolean>(false);
+
+  const currentMode = VIEW_MODES.find(m => m.id === viewMode) || VIEW_MODES[0];
+  const CurrentModeIcon = currentMode.icon;
 
   return (
-    <header className="bg-white/95 border-b border-hbs-slate-border/70 sticky top-0 z-30 shadow-xs backdrop-blur-md pt-[env(safe-area-inset-top)]">
+    <header className="bg-white/95 border-b border-hbs-slate-border/70 sticky top-0 z-30 shadow-xs backdrop-blur-md pt-[env(safe-area-inset-top)] w-full max-w-full overflow-x-clip">
       {/* Top Navbar */}
-      <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-8 lg:px-10">
-        <div className="flex items-center justify-between h-16 sm:h-20 lg:h-24 gap-2 sm:gap-3">
+      <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-18 lg:h-20 gap-2 overflow-hidden">
           
           {/* Logo & School Branding */}
-          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 shrink-0">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-2xl bg-hbs-blue-soft p-1 sm:p-1.5 flex items-center justify-center border border-hbs-blue/20 shadow-xs shrink-0 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 sm:flex-initial">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-hbs-blue-soft p-1 sm:p-1.5 flex items-center justify-center border border-hbs-blue/20 shadow-xs shrink-0">
               <img 
                 src="/Siegel_bunt.png" 
                 alt="Heimbürgeschule Wappen" 
@@ -79,151 +94,128 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-hbs-blue truncate">
+                <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-hbs-blue truncate block">
                   {PORTAL_CONFIG.schoolName}
                 </span>
-                <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-semibold text-hbs-teal bg-hbs-teal-light px-2.5 py-0.5 rounded-full border border-hbs-teal/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)]">
+                <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-semibold text-hbs-teal bg-hbs-teal-light px-2.5 py-0.5 rounded-full border border-hbs-teal/20">
                   <Sparkles className="w-3 h-3" /> Kollegiumshub
                 </span>
               </div>
-              <h1 className="text-sm sm:text-xl lg:text-2xl font-black text-hbs-slate-dark tracking-tight leading-tight truncate">
+              <h1 className="text-xs sm:text-base lg:text-xl font-black text-hbs-slate-dark tracking-tight leading-tight truncate">
                 {PORTAL_CONFIG.portalTitle}
               </h1>
             </div>
           </div>
 
           {/* Right Action buttons */}
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
-            {/* MOBILE ONLY (< md): Dedicated Tafel / Apps Toggle */}
-            <div className="flex items-center md:hidden">
-              {viewMode !== 'tafel' ? (
-                <button
-                  onClick={() => setViewMode('tafel')}
-                  className="h-9 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs active:scale-95 transition-all select-none"
-                  title="Zur Digitalen Tafel wechseln"
-                >
-                  <Presentation className="w-3.5 h-3.5 shrink-0" />
-                  <span>Tafel</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => setViewMode('bento')}
-                  className="h-9 px-2.5 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-xs font-bold flex items-center gap-1.5 shadow-xs active:scale-95 transition-all select-none"
-                  title="Zurück zur App-Übersicht"
-                >
-                  <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
-                  <span>Apps</span>
-                </button>
+            {/* MOBILE (< lg): Sleek View Mode Dropdown Pill */}
+            <div className="relative lg:hidden">
+              <button
+                onClick={() => {
+                  setIsViewDropdownOpen(!isViewDropdownOpen);
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`h-9 px-2.5 rounded-xl border text-xs font-black flex items-center gap-1.5 shadow-xs active:scale-95 transition-all select-none ${
+                  viewMode === 'tafel' ? 'bg-emerald-600 text-white border-emerald-700' :
+                  viewMode === 'menti' ? 'bg-teal-600 text-white border-teal-700' :
+                  viewMode === 'kahoot' ? 'bg-purple-600 text-white border-purple-700' :
+                  viewMode === 'smartboard' ? 'bg-amber-500 text-white border-amber-600' :
+                  'bg-slate-100 text-hbs-slate-dark border-slate-200'
+                }`}
+                title="Ansicht / Modus wechseln"
+              >
+                <CurrentModeIcon className="w-4 h-4 shrink-0" />
+                <span className="font-black">{currentMode.shortLabel}</span>
+                <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform duration-150 ${isViewDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isViewDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40 bg-black/20" 
+                    onClick={() => setIsViewDropdownOpen(false)} 
+                  />
+                  <div className="absolute right-0 top-11 z-50 w-56 bg-white rounded-2xl border border-slate-200 shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-2.5 py-1.5 border-b border-slate-100 mb-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                        Ansicht auswählen
+                      </span>
+                    </div>
+
+                    {VIEW_MODES.map((mode) => {
+                      const Icon = mode.icon;
+                      const isSelected = viewMode === mode.id;
+                      return (
+                        <button
+                          key={mode.id}
+                          onClick={() => {
+                            setViewMode(mode.id);
+                            setIsViewDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
+                            isSelected 
+                              ? 'bg-hbs-blue text-white shadow-xs' 
+                              : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icon className={`w-4 h-4 ${isSelected ? 'text-white' : mode.color}`} />
+                            <span>{mode.label}</span>
+                          </div>
+                          {isSelected && <Check className="w-3.5 h-3.5" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
 
-            {/* TABLET & DESKTOP (md:flex): Full View Mode Segmented Control */}
-            <div className="hidden md:flex items-center bg-hbs-bg p-1 rounded-2xl border border-hbs-slate-border/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]">
-              <button
-                onClick={() => setViewMode('bento')}
-                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1 ${
-                  viewMode === 'bento'
-                    ? 'bg-white text-hbs-blue shadow-xs'
-                    : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
-                }`}
-                title="Bento-Grid Ansicht"
-                aria-label="Bento-Grid Ansicht"
-              >
-                <LayoutGrid className="w-4 h-4" />
-                <span className="hidden xl:inline">Bento</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('compact')}
-                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1 ${
-                  viewMode === 'compact'
-                    ? 'bg-white text-hbs-blue shadow-xs'
-                    : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
-                }`}
-                title="Kompakte Kacheln (App-Style)"
-                aria-label="Kompaktansicht"
-              >
-                <Grid2X2 className="w-4 h-4" />
-                <span className="hidden xl:inline">Kompakt</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('smartboard')}
-                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1 ${
-                  viewMode === 'smartboard'
-                    ? 'bg-hbs-amber text-white shadow-xs'
-                    : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
-                }`}
-                title="Smartboard-Präsentationsmodus (Große App-Kacheln & QR)"
-                aria-label="Smartboard-Modus"
-              >
-                <Projector className="w-4 h-4" />
-                <span className="hidden xl:inline">Smartboard</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('tafel')}
-                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 ${
-                  viewMode === 'tafel'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-hbs-slate-muted hover:text-emerald-700'
-                }`}
-                title="Digitale Tafel"
-                aria-label="Digitale Tafel"
-              >
-                <Presentation className={`w-4 h-4 ${viewMode === 'tafel' ? 'text-white' : 'text-emerald-600'}`} />
-                <span className="hidden xl:inline font-black">Tafel</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('menti')}
-                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 ${
-                  viewMode === 'menti'
-                    ? 'bg-teal-600 text-white shadow-xs'
-                    : 'text-hbs-slate-muted hover:text-teal-700'
-                }`}
-                title="HBS Menti (Live-Abfragen & Wortwolken)"
-                aria-label="HBS Menti"
-              >
-                <BarChart2 className={`w-4 h-4 ${viewMode === 'menti' ? 'text-white' : 'text-teal-600'}`} />
-                <span className="hidden xl:inline font-black">Menti</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('kahoot')}
-                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 ${
-                  viewMode === 'kahoot'
-                    ? 'bg-purple-600 text-white shadow-xs'
-                    : 'text-hbs-slate-muted hover:text-purple-700'
-                }`}
-                title="HBS Kahoot! (Quiz & KI-Generator)"
-                aria-label="HBS Kahoot"
-              >
-                <Flame className={`w-4 h-4 ${viewMode === 'kahoot' ? 'text-white fill-white' : 'text-purple-600 fill-purple-600'}`} />
-                <span className="hidden xl:inline font-black">Kahoot</span>
-              </button>
+            {/* DESKTOP (lg:flex): Full Segmented Control */}
+            <div className="hidden lg:flex items-center bg-hbs-bg p-1 rounded-2xl border border-hbs-slate-border/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]">
+              {VIEW_MODES.map((mode) => {
+                const Icon = mode.icon;
+                const isSelected = viewMode === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    onClick={() => setViewMode(mode.id)}
+                    className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 ${
+                      isSelected
+                        ? mode.bgActive
+                        : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
+                    }`}
+                    title={mode.label}
+                    aria-label={mode.label}
+                  >
+                    <Icon className={`w-4 h-4 ${isSelected && mode.id !== 'bento' && mode.id !== 'compact' ? 'text-white' : mode.color}`} />
+                    <span className="hidden xl:inline font-black">{mode.shortLabel}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Quick Tools Drawer Trigger (Hidden on mobile because in bottom dock) */}
+            {/* DESKTOP Quick Tools Drawer Trigger (xl:flex) */}
             <button
               onClick={onOpenQuickTools}
-              className="hidden md:flex h-9 sm:min-h-[40px] items-center gap-2 px-3 py-2 rounded-xl bg-hbs-blue-soft text-hbs-blue-deep hover:bg-hbs-blue-light border border-hbs-blue/20 text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all select-none"
+              className="hidden xl:flex h-9 items-center gap-2 px-3 py-2 rounded-xl bg-hbs-blue-soft text-hbs-blue-deep hover:bg-hbs-blue-light border border-hbs-blue/20 text-xs font-bold shadow-xs active:scale-[0.98] transition-all select-none"
               title="Unterrichts-Quick-Tools (Timer, Zufall, Lärmampel)"
             >
               <Wrench className="w-4 h-4 text-hbs-blue shrink-0" />
-              <span className="hidden lg:inline">Tools</span>
+              <span>Tools</span>
             </button>
 
-            {/* Custom Link Button */}
+            {/* Custom Link Button (lg:flex) */}
             {onOpenAddCustomLink && currentUser && (
               <button
                 onClick={onOpenAddCustomLink}
-                className="h-9 px-2 sm:px-3 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-xs sm:text-sm font-bold shadow-xs active:scale-95 transition-all select-none flex items-center gap-1.5"
+                className="hidden lg:flex h-9 px-3 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-xs font-bold shadow-xs active:scale-95 transition-all select-none items-center gap-1.5"
                 title="Neuen eigenen Link / App ablegen"
               >
                 <Plus className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">+ Link</span>
+                <span>+ Link</span>
               </button>
             )}
 
@@ -231,7 +223,7 @@ export const Header: React.FC<HeaderProps> = ({
             {isAdmin && onOpenAdminPanel && (
               <button
                 onClick={onOpenAdminPanel}
-                className="h-9 px-2 sm:px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 border border-amber-300 text-xs sm:text-sm font-bold shadow-xs active:scale-95 transition-all select-none flex items-center gap-1.5"
+                className="h-9 px-2.5 sm:px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 border border-amber-300 text-xs font-bold shadow-xs active:scale-95 transition-all select-none flex items-center gap-1.5"
                 title="Admin-Panel öffnen (Benutzer, Vorlagen & Sync)"
               >
                 <Shield className="w-4 h-4 text-amber-600 shrink-0" />
@@ -239,45 +231,48 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Reorder Mode Button */}
+            {/* Reorder Mode Button (desktop or active) */}
             {onToggleReorderMode && currentUser && (
               <button
                 onClick={onToggleReorderMode}
-                className={`h-9 px-2 sm:px-3 rounded-xl border text-xs sm:text-sm font-bold shadow-xs active:scale-95 transition-all select-none items-center gap-1.5 ${
+                className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-bold shadow-xs active:scale-95 transition-all select-none items-center gap-1.5 ${
                   isReorderMode
                     ? 'flex bg-amber-500 text-white border-amber-600 animate-pulse'
-                    : 'hidden sm:flex bg-white hover:bg-slate-50 text-hbs-slate-dark border-slate-200'
+                    : 'hidden xl:flex bg-white hover:bg-slate-50 text-hbs-slate-dark border-slate-200'
                 }`}
                 title="Apps frei sortieren"
               >
                 <ArrowUpDown className="w-4 h-4 shrink-0" />
-                <span className="hidden xl:inline">{isReorderMode ? 'Fertig' : 'Sortieren'}</span>
+                <span>{isReorderMode ? 'Fertig' : 'Sortieren'}</span>
               </button>
             )}
 
-            {/* Logged in Teacher Badge */}
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-hbs-slate-dark select-none">
+            {/* Logged in Teacher Badge (lg:flex) */}
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-hbs-slate-dark select-none">
               <User className="w-3.5 h-3.5 text-hbs-blue shrink-0" />
-              <span className="truncate max-w-[90px] md:max-w-[120px]">
+              <span className="truncate max-w-[100px] xl:max-w-[140px]">
                 {currentUser ? currentUser.name : isGuest ? 'Gast' : 'Kollege'}
               </span>
             </div>
 
-            {/* Guide modal trigger (Hidden on mobile because in bottom dock) */}
+            {/* Guide modal trigger (xl:flex) */}
             <button
               onClick={onOpenInstallGuide}
-              className="hidden md:flex h-9 sm:min-h-[40px] p-2 sm:px-3 rounded-xl text-hbs-slate-muted hover:text-hbs-blue hover:bg-hbs-blue-soft border border-transparent hover:border-hbs-blue/20 text-xs sm:text-sm font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+              className="hidden xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-hbs-blue hover:bg-hbs-blue-soft border border-transparent hover:border-hbs-blue/20 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
               title="Installationsanleitung & Homescreen-Tipps"
               aria-label="Installationsanleitung öffnen"
             >
               <Smartphone className="w-4 h-4 shrink-0" />
-              <span className="hidden xl:inline">Guide</span>
+              <span>Guide</span>
             </button>
 
-            {/* Mobile More Menu Button (< sm) */}
-            <div className="relative sm:hidden">
+            {/* Mobile More Menu Button (< lg) */}
+            <div className="relative lg:hidden">
               <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                onClick={() => {
+                  setIsMobileMenuOpen(!isMobileMenuOpen);
+                  setIsViewDropdownOpen(false);
+                }}
                 className="h-9 w-9 rounded-xl border border-slate-200 bg-white text-hbs-slate-dark hover:bg-slate-50 active:scale-95 transition-all flex items-center justify-center shadow-2xs"
                 title="Menü öffnen"
                 aria-label="Menü"
@@ -291,7 +286,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="fixed inset-0 z-40 bg-black/20" 
                     onClick={() => setIsMobileMenuOpen(false)} 
                   />
-                  <div className="absolute right-0 top-11 z-50 w-56 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 space-y-1 animate-in fade-in duration-100">
+                  <div className="absolute right-0 top-11 z-50 w-60 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-100">
                     <div className="px-3 py-2 border-b border-slate-100 mb-1">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Angemeldet als</span>
                       <span className="text-xs font-black text-slate-800 truncate block">
@@ -299,41 +294,25 @@ export const Header: React.FC<HeaderProps> = ({
                       </span>
                     </div>
 
-                    {/* View Switcher inside Mobile Menu */}
-                    <div className="p-1 bg-slate-100 rounded-xl flex items-center gap-1 mb-1">
+                    {onOpenAddCustomLink && currentUser && (
                       <button
-                        onClick={() => { setViewMode('bento'); setIsMobileMenuOpen(false); }}
-                        className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
-                          viewMode === 'bento' ? 'bg-white text-hbs-blue shadow-xs' : 'text-slate-600'
-                        }`}
+                        onClick={() => { onOpenAddCustomLink(); setIsMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                       >
-                        <LayoutGrid className="w-3 h-3" /> Bento
+                        <Plus className="w-3.5 h-3.5 text-hbs-blue" />
+                        <span>Eigener Link hinzufügen</span>
                       </button>
+                    )}
+
+                    {isAdmin && onOpenAdminPanel && (
                       <button
-                        onClick={() => { setViewMode('compact'); setIsMobileMenuOpen(false); }}
-                        className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
-                          viewMode === 'compact' ? 'bg-white text-hbs-blue shadow-xs' : 'text-slate-600'
-                        }`}
+                        onClick={() => { onOpenAdminPanel(); setIsMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
                       >
-                        <Grid2X2 className="w-3 h-3" /> Kompakt
+                        <Shield className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Admin-Panel</span>
                       </button>
-                      <button
-                        onClick={() => { setViewMode('menti'); setIsMobileMenuOpen(false); }}
-                        className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
-                          viewMode === 'menti' ? 'bg-white text-teal-600 shadow-xs' : 'text-slate-600'
-                        }`}
-                      >
-                        <BarChart2 className="w-3 h-3 text-teal-600" /> Menti
-                      </button>
-                      <button
-                        onClick={() => { setViewMode('kahoot'); setIsMobileMenuOpen(false); }}
-                        className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
-                          viewMode === 'kahoot' ? 'bg-white text-purple-600 shadow-xs' : 'text-slate-600'
-                        }`}
-                      >
-                        <Flame className="w-3 h-3 text-purple-600 fill-purple-600" /> Kahoot
-                      </button>
-                    </div>
+                    )}
 
                     {onToggleReorderMode && currentUser && (
                       <button
@@ -345,16 +324,6 @@ export const Header: React.FC<HeaderProps> = ({
                       </button>
                     )}
 
-                    {onOpenInstallGuide && (
-                      <button
-                        onClick={() => { onOpenInstallGuide(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                      >
-                        <Smartphone className="w-3.5 h-3.5 text-slate-500" />
-                        <span>Installations-Guide</span>
-                      </button>
-                    )}
-
                     {onOpenQuickTools && (
                       <button
                         onClick={() => { onOpenQuickTools(); setIsMobileMenuOpen(false); }}
@@ -362,6 +331,16 @@ export const Header: React.FC<HeaderProps> = ({
                       >
                         <Wrench className="w-3.5 h-3.5 text-hbs-blue" />
                         <span>Unterrichts-Tools</span>
+                      </button>
+                    )}
+
+                    {onOpenInstallGuide && (
+                      <button
+                        onClick={() => { onOpenInstallGuide(); setIsMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                      >
+                        <Smartphone className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Installations-Guide</span>
                       </button>
                     )}
 
@@ -382,13 +361,14 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Logout button */}
             <button
               onClick={onLogout}
-              className="h-9 px-2 sm:px-3 rounded-xl text-hbs-slate-muted hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 text-xs sm:text-sm font-semibold active:scale-95 transition-all duration-150 flex items-center justify-center gap-1.5 select-none"
+              className="h-9 px-2.5 sm:px-3 rounded-xl text-hbs-slate-muted hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 text-xs font-semibold active:scale-95 transition-all duration-150 flex items-center justify-center gap-1.5 select-none"
               title="Portal sperren / Abmelden"
               aria-label="Abmelden"
             >
               <LogOut className="w-4 h-4 shrink-0 text-slate-500 hover:text-red-600" />
               <span className="hidden sm:inline">Abmelden</span>
             </button>
+
           </div>
         </div>
 
