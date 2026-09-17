@@ -61,6 +61,28 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
+    id: "kahoot-hbs",
+    title: "HBS Kahoot! (Quiz & KI-Generator)",
+    shortTitle: "HBS Kahoot",
+    subtitle: "4-Farben-Quizze, KI-Generator & Live-Podium",
+    description: "Authentischer Kahoot-Clone mit Smartboard-Countdown, 4-Farben-Gamepad (🔺🔷🟡🟩), KI-Fragen-Generator für Lehrkräfte und feierlichem 3-Stufen-Siegertreppchen.",
+    url: "#kahoot",
+    category: "unterricht",
+    badge: "Neu: KI & Live",
+    badgeColor: "teal",
+    icon: "Flame",
+    tags: ["Kahoot", "KI-Quiz", "Smartboard", "Wettbewerb", "Podium", "Live-Spiel"],
+    isFeaturedStudentQr: true,
+    offlineReady: true,
+    privacyBadge: "100% DSGVO-konform",
+    pedagogicalValue: "Maximale Motivation durch spielerischen Wettbewerb (Gamification), Festigung von Fachwissen und sekundenschnelle KI-Vorbereitung für Lehrkräfte.",
+    quickGuide: [
+      "Mit '✨ Mit KI generieren' Thema eingeben, Fragen prüfen und mit einem Klick übernehmen.",
+      "Auf dem Smartboard 'Live Spielen' starten – Schüler scannen den QR-Code.",
+      "Spannende Runden mit 4-Farben-Buttons, Live-Punkten und Siegerehrung auf dem Podest!"
+    ]
+  },
+  {
     id: "schueler-translator",
     title: "Übersetzer Schüler",
     shortTitle: "Übersetzer Schüler",

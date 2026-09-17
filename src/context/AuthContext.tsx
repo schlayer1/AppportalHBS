@@ -10,6 +10,8 @@ import {
 } from '../services/firebase';
 import { MentiPresentation, MentiLiveSession } from '../types/mentiTypes';
 import { DEFAULT_MENTI_TEMPLATES } from '../data/defaultMentiTemplates';
+import { KahootGame, KahootLiveSession } from '../types/kahootTypes';
+import { DEFAULT_KAHOOT_GAMES } from '../data/defaultKahootTemplates';
 
 interface AuthContextType {
   currentUser: PortalUser | null;
@@ -61,6 +63,15 @@ interface AuthContextType {
   toggleShareMentiPresentation: (id: string) => Promise<void>;
   duplicateMentiPresentation: (id: string) => Promise<MentiPresentation>;
   updateActiveMentiSession: (session: MentiLiveSession | null) => Promise<void>;
+
+  // Kahoot Games & Live Sessions
+  kahootGames: KahootGame[];
+  activeKahootSession: KahootLiveSession | null;
+  saveKahootGame: (game: KahootGame) => Promise<KahootGame>;
+  deleteKahootGame: (id: string) => Promise<void>;
+  toggleShareKahootGame: (id: string) => Promise<void>;
+  duplicateKahootGame: (id: string) => Promise<KahootGame>;
+  updateActiveKahootSession: (session: KahootLiveSession | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -85,6 +96,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [boardTemplates, setBoardTemplates] = useState<SavedBoardTemplate[]>(() => getCachedPortalData().boardTemplates);
   const [mentiPresentations, setMentiPresentations] = useState<MentiPresentation[]>(() => getCachedPortalData().mentiPresentations || DEFAULT_MENTI_TEMPLATES);
   const [activeMentiSession, setActiveMentiSession] = useState<MentiLiveSession | null>(() => getCachedPortalData().activeMentiSession || null);
+  const [kahootGames, setKahootGames] = useState<KahootGame[]>(() => getCachedPortalData().kahootGames || DEFAULT_KAHOOT_GAMES);
+  const [activeKahootSession, setActiveKahootSession] = useState<KahootLiveSession | null>(() => getCachedPortalData().activeKahootSession || null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Load latest data from Cloud on mount
@@ -102,6 +115,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setMentiPresentations(cloudData.mentiPresentations);
           }
           setActiveMentiSession(cloudData.activeMentiSession || null);
+          if (cloudData.kahootGames && cloudData.kahootGames.length > 0) {
+            setKahootGames(cloudData.kahootGames);
+          }
+          setActiveKahootSession(cloudData.activeKahootSession || null);
         }
       } catch (err) {
         console.warn("Cloud init error:", err);
@@ -419,6 +436,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await savePortalDataToCloud(cloudData);
   }, []);
 
+  // Kahoot Games Actions
+  const saveKahootGame = useCallback(async (game: KahootGame): Promise<KahootGame> => {
+    const existingIndex = kahootGames.findIndex(g => g.id === game.id);
+    const gameToSave: KahootGame = {
+      ...game,
+      authorId: game.authorId || currentUser?.id || 'guest',
+      authorName: game.authorName || currentUser?.name || 'Kollege',
+      updatedAt: Date.now()
+    };
+
+    let updatedList: KahootGame[];
+    if (existingIndex >= 0) {
+      updatedList = [...kahootGames];
+      updatedList[existingIndex] = gameToSave;
+    } else {
+      updatedList = [gameToSave, ...kahootGames];
+    }
+
+    setKahootGames(updatedList);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.kahootGames = updatedList;
+    await savePortalDataToCloud(cloudData);
+    return gameToSave;
+  }, [currentUser, kahootGames]);
+
+  const deleteKahootGame = useCallback(async (id: string) => {
+    const updated = kahootGames.filter(g => g.id !== id);
+    setKahootGames(updated);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.kahootGames = updated;
+    await savePortalDataToCloud(cloudData);
+  }, [kahootGames]);
+
+  const toggleShareKahootGame = useCallback(async (id: string) => {
+    const updated = kahootGames.map(g => {
+      if (g.id === id) {
+        return { ...g, isShared: !g.isShared, updatedAt: Date.now() };
+      }
+      return g;
+    });
+    setKahootGames(updated);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.kahootGames = updated;
+    await savePortalDataToCloud(cloudData);
+  }, [kahootGames]);
+
+  const duplicateKahootGame = useCallback(async (id: string): Promise<KahootGame> => {
+    const orig = kahootGames.find(g => g.id === id);
+    const newGame: KahootGame = orig ? {
+      ...orig,
+      id: `kahoot-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: `${orig.title} (Kopie)`,
+      authorId: currentUser?.id || 'guest',
+      authorName: currentUser?.name || 'Kollege',
+      isShared: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    } : {
+      id: `kahoot-${Date.now()}`,
+      title: 'Neues Quiz',
+      authorId: currentUser?.id || 'guest',
+      authorName: currentUser?.name || 'Kollege',
+      isShared: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      questions: []
+    };
+
+    const updated = [newGame, ...kahootGames];
+    setKahootGames(updated);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.kahootGames = updated;
+    await savePortalDataToCloud(cloudData);
+    return newGame;
+  }, [currentUser, kahootGames]);
+
+  const updateActiveKahootSession = useCallback(async (session: KahootLiveSession | null) => {
+    setActiveKahootSession(session);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.activeKahootSession = session;
+    await savePortalDataToCloud(cloudData);
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -432,6 +532,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         boardTemplates,
         mentiPresentations,
         activeMentiSession,
+        kahootGames,
+        activeKahootSession,
         loginWithUser,
         loginWithAdminMaster,
         loginAsGuest,
@@ -447,7 +549,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteMentiPresentation,
         toggleShareMentiPresentation,
         duplicateMentiPresentation,
-        updateActiveMentiSession
+        updateActiveMentiSession,
+        saveKahootGame,
+        deleteKahootGame,
+        toggleShareKahootGame,
+        duplicateKahootGame,
+        updateActiveKahootSession
       }}
     >
       {children}

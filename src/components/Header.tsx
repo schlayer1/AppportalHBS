@@ -18,12 +18,13 @@ import {
   Shield,
   ArrowUpDown,
   MoreVertical,
-  BarChart2
+  BarChart2,
+  Flame
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
 
-export type ViewMode = 'bento' | 'compact' | 'smartboard' | 'tafel' | 'menti';
+export type ViewMode = 'bento' | 'compact' | 'smartboard' | 'tafel' | 'menti' | 'kahoot';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -188,6 +189,20 @@ export const Header: React.FC<HeaderProps> = ({
                 <BarChart2 className={`w-4 h-4 ${viewMode === 'menti' ? 'text-white' : 'text-teal-600'}`} />
                 <span className="hidden xl:inline font-black">Menti</span>
               </button>
+
+              <button
+                onClick={() => setViewMode('kahoot')}
+                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 ${
+                  viewMode === 'kahoot'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'text-hbs-slate-muted hover:text-purple-700'
+                }`}
+                title="HBS Kahoot! (Quiz & KI-Generator)"
+                aria-label="HBS Kahoot"
+              >
+                <Flame className={`w-4 h-4 ${viewMode === 'kahoot' ? 'text-white fill-white' : 'text-purple-600 fill-purple-600'}`} />
+                <span className="hidden xl:inline font-black">Kahoot</span>
+              </button>
             </div>
 
             {/* Quick Tools Drawer Trigger (Hidden on mobile because in bottom dock) */}
@@ -309,6 +324,14 @@ export const Header: React.FC<HeaderProps> = ({
                         }`}
                       >
                         <BarChart2 className="w-3 h-3 text-teal-600" /> Menti
+                      </button>
+                      <button
+                        onClick={() => { setViewMode('kahoot'); setIsMobileMenuOpen(false); }}
+                        className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+                          viewMode === 'kahoot' ? 'bg-white text-purple-600 shadow-xs' : 'text-slate-600'
+                        }`}
+                      >
+                        <Flame className="w-3 h-3 text-purple-600 fill-purple-600" /> Kahoot
                       </button>
                     </div>
 

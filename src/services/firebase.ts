@@ -73,6 +73,8 @@ export const INITIAL_SEED_TEACHERS: PortalUser[] = [
 
 import { MentiPresentation, MentiLiveSession } from "../types/mentiTypes";
 import { DEFAULT_MENTI_TEMPLATES } from "../data/defaultMentiTemplates";
+import { KahootGame, KahootLiveSession } from "../types/kahootTypes";
+import { DEFAULT_KAHOOT_GAMES } from "../data/defaultKahootTemplates";
 
 export interface PortalCloudData {
   users: PortalUser[];
@@ -80,6 +82,8 @@ export interface PortalCloudData {
   boardTemplates: SavedBoardTemplate[];
   mentiPresentations?: MentiPresentation[];
   activeMentiSession?: MentiLiveSession | null;
+  kahootGames?: KahootGame[];
+  activeKahootSession?: KahootLiveSession | null;
   updatedAt: number;
 }
 
@@ -94,6 +98,9 @@ export const getCachedPortalData = (): PortalCloudData => {
       if (!parsed.mentiPresentations || parsed.mentiPresentations.length === 0) {
         parsed.mentiPresentations = DEFAULT_MENTI_TEMPLATES;
       }
+      if (!parsed.kahootGames || parsed.kahootGames.length === 0) {
+        parsed.kahootGames = DEFAULT_KAHOOT_GAMES;
+      }
       return parsed;
     }
   } catch (e) {
@@ -104,6 +111,7 @@ export const getCachedPortalData = (): PortalCloudData => {
     preferences: {},
     boardTemplates: [],
     mentiPresentations: DEFAULT_MENTI_TEMPLATES,
+    kahootGames: DEFAULT_KAHOOT_GAMES,
     updatedAt: Date.now()
   };
 };
@@ -138,6 +146,10 @@ export const loadPortalDataFromCloud = async (): Promise<PortalCloudData> => {
           ? data.mentiPresentations 
           : (localCache.mentiPresentations || DEFAULT_MENTI_TEMPLATES),
         activeMentiSession: data.activeMentiSession || localCache.activeMentiSession || null,
+        kahootGames: Array.isArray(data.kahootGames) && data.kahootGames.length > 0
+          ? data.kahootGames
+          : (localCache.kahootGames || DEFAULT_KAHOOT_GAMES),
+        activeKahootSession: data.activeKahootSession || localCache.activeKahootSession || null,
         updatedAt: data.updatedAt || Date.now()
       };
       setCachedPortalData(merged);

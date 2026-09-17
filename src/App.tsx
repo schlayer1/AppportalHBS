@@ -16,6 +16,11 @@ import { MentiEditor } from './components/menti/MentiEditor';
 import { MentiPresenter } from './components/menti/MentiPresenter';
 import { MentiStudentVoter } from './components/menti/MentiStudentVoter';
 import { MentiPresentation } from './types/mentiTypes';
+import { KahootDashboard } from './components/kahoot/KahootDashboard';
+import { KahootEditor } from './components/kahoot/KahootEditor';
+import { KahootPresenter } from './components/kahoot/KahootPresenter';
+import { KahootStudentPlayer } from './components/kahoot/KahootStudentPlayer';
+import { KahootGame } from './types/kahootTypes';
 import { AdminPanelModal } from './components/admin/AdminPanelModal';
 import { AddCustomLinkModal } from './components/links/AddCustomLinkModal';
 import { EmptyState } from './components/ui/empty-state';
@@ -69,16 +74,22 @@ export default function App() {
   const [activeMentiPresentation, setActiveMentiPresentation] = useState<MentiPresentation | null>(null);
   const [mentiSubView, setMentiSubView] = useState<'dashboard' | 'editor' | 'presenter'>('dashboard');
 
+  // Kahoot game state
+  const [activeKahootGame, setActiveKahootGame] = useState<KahootGame | null>(null);
+  const [kahootSubView, setKahootSubView] = useState<'dashboard' | 'editor' | 'presenter'>('dashboard');
+
   // Favorites Hook
   const { favorites, toggleFavorite, isFavorite, hasFavorites } = useFavorites();
 
   const isSmartboardMode = viewMode === 'smartboard';
 
-  // Listen to #menti hash in URL
+  // Listen to #menti and #kahoot hashes in URL
   useEffect(() => {
     const checkHash = () => {
       if (window.location.hash === '#menti') {
         setViewMode('menti');
+      } else if (window.location.hash === '#kahoot') {
+        setViewMode('kahoot');
       }
     };
     window.addEventListener('hashchange', checkHash);
@@ -211,6 +222,25 @@ export default function App() {
     );
   }
 
+  // Check if student is accessing Kahoot live via QR code or PIN (bypass password gate)
+  const isKahootPlayer = typeof window !== 'undefined' && (
+    window.location.search.includes('kahoot=') || 
+    window.location.hash.includes('kahoot=')
+  );
+
+  if (isKahootPlayer) {
+    return (
+      <KahootStudentPlayer 
+        onClose={() => {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('kahoot');
+          window.history.replaceState({}, '', url.pathname);
+          window.location.reload();
+        }} 
+      />
+    );
+  }
+
   if (!isAuthenticated) {
     return <PasswordGate onAuthenticated={() => {}} />;
   }
@@ -257,6 +287,48 @@ export default function App() {
         onStartPresenter={(pres) => {
           setActiveMentiPresentation(pres);
           setMentiSubView('presenter');
+        }}
+      />
+    );
+  }
+
+  // Fullscreen / Dedicated HBS Kahoot System (Kahoot Clone with AI Quiz Generator)
+  if (viewMode === 'kahoot') {
+    if (kahootSubView === 'editor' && activeKahootGame) {
+      return (
+        <KahootEditor
+          initialGame={activeKahootGame}
+          onClose={() => setKahootSubView('dashboard')}
+          onStartPresenter={(game) => {
+            setActiveKahootGame(game);
+            setKahootSubView('presenter');
+          }}
+        />
+      );
+    }
+
+    if (kahootSubView === 'presenter' && activeKahootGame) {
+      return (
+        <KahootPresenter
+          game={activeKahootGame}
+          onExit={() => setKahootSubView('dashboard')}
+        />
+      );
+    }
+
+    return (
+      <KahootDashboard
+        onBackToPortal={() => {
+          window.location.hash = '';
+          setViewMode('bento');
+        }}
+        onEditGame={(game) => {
+          setActiveKahootGame(game);
+          setKahootSubView('editor');
+        }}
+        onStartGame={(game) => {
+          setActiveKahootGame(game);
+          setKahootSubView('presenter');
         }}
       />
     );
