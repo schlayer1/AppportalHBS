@@ -74,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   return (
-    <header className="bg-white/95 border-b border-hbs-slate-border/70 sticky top-0 z-30 shadow-xs backdrop-blur-md pt-[env(safe-area-inset-top)] w-full max-w-full overflow-visible">
+    <header className="bg-white/95 border-b border-hbs-slate-border/70 sticky top-0 z-40 shadow-xs backdrop-blur-md pt-[env(safe-area-inset-top)] w-full max-w-full overflow-visible">
       {/* Top Navbar */}
       <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20 gap-2 relative overflow-visible">

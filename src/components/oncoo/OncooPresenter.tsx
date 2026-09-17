@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
   QrCode, 
@@ -105,11 +105,14 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
     saveOncooSession(session);
   }, [session, updateActiveOncooSession, saveOncooSession]);
 
+  const channelRef = useRef<BroadcastChannel | null>(null);
+
   // Listen to cross-tab updates (simulating live student inputs in demo/school network)
   useEffect(() => {
     let channel: BroadcastChannel | null = null;
     try {
       channel = new BroadcastChannel(`hbs_oncoo_${session.pinCode}`);
+      channelRef.current = channel;
       channel.onmessage = (event) => {
         if (event.data?.type === 'STUDENT_SUBMISSION') {
           const payload = event.data.payload;
@@ -121,6 +124,7 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
     }
     return () => {
       if (channel) channel.close();
+      channelRef.current = null;
     };
   }, [session.pinCode, session.isLocked]);
 
@@ -174,6 +178,15 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
             pairedAt: Date.now(),
             phase: prev.lerntempoduett?.currentPhase || 2
           };
+
+          // Notify students immediately via BroadcastChannel
+          try {
+            channelRef.current?.postMessage({
+              type: 'PAIR_FORMED',
+              payload: newPair
+            });
+          } catch (e) {}
+
           return {
             ...prev,
             lerntempoduett: {

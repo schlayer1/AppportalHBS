@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Flame, 
   X
@@ -52,7 +52,47 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [lastQuestionIndex, setLastQuestionIndex] = useState<number>(-1);
 
-  // Snapshot listener for active Kahoot session
+  const broadcastRef = useRef<BroadcastChannel | null>(null);
+
+  // Load fallback session from localStorage when pinCode is set
+  useEffect(() => {
+    if (pinCode && !session) {
+      try {
+        const stored = localStorage.getItem(`hbs_kahoot_session_${pinCode}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setSession(parsed);
+        }
+      } catch (e) {}
+    }
+  }, [pinCode, session]);
+
+  // Connect to BroadcastChannel for this PIN
+  useEffect(() => {
+    if (!pinCode) return;
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel(`hbs_kahoot_${pinCode}`);
+      broadcastRef.current = channel;
+      channel.onmessage = (event) => {
+        const { type, payload } = event.data || {};
+        if (type === 'STAGE_CHANGE' && payload) {
+          setSession(payload);
+        } else if (type === 'JOIN_CONFIRMED') {
+          setHasJoinedLobby(true);
+        }
+      };
+    } catch (e) {
+      console.warn('BroadcastChannel error in student player:', e);
+    }
+
+    return () => {
+      if (channel) channel.close();
+      broadcastRef.current = null;
+    };
+  }, [pinCode]);
+
+  // Snapshot listener for active Kahoot session from Firestore
   useEffect(() => {
     if (!db) return;
     try {
@@ -62,7 +102,10 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
           const d = snap.data();
           const sess = d.activeKahootSession as KahootLiveSession;
           if (sess) {
-            setSession(sess);
+            // Verify PIN code matches!
+            if (!pinCode || sess.sessionCode === pinCode) {
+              setSession(sess);
+            }
           }
         }
       });
@@ -70,7 +113,7 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
     } catch (e) {
       console.warn('Student player snapshot listener error:', e);
     }
-  }, []);
+  }, [pinCode]);
 
   // When question changes, reset selected answer
   useEffect(() => {
@@ -96,7 +139,7 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
   // Join the lobby
   const handleJoinLobby = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nickname.trim() || !session || !db) return;
+    if (!nickname.trim()) return;
 
     localStorage.setItem('hbs_kahoot_nickname', nickname.trim());
 
@@ -108,52 +151,83 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
       streak: 0
     };
 
-    const currentList = session.participants || [];
-    const updatedList = [...currentList.filter(p => p.id !== studentId), newParticipant];
-
-    try {
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      await updateDoc(portalDocRef, {
-        'activeKahootSession.participants': updatedList
+    // Broadcast locally
+    if (broadcastRef.current) {
+      broadcastRef.current.postMessage({
+        type: 'STUDENT_JOIN_LOBBY',
+        payload: { participant: newParticipant }
       });
-      setHasJoinedLobby(true);
-    } catch (err) {
-      console.warn('Error joining lobby:', err);
-      // Allow joining locally even if cloud sync delays
-      setHasJoinedLobby(true);
+    }
+
+    // Set joined immediately so student doesn't hang
+    setHasJoinedLobby(true);
+
+    // Update local state so lobby shows player right away
+    setSession(prev => {
+      if (!prev) return prev;
+      const currentList = prev.participants || [];
+      return {
+        ...prev,
+        participants: [...currentList.filter(p => p.id !== studentId), newParticipant]
+      };
+    });
+
+    if (db && session) {
+      const currentList = session.participants || [];
+      const updatedList = [...currentList.filter(p => p.id !== studentId), newParticipant];
+
+      try {
+        const portalDocRef = doc(db, 'schools', 'HBS_portal');
+        await updateDoc(portalDocRef, {
+          'activeKahootSession.participants': updatedList
+        });
+      } catch (err) {
+        console.warn('Error joining lobby in cloud:', err);
+      }
     }
   };
 
   // Student submits their answer
   const handleSelectOption = async (optionId: string) => {
-    if (selectedOptionId || !session || session.stage !== 'question' || !session.isAnswerOpen || !db) return;
+    if (selectedOptionId) return;
+    if (session && (session.stage !== 'question' || !session.isAnswerOpen)) return;
 
     setSelectedOptionId(optionId);
 
-    const currentList = session.participants || [];
-    const updatedList = currentList.map(p => {
-      if (p.id === studentId) {
-        return {
-          ...p,
-          lastAnswerId: optionId,
-          lastAnswerTime: Date.now()
-        };
-      }
-      return p;
-    });
-
-    try {
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      await updateDoc(portalDocRef, {
-        'activeKahootSession.participants': updatedList
+    // Broadcast locally
+    if (broadcastRef.current) {
+      broadcastRef.current.postMessage({
+        type: 'STUDENT_ANSWER',
+        payload: { studentId, optionId }
       });
-    } catch (err) {
-      console.warn('Error submitting answer:', err);
+    }
+
+    if (db && session) {
+      const currentList = session.participants || [];
+      const updatedList = currentList.map(p => {
+        if (p.id === studentId) {
+          return {
+            ...p,
+            lastAnswerId: optionId,
+            lastAnswerTime: Date.now()
+          };
+        }
+        return p;
+      });
+
+      try {
+        const portalDocRef = doc(db, 'schools', 'HBS_portal');
+        await updateDoc(portalDocRef, {
+          'activeKahootSession.participants': updatedList
+        });
+      } catch (err) {
+        console.warn('Error submitting answer in cloud:', err);
+      }
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-b from-indigo-950 via-purple-950 to-slate-950 text-white flex flex-col font-sans select-none overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-gradient-to-b from-indigo-950 via-purple-950 to-slate-950 text-white flex flex-col font-sans select-none overflow-hidden pb-[calc(1rem+env(safe-area-inset-bottom))]">
       
       {/* Top Simple Mobile Header */}
       <header className="h-14 px-4 bg-black/40 backdrop-blur-md border-b border-white/10 flex items-center justify-between shrink-0">
@@ -178,7 +252,7 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
           {onClose && (
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300"
+              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 touch-manipulation"
             >
               <X className="w-4 h-4" />
             </button>
@@ -201,7 +275,10 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
 
           <form onSubmit={handlePinSubmit} className="w-full space-y-4">
             <input
-              type="tel"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="one-time-code"
               value={enteredPin}
               onChange={e => setEnteredPin(e.target.value)}
               placeholder="z. B. 839 201"
@@ -333,7 +410,7 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
                   <button
                     key={opt.id || idx}
                     onClick={() => handleSelectOption(opt.id)}
-                    className={`rounded-3xl flex items-center justify-center text-6xl sm:text-7xl shadow-2xl transition-all active:scale-90 select-none ${
+                    className={`min-h-[140px] sm:min-h-[180px] rounded-3xl flex items-center justify-center text-6xl sm:text-7xl shadow-2xl transition-all active:scale-90 select-none touch-manipulation cursor-pointer ${
                       opt.color === 'red' ? 'bg-red-600 active:bg-red-700' :
                       opt.color === 'blue' ? 'bg-blue-600 active:bg-blue-700' :
                       opt.color === 'yellow' ? 'bg-amber-500 active:bg-amber-600' :

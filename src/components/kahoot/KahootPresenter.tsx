@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Play, 
@@ -149,7 +149,9 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
     }
   };
 
-  // Sync to Firestore & AuthContext
+  const broadcastRef = useRef<BroadcastChannel | null>(null);
+
+  // Sync to Firestore, localStorage & BroadcastChannel
   const syncSessionToCloud = (partial?: Partial<KahootLiveSession>) => {
     const sessionState: KahootLiveSession = {
       gameId: game.id,
@@ -168,6 +170,17 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
 
     updateActiveKahootSession(sessionState);
 
+    // Save to local storage for instant fallback
+    try {
+      localStorage.setItem(`hbs_kahoot_session_${sessionCode}`, JSON.stringify(sessionState));
+      if (broadcastRef.current) {
+        broadcastRef.current.postMessage({
+          type: 'STAGE_CHANGE',
+          payload: sessionState
+        });
+      }
+    } catch (e) {}
+
     if (db) {
       try {
         const portalDocRef = doc(db, 'schools', 'HBS_portal');
@@ -180,10 +193,61 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
     }
   };
 
-  // Push updates when stage / index change
+  // Push updates when stage / index / answer status change
   useEffect(() => {
     syncSessionToCloud();
-  }, [stage, currentQuestionIndex, isAnswerOpen]);
+  }, [stage, currentQuestionIndex, isAnswerOpen, participants.length]);
+
+  // BroadcastChannel listener for local & instant communication
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel(`hbs_kahoot_${sessionCode}`);
+      broadcastRef.current = channel;
+      channel.onmessage = (event) => {
+        const { type, payload } = event.data || {};
+        if (!type || !payload) return;
+
+        if (type === 'STUDENT_JOIN_LOBBY') {
+          const { participant } = payload;
+          if (participant) {
+            setParticipants(prev => {
+              const filtered = prev.filter(p => p.id !== participant.id);
+              const updated = [...filtered, participant];
+              return updated;
+            });
+            audio.playTick();
+            // Confirm to student
+            channel?.postMessage({
+              type: 'JOIN_CONFIRMED',
+              payload: { stage, currentQuestionIndex }
+            });
+          }
+        } else if (type === 'STUDENT_ANSWER') {
+          const { studentId, optionId } = payload;
+          setParticipants(prev => {
+            return prev.map(p => {
+              if (p.id === studentId) {
+                return {
+                  ...p,
+                  lastAnswerId: optionId,
+                  lastAnswerTime: Date.now()
+                };
+              }
+              return p;
+            });
+          });
+        }
+      };
+    } catch (e) {
+      console.warn('BroadcastChannel error in KahootPresenter:', e);
+    }
+
+    return () => {
+      if (channel) channel.close();
+      broadcastRef.current = null;
+    };
+  }, [sessionCode, stage, currentQuestionIndex]);
 
   // Firestore Snapshot Listener: Listen for students joining or answering
   useEffect(() => {

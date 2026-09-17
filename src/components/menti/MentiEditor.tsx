@@ -64,6 +64,7 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
   const [isSaved, setIsSaved] = useState<boolean>(true);
   const [showTypeSelector, setShowTypeSelector] = useState<boolean>(false);
+  const [mobileTab, setMobileTab] = useState<'slides' | 'preview' | 'settings'>('preview');
 
   const activeSlide: MentiSlide = presentation.slides[activeSlideIndex] || presentation.slides[0] || {
     id: 's-default',
@@ -232,11 +233,48 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
         </div>
       </header>
 
+      {/* Mobile/Tablet View Switcher (< lg) */}
+      <div className="lg:hidden flex items-center justify-around bg-slate-100 border-b border-slate-200 p-1.5 shrink-0 text-xs font-bold gap-1">
+        <button
+          type="button"
+          onClick={() => setMobileTab('slides')}
+          className={`flex-1 py-2 rounded-xl text-center transition-all ${
+            mobileTab === 'slides'
+              ? 'bg-white text-teal-800 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          Folien ({presentation.slides.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('preview')}
+          className={`flex-1 py-2 rounded-xl text-center transition-all ${
+            mobileTab === 'preview'
+              ? 'bg-white text-teal-800 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          Vorschau
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('settings')}
+          className={`flex-1 py-2 rounded-xl text-center transition-all ${
+            mobileTab === 'settings'
+              ? 'bg-white text-teal-800 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          Bearbeiten
+        </button>
+      </div>
+
       {/* Main Workspace (3 columns: Slide Deck | Preview Canvas | Settings Panel) */}
       <div className="flex-1 flex overflow-hidden">
         
         {/* Left: Slide Deck Navigation */}
-        <div className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
+        <div className={`w-full lg:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 ${mobileTab === 'slides' ? 'flex' : 'hidden lg:flex'}`}>
           <div className="p-3 border-b border-slate-100 flex items-center justify-between">
             <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
               Folien ({presentation.slides.length})
@@ -259,7 +297,10 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
               return (
                 <div
                   key={slide.id}
-                  onClick={() => setActiveSlideIndex(idx)}
+                  onClick={() => {
+                    setActiveSlideIndex(idx);
+                    if (window.innerWidth < 1024) setMobileTab('preview');
+                  }}
                   className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 group ${
                     isActive 
                       ? 'bg-teal-50/60 border-teal-500 shadow-xs ring-1 ring-teal-500' 
@@ -321,7 +362,7 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
         </div>
 
         {/* Center: Live 16:9 Slide Preview */}
-        <div className="flex-1 bg-slate-100 flex items-center justify-center p-6 overflow-hidden relative">
+        <div className={`flex-1 bg-slate-100 items-center justify-center p-3 sm:p-6 overflow-hidden relative ${mobileTab === 'preview' ? 'flex' : 'hidden lg:flex'}`}>
           <div className="w-full max-w-4xl aspect-video bg-gradient-to-br from-slate-900 via-slate-950 to-teal-950 rounded-3xl shadow-2xl border border-slate-800 p-8 flex flex-col justify-between text-white relative overflow-hidden">
             
             {/* Top Preview Banner */}
@@ -458,7 +499,7 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
         </div>
 
         {/* Right: Slide Settings Panel */}
-        <div className="w-80 bg-white border-l border-slate-200 p-5 overflow-y-auto shrink-0 space-y-5">
+        <div className={`w-full lg:w-80 bg-white border-l border-slate-200 p-5 overflow-y-auto shrink-0 space-y-5 ${mobileTab === 'settings' ? 'block' : 'hidden lg:block'}`}>
           
           {/* Slide Type Selector */}
           <div>

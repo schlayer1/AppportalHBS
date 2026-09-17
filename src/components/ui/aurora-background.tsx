@@ -2,7 +2,7 @@ import React from 'react';
 
 export const AuroraBackground: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="relative min-h-dvh w-full overflow-hidden bg-gradient-to-b from-[#EBF3F8] via-[#F4F8FA] to-[#E9F1F6] text-[#091D2E]">
+    <div className="relative min-h-dvh w-full overflow-x-hidden bg-gradient-to-b from-[#EBF3F8] via-[#F4F8FA] to-[#E9F1F6] text-[#091D2E]">
       
       {/* High-Impact Luminous Background Orbs with rich vibrant color */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">

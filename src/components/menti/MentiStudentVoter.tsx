@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   CheckCircle2, 
   Send, 
@@ -52,6 +52,44 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Scales values (statementId -> number 1..5)
   const [scaleValues, setScaleValues] = useState<Record<string, number>>({});
 
+  const broadcastRef = useRef<BroadcastChannel | null>(null);
+
+  // Load fallback session from localStorage when pinCode is set
+  useEffect(() => {
+    if (pinCode && !session) {
+      try {
+        const stored = localStorage.getItem(`hbs_menti_session_${pinCode}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setSession(parsed);
+        }
+      } catch (e) {}
+    }
+  }, [pinCode, session]);
+
+  // Connect to BroadcastChannel for this PIN
+  useEffect(() => {
+    if (!pinCode) return;
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel(`hbs_menti_${pinCode}`);
+      broadcastRef.current = channel;
+      channel.onmessage = (event) => {
+        const { type, payload } = event.data || {};
+        if (type === 'SESSION_UPDATE' && payload) {
+          setSession(payload);
+        }
+      };
+    } catch (e) {
+      console.warn('BroadcastChannel error in voter:', e);
+    }
+
+    return () => {
+      if (channel) channel.close();
+      broadcastRef.current = null;
+    };
+  }, [pinCode]);
+
   // Listen to Firestore active Menti Session
   useEffect(() => {
     if (!db) return;
@@ -61,7 +99,10 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
         if (snap.exists()) {
           const d = snap.data();
           if (d.activeMentiSession) {
-            setSession(d.activeMentiSession);
+            // Verify PIN code matches!
+            if (!pinCode || d.activeMentiSession.sessionCode === pinCode) {
+              setSession(d.activeMentiSession);
+            }
           }
         }
       });
@@ -69,7 +110,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     } catch (e) {
       console.warn('Firestore voter listener error:', e);
     }
-  }, []);
+  }, [pinCode]);
 
   // When active slide changes in the session, reset vote state for new slide!
   useEffect(() => {
@@ -86,11 +127,10 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
         }
       }
     }
-  }, [session?.activeSlide?.id, session?.currentSlideIndex]);
+  }, [session?.activeSlide?.id, session?.currentSlideIndex, votedSlideId]);
 
   // Send realtime floating reaction (❤️, 👍, 💡, 👏, 🎉)
   const handleSendReaction = async (emoji: string) => {
-    if (!db || !session) return;
     const reaction = {
       id: `r-${Date.now()}-${Math.random()}`,
       emoji,
@@ -98,58 +138,96 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
       timestamp: Date.now()
     };
 
-    try {
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      await updateDoc(portalDocRef, {
-        'activeMentiSession.recentReactions': arrayUnion(reaction)
+    // Broadcast locally
+    if (broadcastRef.current) {
+      broadcastRef.current.postMessage({
+        type: 'STUDENT_REACTION',
+        payload: { reaction }
       });
-    } catch (e) {
-      console.warn('Reaction error:', e);
+    }
+
+    // Cloud push
+    if (db && session) {
+      try {
+        const portalDocRef = doc(db, 'schools', 'HBS_portal');
+        await updateDoc(portalDocRef, {
+          'activeMentiSession.recentReactions': arrayUnion(reaction)
+        });
+      } catch (e) {
+        console.warn('Reaction error:', e);
+      }
     }
   };
 
   // Submit Word Cloud
   const handleSubmitWordCloud = async () => {
-    if (!session || !db) return;
-    const cleanWords = words.map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+    if (!session) return;
+    const cleanWords = words.map(w => w.trim()).filter(w => w.length > 0);
     if (cleanWords.length === 0) return;
 
     setHasVotedForCurrentSlide(true);
     setVotedSlideId(session.activeSlide.id);
 
-    try {
-      const updates: Record<string, any> = {};
-      cleanWords.forEach(w => {
-        // Capitalize first letter
-        const capitalized = w.charAt(0).toUpperCase() + w.slice(1);
-        updates[`activeMentiSession.responses.${session.activeSlide.id}.${capitalized}`] = increment(1);
+    // Broadcast locally
+    if (broadcastRef.current) {
+      broadcastRef.current.postMessage({
+        type: 'STUDENT_WORD_SUBMISSION',
+        payload: {
+          slideId: session.activeSlide.id,
+          words: cleanWords
+        }
       });
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      await updateDoc(portalDocRef, updates);
-    } catch (e) {
-      console.warn('Submit word error:', e);
+    }
+
+    // Cloud push
+    if (db) {
+      try {
+        const updates: Record<string, any> = {};
+        cleanWords.forEach(w => {
+          const capitalized = w.charAt(0).toUpperCase() + w.slice(1);
+          updates[`activeMentiSession.responses.${session.activeSlide.id}.${capitalized}`] = increment(1);
+        });
+        const portalDocRef = doc(db, 'schools', 'HBS_portal');
+        await updateDoc(portalDocRef, updates);
+      } catch (e) {
+        console.warn('Submit word error:', e);
+      }
     }
   };
 
   // Submit Choice
   const handleSelectChoice = async (optionId: string) => {
-    if (!session || !db || !session.isVotingOpen) return;
+    if (!session || !session.isVotingOpen) return;
     setHasVotedForCurrentSlide(true);
     setVotedSlideId(session.activeSlide.id);
 
-    try {
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      await updateDoc(portalDocRef, {
-        [`activeMentiSession.responses.${session.activeSlide.id}.${optionId}`]: increment(1)
+    // Broadcast locally
+    if (broadcastRef.current) {
+      broadcastRef.current.postMessage({
+        type: 'STUDENT_VOTE_OPTION',
+        payload: {
+          slideId: session.activeSlide.id,
+          optionId
+        }
       });
-    } catch (e) {
-      console.warn('Submit choice error:', e);
+    }
+
+    // Cloud push
+    if (db) {
+      try {
+        const portalDocRef = doc(db, 'schools', 'HBS_portal');
+        await updateDoc(portalDocRef, {
+          [`activeMentiSession.responses.${session.activeSlide.id}.${optionId}`]: increment(1)
+        });
+      } catch (e) {
+        console.warn('Submit choice error:', e);
+      }
     }
   };
 
   // Submit Open-ended
   const handleSubmitOpen = async () => {
-    if (!session || !db || !openText.trim()) return;
+    if (!session || !openText.trim()) return;
     setHasVotedForCurrentSlide(true);
     setVotedSlideId(session.activeSlide.id);
 
@@ -159,63 +237,107 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
       timestamp: Date.now()
     };
 
-    try {
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      await updateDoc(portalDocRef, {
-        [`activeMentiSession.responses.${session.activeSlide.id}`]: arrayUnion(newResponse)
+    // Broadcast locally
+    if (broadcastRef.current) {
+      broadcastRef.current.postMessage({
+        type: 'STUDENT_OPEN_SUBMISSION',
+        payload: {
+          slideId: session.activeSlide.id,
+          item: newResponse
+        }
       });
-    } catch (e) {
-      console.warn('Submit open error:', e);
+    }
+
+    // Cloud push
+    if (db) {
+      try {
+        const portalDocRef = doc(db, 'schools', 'HBS_portal');
+        await updateDoc(portalDocRef, {
+          [`activeMentiSession.responses.${session.activeSlide.id}`]: arrayUnion(newResponse)
+        });
+      } catch (e) {
+        console.warn('Submit open error:', e);
+      }
     }
   };
 
   // Submit Scales
   const handleSubmitScales = async () => {
-    if (!session || !db) return;
+    if (!session) return;
     setHasVotedForCurrentSlide(true);
     setVotedSlideId(session.activeSlide.id);
 
-    try {
-      const updates: Record<string, any> = {};
-      Object.entries(scaleValues).forEach(([scId, val]) => {
-        updates[`activeMentiSession.responses.${session.activeSlide.id}.${scId}.sum`] = increment(val);
-        updates[`activeMentiSession.responses.${session.activeSlide.id}.${scId}.count`] = increment(1);
+    // Broadcast locally
+    if (broadcastRef.current) {
+      broadcastRef.current.postMessage({
+        type: 'STUDENT_SCALE_SUBMISSION',
+        payload: {
+          slideId: session.activeSlide.id,
+          scales: scaleValues
+        }
       });
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      await updateDoc(portalDocRef, updates);
-    } catch (e) {
-      console.warn('Submit scales error:', e);
+    }
+
+    // Cloud push
+    if (db) {
+      try {
+        const updates: Record<string, any> = {};
+        Object.entries(scaleValues).forEach(([scId, val]) => {
+          updates[`activeMentiSession.responses.${session.activeSlide.id}.${scId}.sum`] = increment(val);
+          updates[`activeMentiSession.responses.${session.activeSlide.id}.${scId}.count`] = increment(1);
+        });
+        const portalDocRef = doc(db, 'schools', 'HBS_portal');
+        await updateDoc(portalDocRef, updates);
+      } catch (e) {
+        console.warn('Submit scales error:', e);
+      }
     }
   };
 
   // Submit Quiz Choice
   const handleSelectQuiz = async (optionId: string, isCorrect: boolean) => {
-    if (!session || !db || !session.isVotingOpen) return;
+    if (!session || !session.isVotingOpen) return;
     const finalNick = nickname.trim() || 'Schüler';
     setHasVotedForCurrentSlide(true);
     setVotedSlideId(session.activeSlide.id);
+    const score = isCorrect ? 1000 : 0;
 
-    try {
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      // Calculate score: 1000 base if correct
-      const score = isCorrect ? 1000 : 0;
-      await updateDoc(portalDocRef, {
-        [`activeMentiSession.responses.${session.activeSlide.id}.${optionId}`]: increment(1),
-        [`activeMentiSession.responses.${session.activeSlide.id}_scores.${finalNick}`]: {
-          name: finalNick,
+    // Broadcast locally
+    if (broadcastRef.current) {
+      broadcastRef.current.postMessage({
+        type: 'STUDENT_QUIZ_ANSWER',
+        payload: {
+          slideId: session.activeSlide.id,
+          optionId,
+          nickname: finalNick,
           isCorrect,
           score
         }
       });
-    } catch (e) {
-      console.warn('Submit quiz error:', e);
+    }
+
+    // Cloud push
+    if (db) {
+      try {
+        const portalDocRef = doc(db, 'schools', 'HBS_portal');
+        await updateDoc(portalDocRef, {
+          [`activeMentiSession.responses.${session.activeSlide.id}.${optionId}`]: increment(1),
+          [`activeMentiSession.responses.${session.activeSlide.id}_scores.${finalNick}`]: {
+            name: finalNick,
+            isCorrect,
+            score
+          }
+        });
+      } catch (e) {
+        console.warn('Submit quiz error:', e);
+      }
     }
   };
 
   // PIN Entry Screen (if not joined automatically)
   if (!hasJoined || !pinCode) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#F0F8FA] via-white to-[#EDF4FF] flex flex-col justify-between p-4 sm:p-6 font-sans">
+      <div className="min-h-dvh bg-gradient-to-b from-[#F0F8FA] via-white to-[#EDF4FF] flex flex-col justify-between p-4 sm:p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] font-sans">
         <div className="max-w-md w-full mx-auto text-center pt-8 space-y-3">
           <div className="w-16 h-16 mx-auto rounded-3xl bg-white shadow-md border border-slate-200 p-2 flex items-center justify-center">
             <img src="/Siegel_bunt.png" alt="HBS" className="w-full h-full object-contain" />
@@ -249,6 +371,9 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
               </label>
               <input
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
                 maxLength={7}
                 value={enteredPin}
                 onChange={(e) => setEnteredPin(e.target.value)}
@@ -279,7 +404,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   const activeSlide: MentiSlide | undefined = session?.activeSlide;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F0F8FA] via-white to-[#EDF4FF] flex flex-col justify-between p-4 sm:p-6 font-sans select-none">
+    <div className="min-h-dvh bg-gradient-to-b from-[#F0F8FA] via-white to-[#EDF4FF] flex flex-col justify-between p-4 sm:p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] font-sans select-none">
       
       {/* Header */}
       <header className="max-w-md w-full mx-auto text-center pt-2">
@@ -378,7 +503,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                       setWords(newW);
                     }}
                     placeholder={`Begriff ${i + 1}`}
-                    className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                    className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-base font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   />
                 ))}
 
@@ -422,7 +547,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                   value={openText}
                   onChange={(e) => setOpenText(e.target.value)}
                   placeholder="Schreibe deine Antwort oder Gedanken..."
-                  className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                  className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-base text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                 />
 
                 <button

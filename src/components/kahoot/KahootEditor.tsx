@@ -51,6 +51,7 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState<number>(0);
   const [isSavedRecently, setIsSavedRecently] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'deck' | 'editor'>('editor');
 
   const currentQ: KahootQuestion | undefined = game.questions[selectedQuestionIndex];
 
@@ -243,11 +244,37 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
         </div>
       </header>
 
+      {/* Mobile/Tablet View Switcher (< md) */}
+      <div className="md:hidden flex items-center justify-around bg-slate-950 border-b border-purple-900/40 p-1.5 shrink-0 text-xs font-bold gap-1">
+        <button
+          type="button"
+          onClick={() => setMobileTab('deck')}
+          className={`flex-1 py-2 rounded-xl text-center transition-all ${
+            mobileTab === 'deck'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Fragen ({game.questions.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('editor')}
+          className={`flex-1 py-2 rounded-xl text-center transition-all ${
+            mobileTab === 'editor'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Frage {selectedQuestionIndex + 1} bearbeiten
+        </button>
+      </div>
+
       {/* Main Studio Body */}
       <div className="flex-1 flex overflow-hidden">
         
         {/* LEFT COLUMN: Question Deck */}
-        <aside className="w-56 sm:w-64 bg-slate-950/90 border-r border-slate-800 flex flex-col shrink-0">
+        <aside className={`w-full md:w-64 bg-slate-950/90 border-r border-slate-800 flex flex-col shrink-0 ${mobileTab === 'deck' ? 'flex' : 'hidden md:flex'}`}>
           <div className="p-3 border-b border-slate-800 flex items-center justify-between">
             <span className="text-xs font-black uppercase tracking-wider text-slate-400">
               Fragen ({game.questions.length})
@@ -268,7 +295,10 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
               return (
                 <div
                   key={q.id || idx}
-                  onClick={() => setSelectedQuestionIndex(idx)}
+                  onClick={() => {
+                    setSelectedQuestionIndex(idx);
+                    if (window.innerWidth < 768) setMobileTab('editor');
+                  }}
                   className={`p-3 rounded-2xl border cursor-pointer transition-all relative group ${
                     isSelected 
                       ? 'bg-purple-950/60 border-purple-500 shadow-md ring-2 ring-purple-500/20' 
@@ -343,7 +373,7 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
         </aside>
 
         {/* CENTER: Canvas Editor */}
-        <main className="flex-1 bg-slate-900/50 flex flex-col overflow-y-auto p-4 sm:p-8 items-center justify-start">
+        <main className={`flex-1 bg-slate-900/50 flex-col overflow-y-auto p-4 sm:p-8 items-center justify-start ${mobileTab === 'editor' ? 'flex' : 'hidden md:flex'}`}>
           {currentQ ? (
             <div className="max-w-4xl w-full space-y-6">
               

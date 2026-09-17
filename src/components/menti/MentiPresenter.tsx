@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   X, 
   ChevronLeft, 
@@ -88,7 +88,9 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
     return () => clearInterval(timer);
   }, [isTimerRunning, timeLeft]);
 
-  // Sync session state with Firebase Firestore
+  const broadcastRef = useRef<BroadcastChannel | null>(null);
+
+  // Sync session state with Firebase Firestore & BroadcastChannel
   useEffect(() => {
     const sessionState: MentiLiveSession = {
       presentationId: presentation.id,
@@ -106,6 +108,17 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
 
     updateActiveMentiSession(sessionState);
 
+    // Save to local storage for immediate fallback access
+    try {
+      localStorage.setItem(`hbs_menti_session_${sessionCode}`, JSON.stringify(sessionState));
+      if (broadcastRef.current) {
+        broadcastRef.current.postMessage({
+          type: 'SESSION_UPDATE',
+          payload: sessionState
+        });
+      }
+    } catch (e) {}
+
     if (db) {
       try {
         const portalDocRef = doc(db, 'schools', 'HBS_portal');
@@ -116,7 +129,109 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
         console.warn('Firebase error:', e);
       }
     }
-  }, [currentSlideIndex, isVotingOpen, showResults, sessionCode, presentation.id]);
+  }, [currentSlideIndex, isVotingOpen, showResults, sessionCode, presentation.id, slideResponses, participantsCount]);
+
+  // Listen to incoming votes & reactions via BroadcastChannel (local/offline)
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel(`hbs_menti_${sessionCode}`);
+      broadcastRef.current = channel;
+      channel.onmessage = (event) => {
+        const { type, payload } = event.data || {};
+        if (!type || !payload) return;
+
+        if (type === 'STUDENT_VOTE_OPTION') {
+          const { slideId, optionId } = payload;
+          setSlideResponses(prev => {
+            const current = prev[slideId] || {};
+            return {
+              ...prev,
+              [slideId]: {
+                ...current,
+                [optionId]: (current[optionId] || 0) + 1
+              }
+            };
+          });
+          setParticipantsCount(prev => prev + 1);
+        } else if (type === 'STUDENT_WORD_SUBMISSION') {
+          const { slideId, words } = payload;
+          setSlideResponses(prev => {
+            const current = prev[slideId] || {};
+            const updated = { ...current };
+            (words || []).forEach((w: string) => {
+              const clean = w.trim();
+              if (clean) {
+                const cap = clean.charAt(0).toUpperCase() + clean.slice(1);
+                updated[cap] = (updated[cap] || 0) + 1;
+              }
+            });
+            return {
+              ...prev,
+              [slideId]: updated
+            };
+          });
+          setParticipantsCount(prev => prev + 1);
+        } else if (type === 'STUDENT_SCALE_SUBMISSION') {
+          const { slideId, scales } = payload;
+          setSlideResponses(prev => {
+            const current = prev[slideId] || {};
+            const updated = { ...current };
+            Object.entries(scales || {}).forEach(([scId, val]) => {
+              const prevStat = updated[scId] || { sum: 0, count: 0 };
+              const newSum = prevStat.sum + Number(val);
+              const newCount = prevStat.count + 1;
+              updated[scId] = { sum: newSum, count: newCount };
+            });
+            return {
+              ...prev,
+              [slideId]: updated
+            };
+          });
+          setParticipantsCount(prev => prev + 1);
+        } else if (type === 'STUDENT_OPEN_SUBMISSION') {
+          const { slideId, item } = payload;
+          setSlideResponses(prev => {
+            const current = prev[slideId] || [];
+            return {
+              ...prev,
+              [slideId]: [...(Array.isArray(current) ? current : []), item]
+            };
+          });
+          setParticipantsCount(prev => prev + 1);
+        } else if (type === 'STUDENT_QUIZ_ANSWER') {
+          const { slideId, optionId, nickname, score, isCorrect } = payload;
+          setSlideResponses(prev => {
+            const current = prev[slideId] || {};
+            const scoresMap = prev[`${slideId}_scores`] || {};
+            return {
+              ...prev,
+              [slideId]: {
+                ...current,
+                [optionId]: (current[optionId] || 0) + 1
+              },
+              [`${slideId}_scores`]: {
+                ...scoresMap,
+                [nickname]: { name: nickname, isCorrect, score }
+              }
+            };
+          });
+          setParticipantsCount(prev => prev + 1);
+        } else if (type === 'STUDENT_REACTION') {
+          if (payload.reaction) {
+            setFloatingReactions(prev => [...prev, payload.reaction]);
+          }
+        }
+      };
+    } catch (e) {
+      console.warn('BroadcastChannel error:', e);
+    }
+
+    return () => {
+      if (channel) channel.close();
+      broadcastRef.current = null;
+    };
+  }, [sessionCode]);
 
   // Listen to incoming votes and reactions from Firestore
   useEffect(() => {

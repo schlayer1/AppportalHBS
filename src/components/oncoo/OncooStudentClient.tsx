@@ -73,6 +73,7 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
   const [hasSubmittedHelp, setHasSubmittedHelp] = useState<boolean>(false);
 
   // 5. Placemat
+  const [placematGroupIndex, setPlacematGroupIndex] = useState<number>(0);
   const [placematCorner, setPlacematCorner] = useState<'cornerA' | 'cornerB' | 'cornerC' | 'cornerD'>('cornerA');
   const [placematNote, setPlacematNote] = useState<string>('');
   const [myPlacematNotes, setMyPlacematNotes] = useState<string[]>([]);
@@ -250,7 +251,7 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
         type: 'STUDENT_SUBMISSION',
         payload: {
           placematUpdate: {
-            groupIndex: 0,
+            groupIndex: placematGroupIndex,
             cornerKey: placematCorner,
             note: placematNote.trim()
           }
@@ -263,7 +264,7 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 font-sans flex flex-col justify-between">
+    <div className="min-h-dvh bg-slate-100 text-slate-900 font-sans flex flex-col justify-between pb-[calc(1rem+env(safe-area-inset-bottom))]">
       
       {/* Top Header */}
       <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-xs">
@@ -330,6 +331,9 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
               <div>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="one-time-code"
                   maxLength={6}
                   required
                   value={enteredPin}
@@ -365,8 +369,8 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
                   setStudentName(e.target.value);
                   localStorage.setItem('hbs_oncoo_student_name', e.target.value);
                 }}
-                placeholder="Name eingeben..."
-                className="text-xs font-bold text-slate-900 border-b border-slate-300 focus:border-rose-500 focus:outline-none px-2 py-0.5 text-right w-36"
+                placeholder="z. B. Max oder Gast"
+                className="text-right text-base font-bold text-slate-800 bg-transparent border-b border-dashed border-slate-300 focus:border-rose-500 outline-none w-36"
               />
             </div>
 
@@ -416,7 +420,7 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
                       value={cardText}
                       onChange={(e) => setCardText(e.target.value)}
                       placeholder="Schreibe deinen Gedanken auf die Karte..."
-                      className="w-full p-3 rounded-2xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
+                      className="w-full p-3 rounded-2xl border border-slate-200 text-base font-medium focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
                     />
                     <div className="text-right text-[10px] text-slate-400">
                       {cardText.length} / 140 Zeichen
@@ -489,7 +493,7 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
                                   key={num}
                                   type="button"
                                   onClick={() => setTargetScores(prev => ({ ...prev, [crit.id]: num }))}
-                                  className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
+                                  className={`flex-1 py-2.5 min-h-[40px] rounded-xl text-xs font-black transition-all touch-manipulation cursor-pointer active:scale-95 ${
                                     val === num
                                       ? 'bg-emerald-600 text-white shadow-xs scale-105'
                                       : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
@@ -675,6 +679,26 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
                 <form onSubmit={handleSubmitPlacematNote} className="space-y-3">
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                      Dein Tisch / Deine Gruppe
+                    </label>
+                    <select
+                      value={placematGroupIndex}
+                      onChange={(e) => setPlacematGroupIndex(Number(e.target.value))}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-white"
+                    >
+                      {(session.placemat?.groups || [
+                        { groupName: 'Tisch 1' },
+                        { groupName: 'Tisch 2' },
+                        { groupName: 'Tisch 3' },
+                        { groupName: 'Tisch 4' }
+                      ]).map((g, idx) => (
+                        <option key={idx} value={idx}>{g.groupName || `Tisch ${idx + 1}`}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
                       Dein Quadrant (Ecke)
                     </label>
                     <select
@@ -699,13 +723,13 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
                       value={placematNote}
                       onChange={(e) => setPlacematNote(e.target.value)}
                       placeholder="Stichpunkt eingeben..."
-                      className="w-full p-3 rounded-2xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-rose-500"
+                      className="w-full p-3 rounded-2xl border border-slate-200 text-base font-medium focus:outline-none focus:border-rose-500"
                     />
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-md transition-all active:scale-95"
+                    className="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-md transition-all active:scale-95"
                   >
                     In mein Feld eintragen
                   </button>
