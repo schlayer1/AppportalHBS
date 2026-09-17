@@ -164,6 +164,27 @@ export const SCHOOL_APPS: SchoolApp[] = [
       "Aufgaben im Kanban-Board per Drag & Drop verschieben.",
       "Am Ende der Stunde Statusbericht kopieren und in EduPage einreichen."
     ]
+  },
+  {
+    id: "elternmitmachbogen",
+    title: "Eltern-Mitmachbogen",
+    shortTitle: "Mitmachbogen",
+    subtitle: "Kompetenznetzwerk & Schulförderung",
+    description: "Digitales Mitmach- und Talentnetzwerk der Heimbürgeschule: Eltern erfassen Berufsfelder, Hobbys und Hilfsangebote für Schulprojekte, AGs und Feste. Inklusive geschütztem Admin-Cockpit.",
+    url: "https://schlayer1.github.io/Mitmachbogen/",
+    category: "verwaltung",
+    badge: "Eltern & Netzwerk",
+    badgeColor: "teal",
+    icon: "HeartHandshake",
+    tags: ["Elternarbeit", "Kompetenznetzwerk", "Berufsorientierung", "Schulprojekte", "Admin-Cockpit"],
+    offlineReady: true,
+    privacyBadge: "DSGVO-konform",
+    pedagogicalValue: "Aktiviert die vielfältigen Ressourcen der Elternschaft für lebensnahen Fachunterricht, AGs, Praxistage und schulische Veranstaltungen.",
+    quickGuide: [
+      "Eltern füllen den digitalen Bogen zu Interessen, Fachwissen und Hilfsangeboten aus.",
+      "Erhalten einen persönlichen Bearbeitungscode zur jederzeitigen Aktualisierung.",
+      "Kollegium und Schulleitung finden im geschützten Admin-Bereich zielgenau Unterstützung."
+    ]
   }
 ];
 

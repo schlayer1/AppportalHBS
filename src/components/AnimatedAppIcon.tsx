@@ -6,6 +6,7 @@ import {
   CalendarDays, 
   Briefcase, 
   Compass, 
+  HeartHandshake,
   Layers 
 } from 'lucide-react';
 
@@ -71,6 +72,14 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
     return (
       <div className="relative flex items-center justify-center group/icon">
         <Briefcase className={`${className} transition-transform duration-300 group-hover/icon:scale-105`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'HeartHandshake') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <HeartHandshake className={`${className} transition-transform duration-300 group-hover/icon:scale-110`} size={size} />
       </div>
     );
   }
