@@ -22,13 +22,18 @@ const COLORS = [
   { id: '#ffffff', label: 'Weiß' }
 ];
 
-export const DrawWidget: React.FC = () => {
+interface DrawWidgetProps {
+  data?: Record<string, any>;
+  onUpdateData?: (data: Record<string, any>) => void;
+}
+
+export const DrawWidget: React.FC<DrawWidgetProps> = ({ data, onUpdateData }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [tool, setTool] = useState<'pen' | 'highlighter' | 'eraser'>('pen');
   const [color, setColor] = useState('#091D2E');
   const [strokeWidth, setStrokeWidth] = useState(4);
-  const [paths, setPaths] = useState<Path[]>([]);
+  const [paths, setPaths] = useState<Path[]>(data?.paths || []);
   const currentPathRef = useRef<Path | null>(null);
   const isDrawingRef = useRef(false);
 
@@ -62,7 +67,10 @@ export const DrawWidget: React.FC = () => {
 
   useEffect(() => {
     redraw();
-  }, [paths]);
+    if (onUpdateData) {
+      onUpdateData({ paths });
+    }
+  }, [paths, onUpdateData]);
 
   // Dynamically resize canvas to fit container on widget resize
   useEffect(() => {

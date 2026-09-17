@@ -20,6 +20,7 @@ import { KahootDashboard } from './components/kahoot/KahootDashboard';
 import { KahootEditor } from './components/kahoot/KahootEditor';
 import { KahootPresenter } from './components/kahoot/KahootPresenter';
 import { KahootStudentPlayer } from './components/kahoot/KahootStudentPlayer';
+import { StudentBoardViewer } from './components/board/StudentBoardViewer';
 import { KahootGame } from './types/kahootTypes';
 import { AdminPanelModal } from './components/admin/AdminPanelModal';
 import { AddCustomLinkModal } from './components/links/AddCustomLinkModal';
@@ -234,6 +235,25 @@ export default function App() {
         onClose={() => {
           const url = new URL(window.location.href);
           url.searchParams.delete('kahoot');
+          window.history.replaceState({}, '', url.pathname);
+          window.location.reload();
+        }} 
+      />
+    );
+  }
+
+  // Check if student is accessing shared blackboard via QR code (bypass password gate)
+  const isBoardShare = typeof window !== 'undefined' && (
+    window.location.search.includes('boardShare=') || 
+    window.location.hash.includes('boardShare=')
+  );
+
+  if (isBoardShare) {
+    return (
+      <StudentBoardViewer 
+        onClose={() => {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('boardShare');
           window.history.replaceState({}, '', url.pathname);
           window.location.reload();
         }} 

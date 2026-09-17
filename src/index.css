@@ -215,3 +215,38 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #0B7BA7;
 }
+
+/* Print Stylesheet */
+@media print {
+  /* Suppress all fixed navigation, docking, dialogs, and non-printable overlays */
+  nav,
+  header,
+  .board-dock,
+  .board-topbar,
+  .no-print,
+  .modal-backdrop,
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body, html {
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: 100% !important;
+  }
+
+  /* Printable document card fills page cleanly */
+  .printable-document {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+

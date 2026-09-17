@@ -7,22 +7,47 @@ interface ChecklistItem {
   done: boolean;
 }
 
-export const TextWidget: React.FC = () => {
-  const [mode, setMode] = useState<'text' | 'checklist'>('checklist');
-  const [fontSize, setFontSize] = useState<'normal' | 'large' | 'huge' | 'giant'>('large');
+interface TextWidgetProps {
+  data?: Record<string, any>;
+  onUpdateData?: (data: Record<string, any>) => void;
+}
+
+export const TextWidget: React.FC<TextWidgetProps> = ({ data, onUpdateData }) => {
+  const [mode, setMode] = useState<'text' | 'checklist'>(data?.mode || 'checklist');
+  const [fontSize, setFontSize] = useState<'normal' | 'large' | 'huge' | 'giant'>(data?.fontSize || 'large');
   
   // Note text state
   const [noteText, setNoteText] = useState(
-    '🎯 Stundenziel: Arbeitsblatt S. 42 Aufgaben 1 bis 4 bearbeiten.\n\n📌 Bei Fragen: Zuerst Flüsterpartner fragen!'
+    data?.noteText !== undefined 
+      ? data.noteText 
+      : '🎯 Stundenziel: Arbeitsblatt S. 42 Aufgaben 1 bis 4 bearbeiten.\n\n📌 Bei Fragen: Zuerst Flüsterpartner fragen!'
   );
 
   // Checklist state
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([
-    { id: '1', text: 'Hausaufgaben vergleichen', done: true },
-    { id: '2', text: 'Lehrbuch S. 42 lesen & besprechen', done: false },
-    { id: '3', text: 'Stillarbeit: Aufgaben 1-4 im Heft', done: false },
-    { id: '4', text: 'Ergebnisse an der Tafel sichern', done: false }
-  ]);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(
+    data?.checklist || [
+      { id: '1', text: 'Hausaufgaben vergleichen', done: true },
+      { id: '2', text: 'Lehrbuch S. 42 lesen & besprechen', done: false },
+      { id: '3', text: 'Stillarbeit: Aufgaben 1-4 im Heft', done: false },
+      { id: '4', text: 'Ergebnisse an der Tafel sichern', done: false }
+    ]
+  );
+
+  // Sync back to board data
+  React.useEffect(() => {
+    if (onUpdateData) {
+      const compiledText = mode === 'text' 
+        ? noteText 
+        : checklist.map(c => `${c.done ? '✓' : '○'} ${c.text}`).join('\n');
+      onUpdateData({
+        mode,
+        fontSize,
+        noteText,
+        checklist,
+        text: compiledText
+      });
+    }
+  }, [mode, fontSize, noteText, checklist, onUpdateData]);
 
   const [newTodoInput, setNewTodoInput] = useState('');
 

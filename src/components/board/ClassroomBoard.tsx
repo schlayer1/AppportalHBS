@@ -82,6 +82,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
     removeWidget,
     updateWidgetPosition,
     updateWidgetSize,
+    updateWidgetData,
     toggleMinimize,
     bringToFront,
     setBackground,
@@ -146,7 +147,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
       style={activeBgPreset.style}
     >
       {/* Subtle Top Bar with School Branding, Centering & Quick Clear */}
-      <div className="fixed top-4 left-4 right-4 sm:left-6 sm:right-6 flex items-center justify-between pointer-events-none z-40">
+      <div className="fixed top-4 left-4 right-4 sm:left-6 sm:right-6 flex items-center justify-between pointer-events-none z-40 board-topbar no-print">
         <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
           <button
             onClick={onExit}
@@ -244,6 +245,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         <div 
+          id="classroom-board-canvas"
           className={`relative min-w-[max(100vw,2800px)] min-h-[max(100vh,1800px)] transition-colors duration-500 ${
             activeBgPreset.className || ''
           }`}
@@ -294,10 +296,20 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
               widgetContent = <DiceWidget />;
             } else if (widget.type === 'text') {
               widgetIcon = <FileText className="w-4 h-4 text-hbs-blue" />;
-              widgetContent = <TextWidget />;
+              widgetContent = (
+                <TextWidget 
+                  data={widget.data} 
+                  onUpdateData={(d) => updateWidgetData(widget.id, d)} 
+                />
+              );
             } else if (widget.type === 'draw') {
               widgetIcon = <PenTool className="w-4 h-4 text-purple-600" />;
-              widgetContent = <DrawWidget />;
+              widgetContent = (
+                <DrawWidget 
+                  data={widget.data} 
+                  onUpdateData={(d) => updateWidgetData(widget.id, d)} 
+                />
+              );
             } else if (widget.type === 'qr-code') {
               widgetIcon = <QrCode className="w-4 h-4 text-hbs-slate-dark" />;
               widgetContent = <QrCodeWidget />;
@@ -352,17 +364,19 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
       </div>
 
       {/* Floating iOS Liquid-Glass Dock */}
-      <BoardDock
-        onAddWidget={(type) => addWidget(type)}
-        onOpenBackgroundPicker={() => setIsBackgroundPickerOpen(true)}
-        screenIndex={activeScreenIndex}
-        totalScreens={screens.length}
-        onSwitchScreen={switchScreen}
-        onAddScreen={addScreen}
-        isFullscreen={isFullscreen}
-        onToggleFullscreen={toggleFullscreen}
-        onExitBoard={onExit}
-      />
+      <div className="board-dock no-print">
+        <BoardDock
+          onAddWidget={(type) => addWidget(type)}
+          onOpenBackgroundPicker={() => setIsBackgroundPickerOpen(true)}
+          screenIndex={activeScreenIndex}
+          totalScreens={screens.length}
+          onSwitchScreen={switchScreen}
+          onAddScreen={addScreen}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
+          onExitBoard={onExit}
+        />
+      </div>
 
       {/* Background Picker Modal */}
       <BoardBackgroundPicker
