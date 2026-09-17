@@ -288,7 +288,7 @@ export const ExportBoardModal: React.FC<ExportBoardModalProps> = ({
           <body>
             <div class="header">
               <div>
-                <div class="school-name">Staatliche Regelschule „Geschwister Scholl“ Kahla</div>
+                <div class="school-name">Staatliche Regelschule Heimbürgeschule Kahla</div>
                 <div class="title">${activeScreen.title}</div>
                 <div class="meta">Datum: ${new Date().toLocaleDateString('de-DE')} • Lehrkraft: ${currentUser?.name || 'Fachlehrer'}</div>
               </div>
@@ -418,7 +418,7 @@ export const ExportBoardModal: React.FC<ExportBoardModalProps> = ({
           <body>
             <div class="header">
               <div>
-                <div class="school-name">Staatliche Regelschule „Geschwister Scholl“ Kahla</div>
+                <div class="school-name">Staatliche Regelschule Heimbürgeschule Kahla</div>
                 <div class="title">Stundenprotokoll: ${activeScreen.title}</div>
                 <div class="meta">Datum: ${new Date().toLocaleDateString('de-DE')} • Lehrkraft: ${currentUser?.name || 'Fachlehrer'}</div>
               </div>

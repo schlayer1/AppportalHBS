@@ -236,7 +236,7 @@ const htmlContent = `<!DOCTYPE html>
   <div class="cover-page">
     <div style="margin-top: 40px;">
       ${logoBase64 ? `<img src="${logoBase64}" class="cover-crest" alt="HBS Siegel" />` : ''}
-      <div class="cover-school">Staatliche Regelschule „Geschwister Scholl“ Kahla</div>
+      <div class="cover-school">Staatliche Regelschule Heimbürgeschule Kahla</div>
       <h1 class="cover-title" style="border:none;">HBS App-Portal<br>Offizielles Handbuch für das Kollegium</h1>
       <div class="cover-subtitle">
         Leitfaden, Funktionsübersicht und didaktische Praxisszenarien für moderne Smartboards, Tablets und das digitale Unterrichten.
@@ -485,7 +485,7 @@ const htmlContent = `<!DOCTYPE html>
   </ul>
 
   <div style="margin-top: 40px; padding-top: 15px; border-top: 1px solid #cbd5e1; text-align: center; font-size: 8.5pt; color: #64748b;">
-    <strong>Staatliche Regelschule „Geschwister Scholl“ Kahla</strong> • Heimbürgestraße • 07768 Kahla<br>
+    <strong>Staatliche Regelschule Heimbürgeschule Kahla</strong> • Heimbürgestraße • 07768 Kahla<br>
     Offizielles Kollegiums-Handbuch • Stand: Schuljahr 2026/2027
   </div>
 
@@ -524,13 +524,16 @@ async function generatePdf() {
 
   const pdfDest1 = path.resolve('HBS_App_Portal_Handbuch.pdf');
   const pdfDest2 = path.resolve('docs/HBS_App_Portal_Handbuch.pdf');
+  const pdfDest3 = path.resolve('public/HBS_App_Portal_Handbuch.pdf');
 
   fs.writeFileSync(pdfDest1, pdfBuffer);
   fs.writeFileSync(pdfDest2, pdfBuffer);
+  fs.writeFileSync(pdfDest3, pdfBuffer);
 
   console.log(`✅ PDF erfolgreich erstellt:`);
   console.log(`   -> ${pdfDest1} (${(pdfBuffer.length / 1024 / 1024).toFixed(2)} MB)`);
   console.log(`   -> ${pdfDest2}`);
+  console.log(`   -> ${pdfDest3}`);
 }
 
 generatePdf().catch(err => {

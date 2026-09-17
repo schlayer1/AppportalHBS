@@ -540,7 +540,7 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
           <body>
             <div class="header">
               <div>
-                <div class="school">Staatliche Regelschule „Geschwister Scholl“ Kahla • Oncoo Kartenabfrage</div>
+                <div class="school">Staatliche Regelschule Heimbürgeschule Kahla • Oncoo Kartenabfrage</div>
                 <div class="title">Thema: ${q}</div>
                 <div class="meta">Datum: ${new Date().toLocaleDateString('de-DE')} • PIN: ${session.pinCode} • Karten gesamt: ${session.kartenabfrage?.cards.length || 0}</div>
               </div>

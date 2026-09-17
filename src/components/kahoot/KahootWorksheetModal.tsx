@@ -185,7 +185,7 @@ export const KahootWorksheetModal: React.FC<KahootWorksheetModalProps> = ({
                     />
                     <div>
                       <h3 className="text-xs font-black uppercase tracking-widest text-slate-600">
-                        Staatliche Regelschule »Geschwister Scholl« Kahla
+                        Staatliche Regelschule Heimbürgeschule Kahla
                       </h3>
                       <h1 className="text-xl font-black text-slate-950 tracking-tight">
                         {game.title}

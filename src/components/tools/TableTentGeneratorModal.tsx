@@ -294,7 +294,7 @@ export const TableTentGeneratorModal: React.FC<TableTentGeneratorModalProps> = (
                   />
                   <div>
                     <div className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-                      Staatl. Regelschule »Geschwister Scholl« Kahla
+                      Staatliche Regelschule Heimbürgeschule Kahla
                     </div>
                     <div className="text-xs font-black text-slate-900">
                       {title}
@@ -369,7 +369,7 @@ export const TableTentGeneratorModal: React.FC<TableTentGeneratorModalProps> = (
                   />
                   <div>
                     <div className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-                      Staatl. Regelschule »Geschwister Scholl« Kahla
+                      Staatliche Regelschule Heimbürgeschule Kahla
                     </div>
                     <div className="text-xs font-black text-slate-900">
                       {title}

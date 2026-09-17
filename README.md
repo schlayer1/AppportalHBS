@@ -1,5 +1,5 @@
 # 🏫 Willkommen im HBS App-Portal
-### Staatliche Regelschule „Geschwister Scholl“ Kahla
+### Staatliche Regelschule Heimbürgeschule Kahla
 
 Das **HBS App-Portal** ist die zentrale, datenschutzkonforme Einstiegs- und Arbeitsplattform für das gesamte Kollegium sowie für Schülerinnen und Schüler der Heimbürgeschule Kahla. Es bündelt alle digitalen Unterrichts-, Organisations- und Verwaltungswerkzeuge an einem einzigen Ort – ohne App-Dschungel, ohne externe Werbe-Tracker und optimiert für interaktive Smartboards, iPads, Tablets und Dienstgeräte.
 
@@ -256,5 +256,5 @@ Zur Erzeugung von Spielshow-Sounds und Countdown-Beats in Kahoot und Menti werde
 
 ---
 
-*HBS App-Portal • Staatliche Regelschule „Geschwister Scholl“ Kahla*  
+*HBS App-Portal • Staatliche Regelschule Heimbürgeschule Kahla*  
 *Entwickelt für zeitgemäßen, motivierenden und verlässlichen Unterricht.*

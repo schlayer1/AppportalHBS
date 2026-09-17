@@ -618,9 +618,9 @@ export const HandbookModal: React.FC<HandbookModalProps> = ({
         {/* Modal Sticky Footer */}
         <footer className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-            <span>Staatliche Regelschule „Geschwister Scholl“ Kahla</span>
+            <span>Staatliche Regelschule Heimbürgeschule Kahla</span>
             <span>•</span>
-            <span className="text-slate-400">Heimbürgeschule Kollegium</span>
+            <span className="text-slate-400">Kollegium</span>
           </div>
 
           <div className="flex items-center gap-2">
