@@ -7,7 +7,8 @@ import {
   Briefcase, 
   Compass, 
   HeartHandshake,
-  Layers 
+  Layers,
+  BarChart2
 } from 'lucide-react';
 
 interface AnimatedAppIconProps {
@@ -80,6 +81,14 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
     return (
       <div className="relative flex items-center justify-center group/icon">
         <HeartHandshake className={`${className} transition-transform duration-300 group-hover/icon:scale-110`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'BarChart2') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <BarChart2 className={`${className} transition-transform duration-300 group-hover/icon:scale-110 text-teal-600`} size={size} />
       </div>
     );
   }

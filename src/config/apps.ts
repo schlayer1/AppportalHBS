@@ -39,6 +39,28 @@ export const PORTAL_CONFIG = {
 
 export const SCHOOL_APPS: SchoolApp[] = [
   {
+    id: "menti-hbs",
+    title: "HBS Menti (Live-Abfragen)",
+    shortTitle: "HBS Menti",
+    subtitle: "Wortwolken, Live-Votings & Quiz-Wettbewerbe",
+    description: "Mentimeter-Clone für interaktive Unterrichtsfolien. Schüler stimmen per Smartphone oder iPad via QR-Code live ab. Mit Wortwolke, Multiple-Choice, Skalen und Quiz.",
+    url: "#menti",
+    category: "unterricht",
+    badge: "Interaktiv & Live",
+    badgeColor: "teal",
+    icon: "BarChart2",
+    tags: ["Unterricht", "Wortwolke", "Abstimmung", "Quiz", "QR-Code", "Smartboard"],
+    isFeaturedStudentQr: true,
+    offlineReady: true,
+    privacyBadge: "100% DSGVO-konform",
+    pedagogicalValue: "Aktiviert die gesamte Klasse, erfasst Vorwissen und Meinungsbilder sekundenschnell und macht Lernstände transparent.",
+    quickGuide: [
+      "In HBS Menti auf 'Präsentieren' klicken, um das Smartboard zu starten.",
+      "Schüler scannen den QR-Code oder tippen den 6-stelligen PIN ein.",
+      "Ergebnisse wachsen live in Echtzeit als Wortwolke oder animierte Balken."
+    ]
+  },
+  {
     id: "schueler-translator",
     title: "Übersetzer Schüler",
     shortTitle: "Übersetzer Schüler",

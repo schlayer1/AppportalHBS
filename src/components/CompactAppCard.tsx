@@ -182,8 +182,8 @@ export const CompactAppCard: React.FC<CompactAppCardProps> = ({
       <div className="flex items-center gap-2 pt-2 border-t border-slate-100 relative z-10">
         <a
           href={app.url}
-          target="_blank"
-          rel="noopener noreferrer"
+          target={app.url.startsWith('#') ? undefined : "_blank"}
+          rel={app.url.startsWith('#') ? undefined : "noopener noreferrer"}
           className={`flex-1 min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-black tracking-wide flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md active:scale-95 transition-all select-none shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.3)] ${themeStyles.btnBg}`}
         >
           <span>Starten</span>

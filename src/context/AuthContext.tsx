@@ -8,6 +8,8 @@ import {
   MASTER_ADMIN_PIN, 
   getCachedPortalData 
 } from '../services/firebase';
+import { MentiPresentation, MentiLiveSession } from '../types/mentiTypes';
+import { DEFAULT_MENTI_TEMPLATES } from '../data/defaultMentiTemplates';
 
 interface AuthContextType {
   currentUser: PortalUser | null;
@@ -50,6 +52,15 @@ interface AuthContextType {
     }
   ) => Promise<SavedBoardTemplate>;
   deleteBoardTemplate: (id: string) => Promise<void>;
+
+  // Menti Presentations & Live Sessions
+  mentiPresentations: MentiPresentation[];
+  activeMentiSession: MentiLiveSession | null;
+  saveMentiPresentation: (presentation: MentiPresentation) => Promise<MentiPresentation>;
+  deleteMentiPresentation: (id: string) => Promise<void>;
+  toggleShareMentiPresentation: (id: string) => Promise<void>;
+  duplicateMentiPresentation: (id: string) => Promise<MentiPresentation>;
+  updateActiveMentiSession: (session: MentiLiveSession | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -72,6 +83,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [allPreferences, setAllPreferences] = useState<Record<string, UserPreferences>>(() => getCachedPortalData().preferences);
   const [boardTemplates, setBoardTemplates] = useState<SavedBoardTemplate[]>(() => getCachedPortalData().boardTemplates);
+  const [mentiPresentations, setMentiPresentations] = useState<MentiPresentation[]>(() => getCachedPortalData().mentiPresentations || DEFAULT_MENTI_TEMPLATES);
+  const [activeMentiSession, setActiveMentiSession] = useState<MentiLiveSession | null>(() => getCachedPortalData().activeMentiSession || null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Load latest data from Cloud on mount
@@ -85,6 +98,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUsers(cloudData.users);
           setAllPreferences(cloudData.preferences);
           setBoardTemplates(cloudData.boardTemplates);
+          if (cloudData.mentiPresentations && cloudData.mentiPresentations.length > 0) {
+            setMentiPresentations(cloudData.mentiPresentations);
+          }
+          setActiveMentiSession(cloudData.activeMentiSession || null);
         }
       } catch (err) {
         console.warn("Cloud init error:", err);
@@ -318,6 +335,90 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await savePortalDataToCloud(cloudData);
   }, [boardTemplates]);
 
+  // Menti Presentations Actions
+  const saveMentiPresentation = useCallback(async (presentation: MentiPresentation): Promise<MentiPresentation> => {
+    const existingIndex = mentiPresentations.findIndex(p => p.id === presentation.id);
+    const now = Date.now();
+    const presentationToSave: MentiPresentation = {
+      ...presentation,
+      updatedAt: now,
+      authorId: presentation.authorId || currentUser?.id || 'guest',
+      authorName: presentation.authorName || currentUser?.name || 'Kollege'
+    };
+
+    let updatedList: MentiPresentation[];
+    if (existingIndex >= 0) {
+      updatedList = [...mentiPresentations];
+      updatedList[existingIndex] = presentationToSave;
+    } else {
+      updatedList = [presentationToSave, ...mentiPresentations];
+    }
+
+    setMentiPresentations(updatedList);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.mentiPresentations = updatedList;
+    await savePortalDataToCloud(cloudData);
+    return presentationToSave;
+  }, [currentUser, mentiPresentations]);
+
+  const deleteMentiPresentation = useCallback(async (id: string) => {
+    const updated = mentiPresentations.filter(p => p.id !== id);
+    setMentiPresentations(updated);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.mentiPresentations = updated;
+    await savePortalDataToCloud(cloudData);
+  }, [mentiPresentations]);
+
+  const toggleShareMentiPresentation = useCallback(async (id: string) => {
+    const updated = mentiPresentations.map(p => {
+      if (p.id === id) {
+        return { ...p, isShared: !p.isShared, updatedAt: Date.now() };
+      }
+      return p;
+    });
+    setMentiPresentations(updated);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.mentiPresentations = updated;
+    await savePortalDataToCloud(cloudData);
+  }, [mentiPresentations]);
+
+  const duplicateMentiPresentation = useCallback(async (id: string): Promise<MentiPresentation> => {
+    const orig = mentiPresentations.find(p => p.id === id);
+    const newPresentation: MentiPresentation = orig ? {
+      ...orig,
+      id: `menti-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: `${orig.title} (Kopie)`,
+      authorId: currentUser?.id || 'guest',
+      authorName: currentUser?.name || 'Kollege',
+      isShared: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    } : {
+      id: `menti-${Date.now()}`,
+      title: 'Neue Präsentation',
+      authorId: currentUser?.id || 'guest',
+      authorName: currentUser?.name || 'Kollege',
+      isShared: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      slides: []
+    };
+
+    const updated = [newPresentation, ...mentiPresentations];
+    setMentiPresentations(updated);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.mentiPresentations = updated;
+    await savePortalDataToCloud(cloudData);
+    return newPresentation;
+  }, [currentUser, mentiPresentations]);
+
+  const updateActiveMentiSession = useCallback(async (session: MentiLiveSession | null) => {
+    setActiveMentiSession(session);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.activeMentiSession = session;
+    await savePortalDataToCloud(cloudData);
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -329,6 +430,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         userPreferences,
         boardTemplates,
+        mentiPresentations,
+        activeMentiSession,
         loginWithUser,
         loginWithAdminMaster,
         loginAsGuest,
@@ -339,7 +442,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addCustomApp,
         removeCustomApp,
         saveBoardTemplate,
-        deleteBoardTemplate
+        deleteBoardTemplate,
+        saveMentiPresentation,
+        deleteMentiPresentation,
+        toggleShareMentiPresentation,
+        duplicateMentiPresentation,
+        updateActiveMentiSession
       }}
     >
       {children}

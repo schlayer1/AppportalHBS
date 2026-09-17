@@ -17,12 +17,13 @@ import {
   Plus,
   Shield,
   ArrowUpDown,
-  MoreVertical
+  MoreVertical,
+  BarChart2
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
 
-export type ViewMode = 'bento' | 'compact' | 'smartboard' | 'tafel';
+export type ViewMode = 'bento' | 'compact' | 'smartboard' | 'tafel' | 'menti';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -173,6 +174,20 @@ export const Header: React.FC<HeaderProps> = ({
                 <Presentation className={`w-4 h-4 ${viewMode === 'tafel' ? 'text-white' : 'text-emerald-600'}`} />
                 <span className="hidden xl:inline font-black">Tafel</span>
               </button>
+
+              <button
+                onClick={() => setViewMode('menti')}
+                className={`p-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 ${
+                  viewMode === 'menti'
+                    ? 'bg-teal-600 text-white shadow-xs'
+                    : 'text-hbs-slate-muted hover:text-teal-700'
+                }`}
+                title="HBS Menti (Live-Abfragen & Wortwolken)"
+                aria-label="HBS Menti"
+              >
+                <BarChart2 className={`w-4 h-4 ${viewMode === 'menti' ? 'text-white' : 'text-teal-600'}`} />
+                <span className="hidden xl:inline font-black">Menti</span>
+              </button>
             </div>
 
             {/* Quick Tools Drawer Trigger (Hidden on mobile because in bottom dock) */}
@@ -286,6 +301,14 @@ export const Header: React.FC<HeaderProps> = ({
                         }`}
                       >
                         <Grid2X2 className="w-3 h-3" /> Kompakt
+                      </button>
+                      <button
+                        onClick={() => { setViewMode('menti'); setIsMobileMenuOpen(false); }}
+                        className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+                          viewMode === 'menti' ? 'bg-white text-teal-600 shadow-xs' : 'text-slate-600'
+                        }`}
+                      >
+                        <BarChart2 className="w-3 h-3 text-teal-600" /> Menti
                       </button>
                     </div>
 

@@ -11,6 +11,11 @@ import { FloatingDock } from './components/FloatingDock';
 import { ExternalLinks } from './components/ExternalLinks';
 import { ClassroomBoard } from './components/board/ClassroomBoard';
 import { StudentPollVoter } from './components/board/StudentPollVoter';
+import { MentiDashboard } from './components/menti/MentiDashboard';
+import { MentiEditor } from './components/menti/MentiEditor';
+import { MentiPresenter } from './components/menti/MentiPresenter';
+import { MentiStudentVoter } from './components/menti/MentiStudentVoter';
+import { MentiPresentation } from './types/mentiTypes';
 import { AdminPanelModal } from './components/admin/AdminPanelModal';
 import { AddCustomLinkModal } from './components/links/AddCustomLinkModal';
 import { EmptyState } from './components/ui/empty-state';
@@ -60,10 +65,26 @@ export default function App() {
   const [isAddCustomLinkOpen, setIsAddCustomLinkOpen] = useState<boolean>(false);
   const [isReorderMode, setIsReorderMode] = useState<boolean>(false);
 
+  // Menti presentation state
+  const [activeMentiPresentation, setActiveMentiPresentation] = useState<MentiPresentation | null>(null);
+  const [mentiSubView, setMentiSubView] = useState<'dashboard' | 'editor' | 'presenter'>('dashboard');
+
   // Favorites Hook
   const { favorites, toggleFavorite, isFavorite, hasFavorites } = useFavorites();
 
   const isSmartboardMode = viewMode === 'smartboard';
+
+  // Listen to #menti hash in URL
+  useEffect(() => {
+    const checkHash = () => {
+      if (window.location.hash === '#menti') {
+        setViewMode('menti');
+      }
+    };
+    window.addEventListener('hashchange', checkHash);
+    checkHash();
+    return () => window.removeEventListener('hashchange', checkHash);
+  }, []);
 
   // Auto-scroll to top when category or view mode changes
   useEffect(() => {
@@ -171,6 +192,25 @@ export default function App() {
     );
   }
 
+  // Check if student is accessing Menti live via QR code or PIN (bypass password gate)
+  const isMentiVoter = typeof window !== 'undefined' && (
+    window.location.search.includes('menti=') || 
+    window.location.hash.includes('menti=')
+  );
+
+  if (isMentiVoter) {
+    return (
+      <MentiStudentVoter 
+        onClose={() => {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('menti');
+          window.history.replaceState({}, '', url.pathname);
+          window.location.reload();
+        }} 
+      />
+    );
+  }
+
   if (!isAuthenticated) {
     return <PasswordGate onAuthenticated={() => {}} />;
   }
@@ -178,6 +218,48 @@ export default function App() {
   // Fullscreen Classroom Board View (Classroomscreen Replica)
   if (viewMode === 'tafel') {
     return <ClassroomBoard onExit={() => setViewMode('bento')} />;
+  }
+
+  // Fullscreen / Dedicated HBS Menti System (Mentimeter Clone)
+  if (viewMode === 'menti') {
+    if (mentiSubView === 'editor' && activeMentiPresentation) {
+      return (
+        <MentiEditor
+          initialPresentation={activeMentiPresentation}
+          onClose={() => setMentiSubView('dashboard')}
+          onStartPresenter={(pres) => {
+            setActiveMentiPresentation(pres);
+            setMentiSubView('presenter');
+          }}
+        />
+      );
+    }
+
+    if (mentiSubView === 'presenter' && activeMentiPresentation) {
+      return (
+        <MentiPresenter
+          presentation={activeMentiPresentation}
+          onExit={() => setMentiSubView('dashboard')}
+        />
+      );
+    }
+
+    return (
+      <MentiDashboard
+        onBackToPortal={() => {
+          window.location.hash = '';
+          setViewMode('bento');
+        }}
+        onEditPresentation={(pres) => {
+          setActiveMentiPresentation(pres);
+          setMentiSubView('editor');
+        }}
+        onStartPresenter={(pres) => {
+          setActiveMentiPresentation(pres);
+          setMentiSubView('presenter');
+        }}
+      />
+    );
   }
 
   return (

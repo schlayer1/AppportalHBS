@@ -1,0 +1,801 @@
+import React, { useState } from 'react';
+import { 
+  ArrowLeft, 
+  Play, 
+  Save, 
+  Plus, 
+  Trash2, 
+  Copy, 
+  ChevronUp, 
+  ChevronDown, 
+  Check, 
+  Clock, 
+  Award, 
+  Sliders, 
+  FileText, 
+  BarChart2, 
+  MessageSquare, 
+  Cloud, 
+  Sparkles 
+} from 'lucide-react';
+import { MentiPresentation, MentiSlide, MentiSlideType } from '../../types/mentiTypes';
+import { useAuth } from '../../context/AuthContext';
+
+interface MentiEditorProps {
+  initialPresentation: MentiPresentation;
+  onClose: () => void;
+  onStartPresenter: (presentation: MentiPresentation) => void;
+}
+
+const SLIDE_TYPE_INFO: Record<MentiSlideType, { label: string; icon: any; color: string; desc: string }> = {
+  wordcloud: { label: 'Wortwolke', icon: Cloud, color: 'text-sky-600 bg-sky-50', desc: 'Schüler senden Begriffe, die als lebendige Schlagwortwolke wachsen' },
+  choice: { label: 'Multiple Choice', icon: BarChart2, color: 'text-teal-600 bg-teal-50', desc: 'Klassische Abstimmung mit animierten Balkendiagrammen' },
+  open: { label: 'Offene Frage', icon: MessageSquare, color: 'text-indigo-600 bg-indigo-50', desc: 'Schüler tippen Sätze oder Fragen, sichtbar als Kärtchen-Mosaik' },
+  scales: { label: 'Bewertungsskala', icon: Sliders, color: 'text-amber-600 bg-amber-50', desc: 'Thesen mit Schiebereglern (1-5 Sterne) bewerten' },
+  quiz: { label: 'Quiz-Rennen', icon: Award, color: 'text-rose-600 bg-rose-50', desc: 'Wettbewerb mit Zeitlimit, Punkten und Live-Treppchen' },
+  content: { label: 'Info & Merksatz', icon: FileText, color: 'text-emerald-600 bg-emerald-50', desc: 'Erklärungen, Hausaufgaben oder Überschriften ohne Abstimmung' },
+};
+
+const SUBJECT_LIST = [
+  'Fächerübergreifend',
+  'Mathematik',
+  'Deutsch',
+  'Englisch',
+  'Biologie',
+  'Physik',
+  'Chemie',
+  'Geschichte',
+  'Geografie',
+  'Wirtschaft / Recht',
+  'Ethik / Religion',
+  'Kunst',
+  'Musik',
+  'Sport'
+];
+
+export const MentiEditor: React.FC<MentiEditorProps> = ({
+  initialPresentation,
+  onClose,
+  onStartPresenter
+}) => {
+  const { saveMentiPresentation } = useAuth();
+
+  const [presentation, setPresentation] = useState<MentiPresentation>(initialPresentation);
+  const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
+  const [isSaved, setIsSaved] = useState<boolean>(true);
+  const [showTypeSelector, setShowTypeSelector] = useState<boolean>(false);
+
+  const activeSlide: MentiSlide = presentation.slides[activeSlideIndex] || presentation.slides[0] || {
+    id: 's-default',
+    type: 'wordcloud',
+    question: 'Neue Frage eingeben'
+  };
+
+  const updateActiveSlide = (updater: (prev: MentiSlide) => MentiSlide) => {
+    setPresentation(prev => {
+      const updatedSlides = [...prev.slides];
+      updatedSlides[activeSlideIndex] = updater(updatedSlides[activeSlideIndex]);
+      return { ...prev, slides: updatedSlides, updatedAt: Date.now() };
+    });
+    setIsSaved(false);
+  };
+
+  const handleSave = async () => {
+    await saveMentiPresentation(presentation);
+    setIsSaved(true);
+  };
+
+  const handleAddSlide = (type: MentiSlideType) => {
+    const newSlide: MentiSlide = {
+      id: `slide-${Date.now()}`,
+      type,
+      question: type === 'wordcloud' ? 'Welche 3 Worte beschreiben das Thema?' :
+                type === 'choice' ? 'Welche Option ist richtig?' :
+                type === 'open' ? 'Was denkst du darüber?' :
+                type === 'scales' ? 'Bewerte die folgenden Thesen:' :
+                type === 'quiz' ? 'Schnelligkeitsfrage: Wer weiß es?' : 'Merksatz zur heutigen Stunde',
+      maxWordsPerUser: type === 'wordcloud' ? 3 : undefined,
+      options: (type === 'choice' || type === 'quiz') ? [
+        { id: 'opt-1', text: 'Erste Antwort', isCorrect: true },
+        { id: 'opt-2', text: 'Zweite Antwort' },
+        { id: 'opt-3', text: 'Dritte Antwort' }
+      ] : undefined,
+      scales: type === 'scales' ? [
+        { id: 'sc-1', statement: 'Ich habe das Prinzip verstanden', lowLabel: 'Nein', highLabel: 'Ja' },
+        { id: 'sc-2', statement: 'Die Aufgabe war leicht', lowLabel: 'Schwer', highLabel: 'Leicht' }
+      ] : undefined,
+      timeLimitSeconds: type === 'quiz' ? 20 : undefined,
+      points: type === 'quiz' ? 1000 : undefined,
+      bulletPoints: type === 'content' ? ['Erster wichtiger Punkt', 'Zweiter wichtiger Punkt'] : undefined,
+      emoji: type === 'content' ? '💡' : undefined
+    };
+
+    setPresentation(prev => ({
+      ...prev,
+      slides: [...prev.slides, newSlide],
+      updatedAt: Date.now()
+    }));
+    setActiveSlideIndex(presentation.slides.length);
+    setShowTypeSelector(false);
+    setIsSaved(false);
+  };
+
+  const handleDuplicateSlide = (index: number) => {
+    const slideToCopy = presentation.slides[index];
+    const copy: MentiSlide = {
+      ...JSON.parse(JSON.stringify(slideToCopy)),
+      id: `slide-${Date.now()}`,
+      question: `${slideToCopy.question} (Kopie)`
+    };
+    const updated = [...presentation.slides];
+    updated.splice(index + 1, 0, copy);
+    setPresentation(prev => ({ ...prev, slides: updated }));
+    setActiveSlideIndex(index + 1);
+    setIsSaved(false);
+  };
+
+  const handleDeleteSlide = (index: number) => {
+    if (presentation.slides.length <= 1) {
+      alert('Eine Abfrage muss mindestens eine Folie enthalten.');
+      return;
+    }
+    const updated = presentation.slides.filter((_, idx) => idx !== index);
+    setPresentation(prev => ({ ...prev, slides: updated }));
+    setActiveSlideIndex(Math.max(0, index - 1));
+    setIsSaved(false);
+  };
+
+  const handleMoveSlide = (index: number, direction: 'up' | 'down') => {
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= presentation.slides.length) return;
+    const updated = [...presentation.slides];
+    const temp = updated[index];
+    updated[index] = updated[targetIdx];
+    updated[targetIdx] = temp;
+    setPresentation(prev => ({ ...prev, slides: updated }));
+    setActiveSlideIndex(targetIdx);
+    setIsSaved(false);
+  };
+
+  return (
+    <div className="h-screen w-screen bg-slate-100 flex flex-col font-sans select-none overflow-hidden text-slate-900">
+      
+      {/* Top Bar */}
+      <header className="h-14 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between gap-3 shrink-0 z-20">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            onClick={async () => {
+              if (!isSaved) await handleSave();
+              onClose();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all active:scale-95 shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Zurück</span>
+          </button>
+
+          <div className="h-5 w-[1px] bg-slate-200" />
+
+          {/* Editable Title */}
+          <div className="flex items-center gap-2 min-w-0">
+            <input
+              type="text"
+              value={presentation.title}
+              onChange={(e) => {
+                setPresentation(prev => ({ ...prev, title: e.target.value }));
+                setIsSaved(false);
+              }}
+              className="font-black text-sm text-slate-900 bg-transparent hover:bg-slate-50 focus:bg-white px-2 py-1 rounded-lg border border-transparent focus:border-slate-300 outline-none truncate max-w-[280px] sm:max-w-md"
+              placeholder="Titel der Präsentation"
+            />
+          </div>
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex items-center gap-2">
+          <select
+            value={presentation.subject || 'Fächerübergreifend'}
+            onChange={(e) => {
+              setPresentation(prev => ({ ...prev, subject: e.target.value }));
+              setIsSaved(false);
+            }}
+            className="hidden md:block py-1.5 px-2.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 outline-none"
+          >
+            {SUBJECT_LIST.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+
+          <button
+            onClick={handleSave}
+            disabled={isSaved}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              isSaved 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                : 'bg-teal-600 hover:bg-teal-700 text-white shadow-xs active:scale-95'
+            }`}
+          >
+            {isSaved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+            <span>{isSaved ? 'Gespeichert' : 'Speichern'}</span>
+          </button>
+
+          <button
+            onClick={async () => {
+              await handleSave();
+              onStartPresenter(presentation);
+            }}
+            className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white text-xs font-black shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+          >
+            <Play className="w-3.5 h-3.5 fill-current" />
+            <span>Präsentieren</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Main Workspace (3 columns: Slide Deck | Preview Canvas | Settings Panel) */}
+      <div className="flex-1 flex overflow-hidden">
+        
+        {/* Left: Slide Deck Navigation */}
+        <div className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
+          <div className="p-3 border-b border-slate-100 flex items-center justify-between">
+            <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+              Folien ({presentation.slides.length})
+            </span>
+            <button
+              onClick={() => setShowTypeSelector(true)}
+              className="p-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold transition-all flex items-center gap-1 px-2"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Neu</span>
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
+            {presentation.slides.map((slide, idx) => {
+              const info = SLIDE_TYPE_INFO[slide.type] || SLIDE_TYPE_INFO.wordcloud;
+              const Icon = info.icon;
+              const isActive = idx === activeSlideIndex;
+
+              return (
+                <div
+                  key={slide.id}
+                  onClick={() => setActiveSlideIndex(idx)}
+                  className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 group ${
+                    isActive 
+                      ? 'bg-teal-50/60 border-teal-500 shadow-xs ring-1 ring-teal-500' 
+                      : 'bg-white hover:bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-[11px] font-black text-slate-400 tabular-nums w-4">
+                      {idx + 1}
+                    </span>
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${info.color}`}>
+                      <Icon className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[11px] font-bold text-slate-900 block truncate">
+                        {slide.question || 'Neue Frage'}
+                      </span>
+                      <span className="text-[9px] text-slate-400 block font-medium">
+                        {info.label}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Move / Duplicate / Delete Quick Actions */}
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleMoveSlide(idx, 'up'); }}
+                      disabled={idx === 0}
+                      className="p-1 rounded hover:bg-slate-200 text-slate-400 disabled:opacity-20"
+                    >
+                      <ChevronUp className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleMoveSlide(idx, 'down'); }}
+                      disabled={idx === presentation.slides.length - 1}
+                      className="p-1 rounded hover:bg-slate-200 text-slate-400 disabled:opacity-20"
+                    >
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDuplicateSlide(idx); }}
+                      className="p-1 rounded hover:bg-slate-200 text-slate-400"
+                      title="Folie duplizieren"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteSlide(idx); }}
+                      className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600"
+                      title="Folie löschen"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Center: Live 16:9 Slide Preview */}
+        <div className="flex-1 bg-slate-100 flex items-center justify-center p-6 overflow-hidden relative">
+          <div className="w-full max-w-4xl aspect-video bg-gradient-to-br from-slate-900 via-slate-950 to-teal-950 rounded-3xl shadow-2xl border border-slate-800 p-8 flex flex-col justify-between text-white relative overflow-hidden">
+            
+            {/* Top Preview Banner */}
+            <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Smartboard Live-Vorschau</span>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-slate-300 font-mono text-[11px]">
+                Folie {activeSlideIndex + 1} / {presentation.slides.length}
+              </span>
+            </div>
+
+            {/* Central Question & Slide Visualization */}
+            <div className="my-auto text-center space-y-6">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  {activeSlide.question || 'Hier steht deine Frage'}
+                </h2>
+                {activeSlide.description && (
+                  <p className="text-sm text-slate-300 mt-2 max-w-xl mx-auto">
+                    {activeSlide.description}
+                  </p>
+                )}
+              </div>
+
+              {/* Dynamic Type Mock Preview */}
+              {activeSlide.type === 'wordcloud' && (
+                <div className="flex flex-wrap items-center justify-center gap-3 max-w-lg mx-auto py-4">
+                  <span className="px-5 py-2.5 rounded-2xl bg-teal-500/20 text-teal-300 font-black text-2xl border border-teal-500/30">
+                    Schule
+                  </span>
+                  <span className="px-3.5 py-1.5 rounded-xl bg-sky-500/20 text-sky-300 font-bold text-lg border border-sky-500/30">
+                    Lernen
+                  </span>
+                  <span className="px-6 py-3 rounded-2xl bg-emerald-500/30 text-emerald-200 font-black text-3xl border border-emerald-500/40">
+                    Zukunft
+                  </span>
+                  <span className="px-4 py-2 rounded-xl bg-purple-500/20 text-purple-300 font-bold text-base border border-purple-500/30">
+                    Freunde
+                  </span>
+                  <span className="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 font-semibold text-sm border border-amber-500/30">
+                    Digital
+                  </span>
+                </div>
+              )}
+
+              {activeSlide.type === 'choice' && (
+                <div className="grid grid-cols-2 gap-3 max-w-xl mx-auto">
+                  {(activeSlide.options || []).map((opt, i) => (
+                    <div
+                      key={opt.id || i}
+                      className="p-3.5 rounded-2xl bg-white/10 border border-white/15 text-left flex items-center justify-between"
+                    >
+                      <span className="text-sm font-bold text-slate-100">{opt.text}</span>
+                      <span className="text-xs font-mono font-black text-teal-400">0 %</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeSlide.type === 'open' && (
+                <div className="grid grid-cols-3 gap-3 max-w-2xl mx-auto py-2">
+                  <div className="p-3 rounded-2xl bg-white/10 border border-white/15 text-left text-xs text-slate-200">
+                    „Schüler-Kommentare erscheinen hier als Karten...“
+                  </div>
+                  <div className="p-3 rounded-2xl bg-white/10 border border-white/15 text-left text-xs text-slate-200">
+                    „Live auf dem Smartboard sichtbar.“
+                  </div>
+                  <div className="p-3 rounded-2xl bg-white/10 border border-white/15 text-left text-xs text-slate-200">
+                    „100 % anonym & übersichtlich.“
+                  </div>
+                </div>
+              )}
+
+              {activeSlide.type === 'scales' && (
+                <div className="space-y-2 max-w-lg mx-auto">
+                  {(activeSlide.scales || []).map((sc, i) => (
+                    <div key={sc.id || i} className="p-2.5 rounded-xl bg-white/10 border border-white/10 text-left">
+                      <div className="flex justify-between text-xs font-bold text-slate-200 mb-1">
+                        <span>{sc.statement}</span>
+                        <span className="text-amber-400">Ø 4.2</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-full bg-amber-400 w-3/4 rounded-full" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeSlide.type === 'quiz' && (
+                <div className="space-y-4 max-w-md mx-auto">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-500/20 text-rose-300 font-black border border-rose-500/30 text-sm">
+                    <Clock className="w-4 h-4" />
+                    <span>{activeSlide.timeLimitSeconds || 20} Sekunden Zeit</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(activeSlide.options || []).map((opt, i) => (
+                      <div
+                        key={opt.id || i}
+                        className={`p-3 rounded-xl border text-left text-xs font-bold ${
+                          opt.isCorrect 
+                            ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' 
+                            : 'bg-white/10 border-white/15 text-slate-200'
+                        }`}
+                      >
+                        {opt.text} {opt.isCorrect && '✓'}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeSlide.type === 'content' && (
+                <div className="space-y-3 max-w-lg mx-auto text-left bg-white/5 p-5 rounded-2xl border border-white/10">
+                  <div className="text-4xl text-center mb-2">{activeSlide.emoji || '💡'}</div>
+                  {(activeSlide.bulletPoints || []).map((pt, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm text-slate-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                      <span>{pt}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Preview Footer */}
+            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-3 border-t border-white/10">
+              <span>HBS Kahla • Live-Menti</span>
+              <span>PIN: 000 000</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Slide Settings Panel */}
+        <div className="w-80 bg-white border-l border-slate-200 p-5 overflow-y-auto shrink-0 space-y-5">
+          
+          {/* Slide Type Selector */}
+          <div>
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+              Folientyp
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {Object.entries(SLIDE_TYPE_INFO).map(([typeKey, info]) => {
+                const isCurrent = activeSlide.type === typeKey;
+                const Icon = info.icon;
+                return (
+                  <button
+                    key={typeKey}
+                    onClick={() => updateActiveSlide(s => ({ ...s, type: typeKey as MentiSlideType }))}
+                    className={`p-2 rounded-xl text-left border text-xs font-bold flex items-center gap-2 transition-all ${
+                      isCurrent 
+                        ? 'bg-teal-50 border-teal-500 text-teal-900 shadow-2xs' 
+                        : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{info.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Question Text */}
+          <div>
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+              Deine Frage / Überschrift
+            </label>
+            <textarea
+              rows={3}
+              value={activeSlide.question}
+              onChange={(e) => updateActiveSlide(s => ({ ...s, question: e.target.value }))}
+              placeholder="Welche Frage möchtest du stellen?"
+              className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+              Zusatz-Info / Anleitung (optional)
+            </label>
+            <input
+              type="text"
+              value={activeSlide.description || ''}
+              onChange={(e) => updateActiveSlide(s => ({ ...s, description: e.target.value }))}
+              placeholder="z. B. Tippe bis zu 3 Stichworte ein"
+              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+            />
+          </div>
+
+          {/* Specific Settings for Wordcloud */}
+          {activeSlide.type === 'wordcloud' && (
+            <div>
+              <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+                Wörter pro Schüler
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 3].map(num => (
+                  <button
+                    key={num}
+                    onClick={() => updateActiveSlide(s => ({ ...s, maxWordsPerUser: num }))}
+                    className={`py-1.5 rounded-xl border text-xs font-black transition-all ${
+                      (activeSlide.maxWordsPerUser || 3) === num 
+                        ? 'bg-teal-600 text-white border-teal-600' 
+                        : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {num} {num === 1 ? 'Wort' : 'Wörter'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Specific Settings for Choice / Quiz */}
+          {(activeSlide.type === 'choice' || activeSlide.type === 'quiz') && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                  Antwortoptionen
+                </label>
+                <button
+                  onClick={() => updateActiveSlide(s => ({
+                    ...s,
+                    options: [...(s.options || []), { id: `opt-${Date.now()}`, text: `Option ${(s.options?.length || 0) + 1}` }]
+                  }))}
+                  className="text-[10px] font-bold text-teal-600 hover:underline flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" /> Option hinzufügen
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {(activeSlide.options || []).map((opt, optIdx) => (
+                  <div key={opt.id || optIdx} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={opt.text}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateActiveSlide(s => {
+                          const updated = [...(s.options || [])];
+                          updated[optIdx] = { ...updated[optIdx], text: val };
+                          return { ...s, options: updated };
+                        });
+                      }}
+                      className="flex-1 p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white outline-none"
+                    />
+
+                    {/* Mark as correct toggle */}
+                    <button
+                      onClick={() => {
+                        updateActiveSlide(s => {
+                          const updated = (s.options || []).map((o, idx) => ({
+                            ...o,
+                            isCorrect: idx === optIdx ? !o.isCorrect : (s.type === 'quiz' ? false : o.isCorrect)
+                          }));
+                          return { ...s, options: updated };
+                        });
+                      }}
+                      className={`p-2 rounded-xl border text-xs font-bold transition-all ${
+                        opt.isCorrect 
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                          : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border-slate-200'
+                      }`}
+                      title={opt.isCorrect ? 'Als richtige Antwort markiert' : 'Als richtig markieren'}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Remove Option */}
+                    {(activeSlide.options?.length || 0) > 2 && (
+                      <button
+                        onClick={() => {
+                          updateActiveSlide(s => ({
+                            ...s,
+                            options: (s.options || []).filter((_, idx) => idx !== optIdx)
+                          }));
+                        }}
+                        className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Quiz Timer Setting */}
+              {activeSlide.type === 'quiz' && (
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+                    Zeitlimit für Antwort
+                  </label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[15, 20, 30, 60].map(sec => (
+                      <button
+                        key={sec}
+                        onClick={() => updateActiveSlide(s => ({ ...s, timeLimitSeconds: sec }))}
+                        className={`py-1.5 rounded-xl border text-xs font-black transition-all ${
+                          (activeSlide.timeLimitSeconds || 20) === sec 
+                            ? 'bg-rose-600 text-white border-rose-600' 
+                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {sec}s
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Specific Settings for Scales */}
+          {activeSlide.type === 'scales' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                  Bewertungs-Thesen
+                </label>
+                <button
+                  onClick={() => updateActiveSlide(s => ({
+                    ...s,
+                    scales: [...(s.scales || []), { id: `sc-${Date.now()}`, statement: 'Neue These', lowLabel: 'Wenig', highLabel: 'Sehr' }]
+                  }))}
+                  className="text-[10px] font-bold text-teal-600 hover:underline flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" /> These hinzufügen
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {(activeSlide.scales || []).map((sc, scIdx) => (
+                  <div key={sc.id || scIdx} className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
+                    <input
+                      type="text"
+                      value={sc.statement}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateActiveSlide(s => {
+                          const updated = [...(s.scales || [])];
+                          updated[scIdx] = { ...updated[scIdx], statement: val };
+                          return { ...s, scales: updated };
+                        });
+                      }}
+                      placeholder="These eingeben..."
+                      className="w-full p-1.5 rounded-lg bg-white border border-slate-200 text-xs font-semibold"
+                    />
+                    <div className="grid grid-cols-2 gap-1 text-[10px]">
+                      <input
+                        type="text"
+                        value={sc.lowLabel || 'Gar nicht'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          updateActiveSlide(s => {
+                            const updated = [...(s.scales || [])];
+                            updated[scIdx] = { ...updated[scIdx], lowLabel: val };
+                            return { ...s, scales: updated };
+                          });
+                        }}
+                        placeholder="Links (1)"
+                        className="p-1 rounded bg-white border border-slate-200"
+                      />
+                      <input
+                        type="text"
+                        value={sc.highLabel || 'Voll & ganz'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          updateActiveSlide(s => {
+                            const updated = [...(s.scales || [])];
+                            updated[scIdx] = { ...updated[scIdx], highLabel: val };
+                            return { ...s, scales: updated };
+                          });
+                        }}
+                        placeholder="Rechts (5)"
+                        className="p-1 rounded bg-white border border-slate-200"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Specific Settings for Content */}
+          {activeSlide.type === 'content' && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                  Symbol / Emoji
+                </label>
+                <div className="flex gap-2">
+                  {['💡', '⭐', '📌', '🏆', '🎯', '🚀'].map(em => (
+                    <button
+                      key={em}
+                      onClick={() => updateActiveSlide(s => ({ ...s, emoji: em }))}
+                      className={`w-9 h-9 rounded-xl text-lg border flex items-center justify-center ${
+                        activeSlide.emoji === em ? 'bg-teal-100 border-teal-400' : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+                  Stichpunkte (pro Zeile einer)
+                </label>
+                <textarea
+                  rows={4}
+                  value={(activeSlide.bulletPoints || []).join('\n')}
+                  onChange={(e) => {
+                    const lines = e.target.value.split('\n');
+                    updateActiveSlide(s => ({ ...s, bulletPoints: lines }));
+                  }}
+                  className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800"
+                  placeholder="Erster Punkt&#10;Zweiter Punkt"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* New Slide Modal / Dropdown */}
+      {showTypeSelector && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 max-w-lg w-full space-y-4 animate-fadeIn">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-teal-600" />
+                <span>Neuen Folientyp auswählen</span>
+              </h3>
+              <button
+                onClick={() => setShowTypeSelector(false)}
+                className="text-xs font-bold text-slate-400 hover:text-slate-600"
+              >
+                Abbrechen ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {Object.entries(SLIDE_TYPE_INFO).map(([key, info]) => {
+                const Icon = info.icon;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleAddSlide(key as MentiSlideType)}
+                    className="p-3.5 rounded-2xl border border-slate-200 hover:border-teal-500 hover:bg-teal-50/40 transition-all text-left flex flex-col gap-1.5 group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${info.color}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-black text-slate-900 group-hover:text-teal-700">
+                        {info.label}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-snug">
+                      {info.desc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

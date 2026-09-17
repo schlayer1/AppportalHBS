@@ -71,10 +71,15 @@ export const INITIAL_SEED_TEACHERS: PortalUser[] = [
   { id: "t-wesely", name: "Wesely", pin: "7484", role: "teacher", active: true, createdAt: Date.now() }
 ];
 
+import { MentiPresentation, MentiLiveSession } from "../types/mentiTypes";
+import { DEFAULT_MENTI_TEMPLATES } from "../data/defaultMentiTemplates";
+
 export interface PortalCloudData {
   users: PortalUser[];
   preferences: Record<string, UserPreferences>; // key: userId
   boardTemplates: SavedBoardTemplate[];
+  mentiPresentations?: MentiPresentation[];
+  activeMentiSession?: MentiLiveSession | null;
   updatedAt: number;
 }
 
@@ -85,7 +90,11 @@ export const getCachedPortalData = (): PortalCloudData => {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_BACKUP_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (!parsed.mentiPresentations || parsed.mentiPresentations.length === 0) {
+        parsed.mentiPresentations = DEFAULT_MENTI_TEMPLATES;
+      }
+      return parsed;
     }
   } catch (e) {
     console.warn("Cache read error:", e);
@@ -94,6 +103,7 @@ export const getCachedPortalData = (): PortalCloudData => {
     users: INITIAL_SEED_TEACHERS,
     preferences: {},
     boardTemplates: [],
+    mentiPresentations: DEFAULT_MENTI_TEMPLATES,
     updatedAt: Date.now()
   };
 };
@@ -124,6 +134,10 @@ export const loadPortalDataFromCloud = async (): Promise<PortalCloudData> => {
         users: Array.isArray(data.users) && data.users.length > 0 ? data.users : localCache.users,
         preferences: data.preferences || localCache.preferences || {},
         boardTemplates: data.boardTemplates || localCache.boardTemplates || [],
+        mentiPresentations: Array.isArray(data.mentiPresentations) && data.mentiPresentations.length > 0 
+          ? data.mentiPresentations 
+          : (localCache.mentiPresentations || DEFAULT_MENTI_TEMPLATES),
+        activeMentiSession: data.activeMentiSession || localCache.activeMentiSession || null,
         updatedAt: data.updatedAt || Date.now()
       };
       setCachedPortalData(merged);
