@@ -155,9 +155,9 @@ export const useBoardManager = () => {
       h = 320;
       defaultTitle = 'Kamera / Visualizer';
     } else if (type === 'video') {
-      w = 380;
-      h = 300;
-      defaultTitle = 'Video';
+      w = 440;
+      h = 330;
+      defaultTitle = 'Video & YouTube-Suche';
     } else if (type === 'embed') {
       w = 420;
       h = 360;
