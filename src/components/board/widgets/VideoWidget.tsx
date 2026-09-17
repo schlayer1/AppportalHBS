@@ -10,75 +10,49 @@ import {
   QrCode,
   BookOpen,
   Atom,
-  Globe
+  Globe,
+  Play,
+  Loader2,
+  Sparkles,
+  AlertCircle
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { 
+  EDUCATIONAL_CATEGORIES, 
+  findPresetForQuery, 
+  PresetCategory, 
+  PresetTopic 
+} from '../../../data/educationalVideos';
 
-interface QuickSearchCategory {
-  category: string;
-  icon: React.ComponentType<{ className?: string }>;
-  topics: { label: string; query: string }[];
-}
-
-const EDUCATIONAL_SEARCH_PRESETS: QuickSearchCategory[] = [
-  {
-    category: 'MINT & Naturwissenschaften',
-    icon: Atom,
-    topics: [
-      { label: 'Physik Experimente', query: 'Physik Experimente Schule Schülerversuche' },
-      { label: 'Wasserkreislauf', query: 'Wasserkreislauf Grundschule Erklärung' },
-      { label: 'Photosynthese', query: 'Photosynthese einfach erklärt' },
-      { label: 'Satz des Pythagoras', query: 'Satz des Pythagoras einfach erklärt' },
-      { label: 'Chemie Schauversuche', query: 'Chemie Experimente Schule erstaunlich' }
-    ]
-  },
-  {
-    category: 'Gesellschaft & Geschichte',
-    icon: Globe,
-    topics: [
-      { label: 'Römisches Reich', query: 'Römisches Reich Doku Schule' },
-      { label: 'Mauerfall 1989', query: 'Mauerfall 1989 DDR Wende Doku' },
-      { label: 'Demokratie & Wahlen', query: 'Demokratie einfach erklärt Jugendliche' },
-      { label: 'Klimawandel erklärt', query: 'Klimawandel Ursachen Folgen Schule' },
-      { label: 'Logo! Nachrichten', query: 'logo ZDF Kindernachrichten aktuell' }
-    ]
-  },
-  {
-    category: 'Beliebte Bildungskanäle',
-    icon: Tv,
-    topics: [
-      { label: 'Terra X Doku', query: 'Terra X ZDF Geschichte Natur' },
-      { label: 'MrWissen2go', query: 'MrWissen2go Geschichte Politik' },
-      { label: 'Sendung mit der Maus', query: 'Sendung mit der Maus Sachgeschichten' },
-      { label: 'Kurzgesagt DE', query: 'Kurzgesagt Dinge erklärt deutsch' },
-      { label: 'Simpleclub', query: 'Simpleclub Schule Zusammenfassung' }
-    ]
-  },
-  {
-    category: 'Heimbürgeschule & Region',
-    icon: School,
-    topics: [
-      { label: 'Heimbürgeschule Kahla', query: 'Heimbürgeschule Kahla' },
-      { label: 'Leuchtenburg Kahla', query: 'Leuchtenburg Kahla Thüringen Geschichte' },
-      { label: 'Saaletal Thüringen', query: 'Saaletal Thüringen Natur und Kultur' }
-    ]
-  }
-];
-
-function School({ className }: { className?: string }) {
-  return <BookOpen className={className} />;
+interface VideoResult {
+  id: string;
+  title: string;
+  channel: string;
+  duration: string;
+  thumbnail: string;
 }
 
 export const VideoWidget: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'search' | 'url' | 'qr'>('search');
   const [searchQuery, setSearchQuery] = useState<string>('Physik Experimente Schule');
   const [currentQuery, setCurrentQuery] = useState<string>('Physik Experimente Schule');
-  const [videoUrlInput, setVideoUrlInput] = useState<string>('');
-  const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('');
-  const [embedSrc, setEmbedSrc] = useState<string>(
-    'https://www.youtube-nocookie.com/embed?listType=search&list=Physik+Experimente+Schule&autoplay=0&rel=0&modestbranding=1'
+  
+  // Active Video State
+  const [activeVideoId, setActiveVideoId] = useState<string>('wHfhvltat9o');
+  const [activeVideoTitle, setActiveVideoTitle] = useState<string>(
+    '5 Experimente zum Selbermachen - Physik für die Schule'
   );
-  const [isSearchMode, setIsSearchMode] = useState<boolean>(true);
+  const [activeChannel, setActiveChannel] = useState<string>('Techtastisch Experimente');
+  
+  // Direct URL Input State
+  const [videoUrlInput, setVideoUrlInput] = useState<string>('');
+  
+  // Search Results
+  const [searchResults, setSearchResults] = useState<VideoResult[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  
+  // UI State
   const [showSearchDrawer, setShowSearchDrawer] = useState<boolean>(false);
   const [iframeKey, setIframeKey] = useState<number>(Date.now());
   const [copied, setCopied] = useState<boolean>(false);
@@ -90,69 +64,125 @@ export const VideoWidget: React.FC = () => {
     return match && match[2].length === 11 ? match[2] : null;
   };
 
-  // Handle Search Submission
-  const handleSearchSubmit = (e?: React.FormEvent, customQuery?: string) => {
-    if (e) e.preventDefault();
-    const queryToUse = (customQuery || searchQuery).trim();
-    if (!queryToUse) return;
+  // Perform search (via API or Presets)
+  const performSearch = async (query: string, autoPlayFirst: boolean = true) => {
+    const trimmed = query.trim();
+    if (!trimmed) return;
 
-    // If the query is actually a URL, auto-switch to URL mode
-    if (/^https?:\/\//i.test(queryToUse) || queryToUse.includes('youtu')) {
-      handleUrlSubmit(undefined, queryToUse);
+    // Check if input is actually a URL
+    const ytIdFromUrl = parseYouTubeId(trimmed);
+    if (ytIdFromUrl) {
+      playVideo(ytIdFromUrl, 'YouTube Video', 'Eingefügter Link');
+      setShowSearchDrawer(false);
       return;
     }
 
-    setCurrentQuery(queryToUse);
-    setSearchQuery(queryToUse);
-    setIsSearchMode(true);
-    setCurrentVideoUrl(`https://www.youtube.com/results?search_query=${encodeURIComponent(queryToUse)}`);
-    setEmbedSrc(
-      `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(queryToUse)}&autoplay=0&rel=0&modestbranding=1`
-    );
-    setIframeKey(Date.now());
+    setCurrentQuery(trimmed);
+    setIsSearching(true);
+    setSearchError(null);
+
+    // 1. Instant Preset Fallback: If query matches a preset, load it immediately
+    const preset = findPresetForQuery(trimmed);
+    if (preset && autoPlayFirst) {
+      playVideo(preset.defaultVideoId, preset.defaultTitle, preset.channel);
+    }
+
+    // 2. Fetch live search results via API
+    try {
+      const res = await fetch(`/api/youtube-search?q=${encodeURIComponent(trimmed)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const list: VideoResult[] = Array.isArray(data.results) ? data.results : [];
+        setSearchResults(list);
+
+        if (list.length > 0) {
+          if (autoPlayFirst && (!preset || preset.defaultVideoId === list[0].id)) {
+            playVideo(list[0].id, list[0].title, list[0].channel);
+          }
+        } else if (!preset) {
+          setSearchError('Keine Videos gefunden. Versuchen Sie einen anderen Suchbegriff.');
+        }
+      } else {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.warn('Live YouTube Search API unreachable, falling back to preset/manual mode:', err);
+      if (!preset) {
+        setSearchError('Live-Suche vorübergehend nicht erreichbar. Nutzen Sie die Bildungskanäle oder Direktlinks.');
+      }
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle Search Form Submit
+  const handleSearchSubmit = (e?: React.FormEvent, customQuery?: string) => {
+    if (e) e.preventDefault();
+    const q = customQuery || searchQuery;
+    performSearch(q, true);
+  };
+
+  // Handle Clicking a Preset Topic
+  const handlePresetClick = (topic: PresetTopic) => {
+    setSearchQuery(topic.query);
+    playVideo(topic.defaultVideoId, topic.defaultTitle, topic.channel);
+    // Also perform search in background to fetch related videos
+    performSearch(topic.query, false);
     setShowSearchDrawer(false);
   };
 
   // Handle Direct URL Submission
-  const handleUrlSubmit = (e?: React.FormEvent, customUrl?: string) => {
+  const handleUrlSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const urlToUse = (customUrl || videoUrlInput).trim();
-    if (!urlToUse) return;
+    const url = videoUrlInput.trim();
+    if (!url) return;
 
-    const ytId = parseYouTubeId(urlToUse);
+    const ytId = parseYouTubeId(url);
     if (ytId) {
-      setIsSearchMode(false);
-      setCurrentVideoUrl(`https://www.youtube.com/watch?v=${ytId}`);
-      setEmbedSrc(`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=0&rel=0&modestbranding=1`);
+      playVideo(ytId, 'YouTube Video', 'Eingefügter Link');
+      setShowSearchDrawer(false);
+      setVideoUrlInput('');
     } else {
-      setIsSearchMode(false);
-      setCurrentVideoUrl(urlToUse);
-      setEmbedSrc(urlToUse);
+      setSearchError('Ungültige YouTube-URL. Bitte einen gültigen YouTube-Link eingeben.');
     }
+  };
+
+  // Play a specific video ID
+  const playVideo = (id: string, title: string, channel: string) => {
+    setActiveVideoId(id);
+    setActiveVideoTitle(title);
+    setActiveChannel(channel);
     setIframeKey(Date.now());
-    setShowSearchDrawer(false);
   };
 
   const handleCopyCurrentLink = () => {
-    const url = isSearchMode 
-      ? `https://www.youtube.com/results?search_query=${encodeURIComponent(currentQuery)}`
-      : currentVideoUrl;
-    if (url) {
-      navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    const url = `https://www.youtube.com/watch?v=${activeVideoId}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleOpenOnYouTube = () => {
-    const url = isSearchMode 
-      ? `https://www.youtube.com/results?search_query=${encodeURIComponent(currentQuery)}`
-      : currentVideoUrl || 'https://www.youtube.com';
-    window.open(url, '_blank', 'noopener,noreferrer');
+    window.open(`https://www.youtube.com/watch?v=${activeVideoId}`, '_blank', 'noopener,noreferrer');
   };
 
   const handleReload = () => {
     setIframeKey(Date.now());
+  };
+
+  // Render category icon
+  const renderCategoryIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Atom':
+        return <Atom className="w-3.5 h-3.5 text-red-600" />;
+      case 'Globe':
+        return <Globe className="w-3.5 h-3.5 text-red-600" />;
+      case 'Tv':
+        return <Tv className="w-3.5 h-3.5 text-red-600" />;
+      case 'BookOpen':
+      default:
+        return <BookOpen className="w-3.5 h-3.5 text-red-600" />;
+    }
   };
 
   return (
@@ -164,8 +194,11 @@ export const VideoWidget: React.FC = () => {
             <Youtube className="w-3.5 h-3.5" />
           </div>
           <div className="min-w-0">
-            <span className="text-xs font-black text-hbs-slate-dark truncate block">
-              {isSearchMode ? `Suche: "${currentQuery}"` : 'Unterrichts-Video'}
+            <span className="text-xs font-black text-hbs-slate-dark truncate block leading-tight">
+              {activeVideoTitle || 'Unterrichts-Video'}
+            </span>
+            <span className="text-[10px] text-hbs-slate-muted truncate block">
+              {activeChannel ? `${activeChannel}` : `Suche: "${currentQuery}"`}
             </span>
           </div>
         </div>
@@ -179,9 +212,13 @@ export const VideoWidget: React.FC = () => {
                 ? 'bg-red-600 text-white border-red-600'
                 : 'bg-white/80 hover:bg-white text-hbs-slate-dark border-white'
             }`}
-            title="Video oder Thema auf YouTube suchen"
+            title="Thema oder Video auf YouTube suchen"
           >
-            <Search className="w-3.5 h-3.5 text-red-600" />
+            {isSearching ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-red-600" />
+            ) : (
+              <Search className="w-3.5 h-3.5 text-red-600" />
+            )}
             <span className="hidden sm:inline">Suche</span>
           </button>
 
@@ -277,41 +314,107 @@ export const VideoWidget: React.FC = () => {
                 </div>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95 shrink-0 flex items-center gap-1.5"
+                  disabled={isSearching}
+                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-all active:scale-95 shrink-0 flex items-center gap-1.5"
                 >
-                  <Search className="w-3.5 h-3.5" />
+                  {isSearching ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Search className="w-3.5 h-3.5" />
+                  )}
                   <span>Suchen</span>
                 </button>
               </form>
 
+              {searchError && (
+                <div className="p-2 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>{searchError}</span>
+                </div>
+              )}
+
+              {/* Search Results List */}
+              {searchResults.length > 0 && (
+                <div className="space-y-2 border-b border-slate-100 pb-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black uppercase text-hbs-slate-muted tracking-wider flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Suchtreffer ({searchResults.length} Videos)
+                    </span>
+                    <span className="text-[10px] text-hbs-slate-muted">Klicken zum Abspielen</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {searchResults.map((v) => {
+                      const isPlaying = activeVideoId === v.id;
+                      return (
+                        <div
+                          key={v.id}
+                          onClick={() => {
+                            playVideo(v.id, v.title, v.channel);
+                            setShowSearchDrawer(false);
+                          }}
+                          className={`p-1.5 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all hover:shadow-xs text-left ${
+                            isPlaying
+                              ? 'bg-red-50 border-red-300 ring-1 ring-red-400'
+                              : 'bg-white hover:bg-slate-50 border-slate-200'
+                          }`}
+                        >
+                          <div className="w-16 h-11 rounded-lg bg-black shrink-0 relative overflow-hidden">
+                            <img
+                              src={v.thumbnail}
+                              alt={v.title}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                            {v.duration && (
+                              <span className="absolute bottom-0.5 right-0.5 px-1 py-0.2 bg-black/80 text-[9px] font-bold text-white rounded">
+                                {v.duration}
+                              </span>
+                            )}
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                              <Play className="w-4 h-4 text-white fill-white" />
+                            </div>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-bold text-hbs-slate-dark line-clamp-1 block leading-snug">
+                              {v.title}
+                            </span>
+                            <span className="text-[10px] text-hbs-slate-muted truncate block">
+                              {v.channel}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Presets by Topic */}
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 <span className="text-[10px] font-black uppercase text-hbs-slate-muted tracking-wider block">
-                  Unterrichts-Themen & Bildungskanäle:
+                  Unterrichts-Themenkatalog & Bildungskanäle:
                 </span>
-                {EDUCATIONAL_SEARCH_PRESETS.map((cat) => {
-                  const Icon = cat.icon;
-                  return (
-                    <div key={cat.category} className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-hbs-slate-dark">
-                        <Icon className="w-3.5 h-3.5 text-red-600" />
-                        <span>{cat.category}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {cat.topics.map((t) => (
-                          <button
-                            key={t.label}
-                            type="button"
-                            onClick={() => handleSearchSubmit(undefined, t.query)}
-                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-red-50 hover:text-red-700 border border-slate-200/80 text-xs font-bold text-hbs-slate-dark transition-all active:scale-95 shadow-2xs"
-                          >
-                            {t.label}
-                          </button>
-                        ))}
-                      </div>
+                {EDUCATIONAL_CATEGORIES.map((cat: PresetCategory) => (
+                  <div key={cat.category} className="space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-hbs-slate-dark">
+                      {renderCategoryIcon(cat.iconName)}
+                      <span>{cat.category}</span>
                     </div>
-                  );
-                })}
+                    <div className="flex flex-wrap gap-1.5">
+                      {cat.topics.map((t: PresetTopic) => (
+                        <button
+                          key={t.label}
+                          type="button"
+                          onClick={() => handlePresetClick(t)}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-red-50 hover:text-red-700 border border-slate-200/80 text-xs font-bold text-hbs-slate-dark transition-all active:scale-95 shadow-2xs flex items-center gap-1"
+                        >
+                          <Play className="w-2.5 h-2.5 text-red-600 fill-red-600 shrink-0" />
+                          <span>{t.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -350,11 +453,7 @@ export const VideoWidget: React.FC = () => {
             <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 p-4 text-center sm:text-left">
               <div className="p-3 bg-white rounded-2xl border-2 border-slate-100 shadow-md shrink-0">
                 <QRCodeSVG
-                  value={
-                    isSearchMode
-                      ? `https://www.youtube.com/results?search_query=${encodeURIComponent(currentQuery)}`
-                      : currentVideoUrl || 'https://www.youtube.com'
-                  }
+                  value={`https://www.youtube.com/watch?v=${activeVideoId}`}
                   size={140}
                   level="M"
                   includeMargin={false}
@@ -366,7 +465,7 @@ export const VideoWidget: React.FC = () => {
                   <span>Video auf Schüler-Geräten öffnen</span>
                 </span>
                 <p className="text-[11px] text-hbs-slate-muted leading-relaxed">
-                  Schülerinnen und Schüler können den QR-Code mit dem iPad oder Smartphone von der Tafel scannen, um das Video oder die Suchergebnisse direkt auf ihrem Gerät anzuschauen.
+                  Schülerinnen und Schüler können den QR-Code mit dem iPad oder Smartphone von der Tafel scannen, um dieses Video direkt auf ihrem Gerät anzuschauen.
                 </p>
               </div>
             </div>
@@ -378,8 +477,8 @@ export const VideoWidget: React.FC = () => {
       <div className="flex-1 rounded-2xl overflow-hidden bg-black border-2 border-white shadow-inner min-h-0 relative">
         <iframe
           key={iframeKey}
-          src={embedSrc}
-          title="Unterrichts-Video Player"
+          src={`https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=1&rel=0&modestbranding=1`}
+          title={activeVideoTitle || 'Unterrichts-Video Player'}
           style={{ width: '100%', height: '100%' }}
           className="w-full h-full border-0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
