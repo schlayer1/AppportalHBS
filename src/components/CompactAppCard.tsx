@@ -1,5 +1,5 @@
 import React from 'react';
-import { QrCode, Star, ArrowUpRight } from 'lucide-react';
+import { QrCode, Star, ArrowUpRight, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { SchoolApp } from '../config/apps';
 import { AnimatedAppIcon } from './AnimatedAppIcon';
 import { useDeviceOrientation } from '../hooks/useDeviceOrientation';
@@ -10,6 +10,10 @@ interface CompactAppCardProps {
   onOpenQr: (app: SchoolApp) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (appId: string) => void;
+  isReorderMode?: boolean;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  onDeleteCustom?: () => void;
 }
 
 export const CompactAppCard: React.FC<CompactAppCardProps> = ({
@@ -18,6 +22,10 @@ export const CompactAppCard: React.FC<CompactAppCardProps> = ({
   onOpenQr,
   isFavorite = false,
   onToggleFavorite,
+  isReorderMode = false,
+  onMoveLeft,
+  onMoveRight,
+  onDeleteCustom
 }) => {
   const { tiltX, tiltY, isSupported } = useDeviceOrientation();
 
@@ -87,6 +95,40 @@ export const CompactAppCard: React.FC<CompactAppCardProps> = ({
 
           {/* Quick Badges / Actions */}
           <div className="flex items-center gap-1">
+            {isReorderMode && (
+              <div className="flex items-center gap-0.5 bg-amber-100 p-0.5 rounded-lg border border-amber-300">
+                {onMoveLeft && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onMoveLeft(); }}
+                    className="p-1 rounded bg-white hover:bg-amber-200 text-amber-950 shadow-2xs"
+                    title="Verschieben"
+                  >
+                    <ChevronLeft className="w-3 h-3" />
+                  </button>
+                )}
+                {onMoveRight && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onMoveRight(); }}
+                    className="p-1 rounded bg-white hover:bg-amber-200 text-amber-950 shadow-2xs"
+                    title="Verschieben"
+                  >
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                )}
+                {onDeleteCustom && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onDeleteCustom(); }}
+                    className="p-1 rounded bg-red-100 hover:bg-red-200 text-red-700 shadow-2xs"
+                    title="Löschen"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
             {onToggleFavorite && (
               <button
                 onClick={(e) => {

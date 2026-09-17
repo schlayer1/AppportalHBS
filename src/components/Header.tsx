@@ -12,9 +12,14 @@ import {
   Presentation,
   Coffee,
   GraduationCap,
-  Globe
+  Globe,
+  User,
+  Plus,
+  Shield,
+  ArrowUpDown
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
+import { useAuth } from '../context/AuthContext';
 
 export type ViewMode = 'bento' | 'compact' | 'smartboard' | 'tafel';
 
@@ -22,6 +27,10 @@ interface HeaderProps {
   onLogout: () => void;
   onOpenInstallGuide: () => void;
   onOpenQuickTools: () => void;
+  onOpenAdminPanel?: () => void;
+  onOpenAddCustomLink?: () => void;
+  isReorderMode?: boolean;
+  onToggleReorderMode?: () => void;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   searchQuery: string;
@@ -35,6 +44,10 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenInstallGuide,
   onOpenQuickTools,
+  onOpenAdminPanel,
+  onOpenAddCustomLink,
+  isReorderMode,
+  onToggleReorderMode,
   viewMode,
   setViewMode,
   searchQuery,
@@ -43,6 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
   setSelectedCategory,
   appCount
 }) => {
+  const { currentUser, isAdmin, isGuest } = useAuth();
   return (
     <header className="bg-white/95 border-b border-hbs-slate-border/70 sticky top-0 z-30 shadow-xs backdrop-blur-md pt-[env(safe-area-inset-top)]">
       {/* Top Navbar */}
@@ -145,14 +159,63 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">Tools</span>
             </button>
 
-            {/* PWA / Homescreen button */}
+            {/* Custom Link Button */}
+            {onOpenAddCustomLink && currentUser && (
+              <button
+                onClick={onOpenAddCustomLink}
+                className="min-h-[42px] flex items-center gap-1.5 px-3 py-2 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all select-none"
+                title="Neuen eigenen Link / App ablegen"
+              >
+                <Plus className="w-4 h-4 shrink-0" />
+                <span className="hidden md:inline">+ Link</span>
+              </button>
+            )}
+
+            {/* Admin Panel Button */}
+            {isAdmin && onOpenAdminPanel && (
+              <button
+                onClick={onOpenAdminPanel}
+                className="min-h-[42px] flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 border border-amber-300 text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all select-none"
+                title="Admin-Panel öffnen (Benutzer, Vorlagen & Sync)"
+              >
+                <Shield className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="hidden md:inline">Admin</span>
+              </button>
+            )}
+
+            {/* Reorder Mode Button */}
+            {onToggleReorderMode && currentUser && (
+              <button
+                onClick={onToggleReorderMode}
+                className={`min-h-[42px] flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all select-none ${
+                  isReorderMode
+                    ? 'bg-amber-500 text-white border-amber-600 animate-pulse'
+                    : 'bg-white hover:bg-slate-50 text-hbs-slate-dark border-slate-200'
+                }`}
+                title="Apps frei sortieren"
+              >
+                <ArrowUpDown className="w-4 h-4 shrink-0" />
+                <span className="hidden xl:inline">{isReorderMode ? 'Fertig' : 'Sortieren'}</span>
+              </button>
+            )}
+
+            {/* Logged in Teacher Badge */}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-hbs-slate-dark select-none">
+              <User className="w-3.5 h-3.5 text-hbs-blue" />
+              <span className="truncate max-w-[120px]">
+                {currentUser ? currentUser.name : isGuest ? 'Gast' : 'Kollege'}
+              </span>
+            </div>
+
+            {/* Guide modal trigger */}
             <button
               onClick={onOpenInstallGuide}
-              className="hidden lg:flex min-h-[42px] items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-hbs-slate-dark border border-slate-200 text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all duration-150 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7)] select-none"
-              title="Anleitung: Als App auf iPad oder Smartphone ablegen"
+              className="min-h-[42px] min-w-[42px] p-2 sm:px-3 sm:py-2 rounded-xl text-hbs-slate-muted hover:text-hbs-blue hover:bg-hbs-blue-soft border border-transparent hover:border-hbs-blue/20 text-xs sm:text-sm font-semibold active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-1.5 select-none"
+              title="Installationsanleitung & Homescreen-Tipps"
+              aria-label="Installationsanleitung öffnen"
             >
-              <Smartphone className="w-4 h-4 text-hbs-slate-muted shrink-0" />
-              <span>Guide</span>
+              <Smartphone className="w-4 h-4 shrink-0" />
+              <span className="hidden xl:inline">Guide</span>
             </button>
 
             {/* Logout button */}

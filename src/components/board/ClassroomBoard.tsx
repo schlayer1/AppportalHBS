@@ -58,8 +58,12 @@ import {
   Trash2, 
   ArrowLeft,
   RotateCcw,
-  Palette
+  Palette,
+  Save,
+  FolderOpen
 } from 'lucide-react';
+import { SaveBoardModal } from './SaveBoardModal';
+import { BoardTemplatesDrawer } from './BoardTemplatesDrawer';
 
 interface ClassroomBoardProps {
   onExit: () => void;
@@ -80,12 +84,13 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
     addScreen,
     switchScreen,
     clearCurrentScreen,
-    loadPreset
+    loadCustomScreen
   } = useBoardManager();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isBackgroundPickerOpen, setIsBackgroundPickerOpen] = useState(false);
-  const [isPresetsOpen, setIsPresetsOpen] = useState(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [isTemplatesDrawerOpen, setIsTemplatesDrawerOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const resetScroll = () => {
@@ -180,45 +185,25 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
             <span className="hidden md:inline">Zentrieren</span>
           </button>
 
-          {/* 1-Click Lesson Presets Button */}
-          <div className="relative">
-            <button
-              onClick={() => setIsPresetsOpen(!isPresetsOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-blue hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
-              title="Stunden-Vorlagen laden"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-hbs-amber" />
-              <span>Vorlagen</span>
-            </button>
+          {/* Save Board State Button */}
+          <button
+            onClick={() => setIsSaveModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-teal-deep hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
+            title="Aktuelles Tafelbild speichern"
+          >
+            <Save className="w-3.5 h-3.5 text-hbs-teal-deep" />
+            <span className="hidden sm:inline">Speichern</span>
+          </button>
 
-            {isPresetsOpen && (
-              <div className="absolute top-10 right-0 w-64 p-3 rounded-2xl ios-glass-dock shadow-2xl border border-white/80 animate-fadeIn z-50 text-hbs-slate-dark">
-                <span className="text-[11px] font-black uppercase tracking-wider text-hbs-slate-muted block mb-2">
-                  1-Klick Stunden-Vorlagen
-                </span>
-                <div className="space-y-1.5">
-                  {[
-                    { id: 'begruessung', title: '🌅 Stundenbeginn & Ziele', desc: 'Uhr, Stundenplan & Stundenziel' },
-                    { id: 'stillarbeit', title: '🤫 Stillarbeitsphase', desc: 'Kuchen-Timer, Stillarbeit & Lärmampel' },
-                    { id: 'gruppenarbeit', title: '👥 Gruppenarbeit', desc: 'Timer, Gruppenteams & Symbol' },
-                    { id: 'test', title: '📝 Klassenarbeit & Test', desc: 'Offizielle Uhr, Prüfungszeit & Ampel' }
-                  ].map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => {
-                        loadPreset(p.id as any);
-                        setIsPresetsOpen(false);
-                      }}
-                      className="w-full text-left p-2 rounded-xl bg-white/70 hover:bg-white border border-white transition-all active:scale-95 shadow-2xs"
-                    >
-                      <span className="text-xs font-black block text-hbs-slate-dark">{p.title}</span>
-                      <span className="text-[10px] text-hbs-slate-muted block">{p.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Templates & Saved Boards Button */}
+          <button
+            onClick={() => setIsTemplatesDrawerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-blue hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
+            title="Tafelbilder & Vorlagen öffnen"
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-hbs-blue" />
+            <span>Vorlagen</span>
+          </button>
 
           {activeScreen.widgets.length > 0 && (
             <button
@@ -367,6 +352,21 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
         onClose={() => setIsBackgroundPickerOpen(false)}
         activeBackgroundId={activeScreen.backgroundId}
         onSelectBackground={(id) => setBackground(id)}
+      />
+
+      {/* Save Current Board State Modal */}
+      <SaveBoardModal
+        isOpen={isSaveModalOpen}
+        onClose={() => setIsSaveModalOpen(false)}
+        currentScreen={activeScreen}
+      />
+
+      {/* Load Saved Board Templates Drawer */}
+      <BoardTemplatesDrawer
+        isOpen={isTemplatesDrawerOpen}
+        onClose={() => setIsTemplatesDrawerOpen(false)}
+        onLoadTemplate={loadCustomScreen}
+        onOpenSaveModal={() => setIsSaveModalOpen(true)}
       />
     </div>
   );

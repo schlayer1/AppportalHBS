@@ -8,7 +8,10 @@ import {
   RotateCw,
   Star,
   GraduationCap,
-  ArrowLeft
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { SchoolApp } from '../config/apps';
@@ -22,6 +25,10 @@ interface AppCardProps {
   isFavorite?: boolean;
   onToggleFavorite?: (appId: string) => void;
   isSmartboardMode?: boolean;
+  isReorderMode?: boolean;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  onDeleteCustom?: () => void;
 }
 
 export const AppCard: React.FC<AppCardProps> = ({ 
@@ -29,7 +36,11 @@ export const AppCard: React.FC<AppCardProps> = ({
   onOpenQr, 
   isFavorite = false,
   onToggleFavorite,
-  isSmartboardMode = false 
+  isSmartboardMode = false,
+  isReorderMode = false,
+  onMoveLeft,
+  onMoveRight,
+  onDeleteCustom
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
 
@@ -114,6 +125,40 @@ export const AppCard: React.FC<AppCardProps> = ({
 
                   {/* Top-Right Action Badges & Buttons */}
                   <div className="flex items-center gap-1.5">
+                    {isReorderMode && (
+                      <div className="flex items-center gap-1 bg-amber-100/90 p-1 rounded-xl border border-amber-300 shadow-sm mr-1 z-20">
+                        {onMoveLeft && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onMoveLeft(); }}
+                            className="p-1.5 rounded-lg bg-white hover:bg-amber-200 text-amber-950 shadow-2xs transition-all active:scale-90"
+                            title="Nach vorne / links verschieben"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {onMoveRight && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onMoveRight(); }}
+                            className="p-1.5 rounded-lg bg-white hover:bg-amber-200 text-amber-950 shadow-2xs transition-all active:scale-90"
+                            title="Nach hinten / rechts verschieben"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {onDeleteCustom && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onDeleteCustom(); }}
+                            className="p-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 shadow-2xs transition-all active:scale-90"
+                            title="Eigenen Link löschen"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {onToggleFavorite && (
                       <button
                         onClick={(e) => {

@@ -359,6 +359,23 @@ export const useBoardManager = () => {
     });
   }, [activeScreenIndex]);
 
+  const loadCustomScreen = useCallback((screenToLoad: BoardScreen) => {
+    setScreens((prev) => {
+      return prev.map((scr, idx) => {
+        if (idx !== activeScreenIndex) return scr;
+        return {
+          ...scr,
+          title: screenToLoad.title || scr.title,
+          backgroundId: screenToLoad.backgroundId || scr.backgroundId,
+          widgets: screenToLoad.widgets.map((w, i) => ({
+            ...w,
+            id: `w-${w.type}-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`
+          }))
+        };
+      });
+    });
+  }, [activeScreenIndex]);
+
   return {
     screens,
     activeScreen,
@@ -375,6 +392,7 @@ export const useBoardManager = () => {
     switchScreen,
     deleteScreen,
     clearCurrentScreen,
-    loadPreset
+    loadPreset,
+    loadCustomScreen
   };
 };
