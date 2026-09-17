@@ -174,6 +174,10 @@ export const useBoardManager = () => {
       w = 340;
       h = 320;
       defaultTitle = 'Abstimmung';
+    } else if (type === 'curtain') {
+      w = 420;
+      h = 320;
+      defaultTitle = 'Tafel-Vorhang / Spotlight';
     }
 
     // Ensure positive coordinates even on narrow mobile viewports

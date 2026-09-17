@@ -23,7 +23,8 @@ export type BoardWidgetType =
   | 'video'
   | 'embed'
   | 'webcam'
-  | 'pdf';
+  | 'pdf'
+  | 'curtain';
 
 export interface BoardWidgetInstance {
   id: string;

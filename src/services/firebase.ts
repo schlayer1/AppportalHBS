@@ -24,7 +24,7 @@ export const MASTER_ADMIN_PIN = "Year2003?!%";
 const PORTAL_DOC_ID = "HBS_portal";
 const VERTRETUNG_DOC_ID = "HBS"; // The Vertretungsstatistik document containing teachers
 
-let db: Firestore | null = null;
+export let db: Firestore | null = null;
 
 try {
   const app = getApps().length === 0 ? initializeApp(DEFAULT_FIREBASE_CONFIG) : getApp();

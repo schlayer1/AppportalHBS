@@ -24,6 +24,13 @@ export interface CustomUserApp {
 export interface SavedBoardTemplate {
   id: string;
   title: string;
+  description?: string;
+  subject?: string; // e.g. "Mathematik", "Deutsch", "Englisch", "Physik", etc.
+  grade?: string; // e.g. "Klasse 5", "Klasse 6", etc.
+  isSubstitution?: boolean; // true if this is a substitution lesson
+  substitutionClass?: string; // e.g. "7b"
+  substitutionNotes?: string; // Instructions for substitute teacher
+  targetDate?: string; // e.g. "2026-09-18"
   authorId: string;
   authorName: string;
   isSchoolTemplate: boolean; // true = visible for all teachers

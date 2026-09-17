@@ -29,6 +29,7 @@ import { EmbedWidget } from './widgets/EmbedWidget';
 import { PdfViewerWidget } from './widgets/PdfViewerWidget';
 import { HyperlinkWidget } from './widgets/HyperlinkWidget';
 import { PollWidget } from './widgets/PollWidget';
+import { CurtainWidget } from './widgets/CurtainWidget';
 import { 
   Clock, 
   Timer, 
@@ -54,6 +55,8 @@ import {
   Globe,
   Link as LinkIcon,
   BarChart3,
+  EyeOff,
+  Share2,
   Sparkles, 
   Trash2, 
   ArrowLeft,
@@ -64,6 +67,7 @@ import {
 } from 'lucide-react';
 import { SaveBoardModal } from './SaveBoardModal';
 import { BoardTemplatesDrawer } from './BoardTemplatesDrawer';
+import { ExportBoardModal } from './ExportBoardModal';
 
 interface ClassroomBoardProps {
   onExit: () => void;
@@ -91,6 +95,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
   const [isBackgroundPickerOpen, setIsBackgroundPickerOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isTemplatesDrawerOpen, setIsTemplatesDrawerOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const resetScroll = () => {
@@ -205,6 +210,16 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
             <span>Vorlagen</span>
           </button>
 
+          {/* Export & Share Modal Button */}
+          <button
+            onClick={() => setIsExportModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-indigo-700 hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
+            title="Tafelbild für Schüler teilen & als PDF drucken"
+          >
+            <Share2 className="w-3.5 h-3.5 text-indigo-600" />
+            <span className="hidden sm:inline">Teilen / PDF</span>
+          </button>
+
           {activeScreen.widgets.length > 0 && (
             <button
               onClick={() => {
@@ -313,6 +328,9 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
             } else if (widget.type === 'poll') {
               widgetIcon = <BarChart3 className="w-4 h-4 text-purple-600" />;
               widgetContent = <PollWidget />;
+            } else if (widget.type === 'curtain') {
+              widgetIcon = <EyeOff className="w-4 h-4 text-slate-700" />;
+              widgetContent = <CurtainWidget />;
             }
 
             return (
@@ -367,6 +385,13 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
         onClose={() => setIsTemplatesDrawerOpen(false)}
         onLoadTemplate={loadCustomScreen}
         onOpenSaveModal={() => setIsSaveModalOpen(true)}
+      />
+
+      {/* Export & Share Board Modal */}
+      <ExportBoardModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        activeScreen={activeScreen}
       />
     </div>
   );

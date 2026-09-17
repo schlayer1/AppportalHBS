@@ -35,7 +35,20 @@ interface AuthContextType {
   removeCustomApp: (appId: string) => Promise<void>;
   
   // Board Templates
-  saveBoardTemplate: (title: string, screen: BoardScreen, isSchoolTemplate: boolean) => Promise<SavedBoardTemplate>;
+  saveBoardTemplate: (
+    title: string, 
+    screen: BoardScreen, 
+    isSchoolTemplate: boolean,
+    metadata?: {
+      description?: string;
+      subject?: string;
+      grade?: string;
+      isSubstitution?: boolean;
+      substitutionClass?: string;
+      substitutionNotes?: string;
+      targetDate?: string;
+    }
+  ) => Promise<SavedBoardTemplate>;
   deleteBoardTemplate: (id: string) => Promise<void>;
 }
 
@@ -253,7 +266,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const saveBoardTemplate = useCallback(async (
     title: string, 
     screen: BoardScreen, 
-    isSchoolTemplate: boolean
+    isSchoolTemplate: boolean,
+    metadata?: {
+      description?: string;
+      subject?: string;
+      grade?: string;
+      isSubstitution?: boolean;
+      substitutionClass?: string;
+      substitutionNotes?: string;
+      targetDate?: string;
+    }
   ): Promise<SavedBoardTemplate> => {
     const authorId = currentUser ? currentUser.id : 'guest';
     const authorName = currentUser ? currentUser.name : 'Gast';
@@ -261,6 +283,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newTemplate: SavedBoardTemplate = {
       id: `board-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       title: title.trim(),
+      description: metadata?.description,
+      subject: metadata?.subject,
+      grade: metadata?.grade,
+      isSubstitution: metadata?.isSubstitution,
+      substitutionClass: metadata?.substitutionClass,
+      substitutionNotes: metadata?.substitutionNotes,
+      targetDate: metadata?.targetDate,
       authorId,
       authorName,
       isSchoolTemplate,

@@ -31,7 +31,8 @@ import {
   Link as LinkIcon,
   BarChart3,
   Sparkles,
-  Palette
+  Palette,
+  EyeOff
 } from 'lucide-react';
 import { BoardWidgetType } from './types';
 
@@ -129,6 +130,7 @@ export const BoardDock: React.FC<BoardDockProps> = ({
               { id: 'pdf', label: 'PDF', icon: FileText, active: true },
               { id: 'hyperlink', label: 'Links & Web', icon: LinkIcon, active: true },
               { id: 'poll', label: 'Abstimmung', icon: BarChart3, active: true },
+              { id: 'curtain', label: 'Vorhang', icon: EyeOff, active: true },
             ].map((tool: { id: string; label: string; icon: any; active: boolean; milestone?: string }) => {
               const Icon = tool.icon;
               return (

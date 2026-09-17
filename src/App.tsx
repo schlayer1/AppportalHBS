@@ -10,6 +10,7 @@ import { QuickToolsDrawer } from './components/QuickToolsDrawer';
 import { FloatingDock } from './components/FloatingDock';
 import { ExternalLinks } from './components/ExternalLinks';
 import { ClassroomBoard } from './components/board/ClassroomBoard';
+import { StudentPollVoter } from './components/board/StudentPollVoter';
 import { AdminPanelModal } from './components/admin/AdminPanelModal';
 import { AddCustomLinkModal } from './components/links/AddCustomLinkModal';
 import { EmptyState } from './components/ui/empty-state';
@@ -150,6 +151,25 @@ export default function App() {
     newOrder[targetIdx] = temp;
     updateAppOrder(newOrder);
   };
+
+  // Check if student is accessing live poll via QR code (bypass password gate)
+  const isPollVoter = typeof window !== 'undefined' && (
+    window.location.search.includes('poll=') || 
+    window.location.hash.includes('poll=')
+  );
+
+  if (isPollVoter) {
+    return (
+      <StudentPollVoter 
+        onClose={() => {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('poll');
+          window.history.replaceState({}, '', url.pathname);
+          window.location.reload();
+        }} 
+      />
+    );
+  }
 
   if (!isAuthenticated) {
     return <PasswordGate onAuthenticated={() => {}} />;
