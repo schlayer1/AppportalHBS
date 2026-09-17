@@ -22,6 +22,10 @@ import { KahootPresenter } from './components/kahoot/KahootPresenter';
 import { KahootStudentPlayer } from './components/kahoot/KahootStudentPlayer';
 import { StudentBoardViewer } from './components/board/StudentBoardViewer';
 import { KahootGame } from './types/kahootTypes';
+import { OncooDashboard } from './components/oncoo/OncooDashboard';
+import { OncooPresenter } from './components/oncoo/OncooPresenter';
+import { OncooStudentClient } from './components/oncoo/OncooStudentClient';
+import { OncooSession } from './types/oncooTypes';
 import { AdminPanelModal } from './components/admin/AdminPanelModal';
 import { AddCustomLinkModal } from './components/links/AddCustomLinkModal';
 import { EmptyState } from './components/ui/empty-state';
@@ -35,9 +39,9 @@ import {
   Shield, 
   SearchX, 
   Projector, 
-  Star,
-  ArrowUpDown,
-  Plus
+  Star, 
+  ArrowUpDown, 
+  Plus 
 } from 'lucide-react';
 
 export default function App() {
@@ -79,18 +83,24 @@ export default function App() {
   const [activeKahootGame, setActiveKahootGame] = useState<KahootGame | null>(null);
   const [kahootSubView, setKahootSubView] = useState<'dashboard' | 'editor' | 'presenter'>('dashboard');
 
+  // Oncoo session state
+  const [activeOncooPresentationSession, setActiveOncooPresentationSession] = useState<OncooSession | null>(null);
+  const [oncooSubView, setOncooSubView] = useState<'dashboard' | 'presenter'>('dashboard');
+
   // Favorites Hook
   const { favorites, toggleFavorite, isFavorite, hasFavorites } = useFavorites();
 
   const isSmartboardMode = viewMode === 'smartboard';
 
-  // Listen to #menti and #kahoot hashes in URL
+  // Listen to #menti, #kahoot and #oncoo hashes in URL
   useEffect(() => {
     const checkHash = () => {
       if (window.location.hash === '#menti') {
         setViewMode('menti');
       } else if (window.location.hash === '#kahoot') {
         setViewMode('kahoot');
+      } else if (window.location.hash === '#oncoo') {
+        setViewMode('oncoo');
       }
     };
     window.addEventListener('hashchange', checkHash);
@@ -242,6 +252,25 @@ export default function App() {
     );
   }
 
+  // Check if student is accessing Oncoo via PIN or QR code (bypass password gate)
+  const isOncooPlayer = typeof window !== 'undefined' && (
+    window.location.search.includes('oncoo=') || 
+    window.location.hash.includes('oncoo=')
+  );
+
+  if (isOncooPlayer) {
+    return (
+      <OncooStudentClient 
+        onClose={() => {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('oncoo');
+          window.history.replaceState({}, '', url.pathname);
+          window.location.reload();
+        }} 
+      />
+    );
+  }
+
   // Check if student is accessing shared blackboard via QR code (bypass password gate)
   const isBoardShare = typeof window !== 'undefined' && (
     window.location.search.includes('boardShare=') || 
@@ -349,6 +378,31 @@ export default function App() {
         onStartGame={(game) => {
           setActiveKahootGame(game);
           setKahootSubView('presenter');
+        }}
+      />
+    );
+  }
+
+  // Fullscreen / Dedicated HBS Oncoo System (Cooperative Learning Tools)
+  if (viewMode === 'oncoo') {
+    if (oncooSubView === 'presenter' && activeOncooPresentationSession) {
+      return (
+        <OncooPresenter
+          session={activeOncooPresentationSession}
+          onExit={() => setOncooSubView('dashboard')}
+        />
+      );
+    }
+
+    return (
+      <OncooDashboard
+        onBackToPortal={() => {
+          window.location.hash = '';
+          setViewMode('bento');
+        }}
+        onStartSession={(session) => {
+          setActiveOncooPresentationSession(session);
+          setOncooSubView('presenter');
         }}
       />
     );

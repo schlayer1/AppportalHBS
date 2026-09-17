@@ -12,6 +12,7 @@ import { MentiPresentation, MentiLiveSession } from '../types/mentiTypes';
 import { DEFAULT_MENTI_TEMPLATES } from '../data/defaultMentiTemplates';
 import { KahootGame, KahootLiveSession } from '../types/kahootTypes';
 import { DEFAULT_KAHOOT_GAMES } from '../data/defaultKahootTemplates';
+import { OncooSession, DEFAULT_ONCOO_TEMPLATES } from '../types/oncooTypes';
 
 interface AuthContextType {
   currentUser: PortalUser | null;
@@ -72,6 +73,15 @@ interface AuthContextType {
   toggleShareKahootGame: (id: string) => Promise<void>;
   duplicateKahootGame: (id: string) => Promise<KahootGame>;
   updateActiveKahootSession: (session: KahootLiveSession | null) => Promise<void>;
+
+  // Oncoo Sessions & Live
+  oncooSessions: OncooSession[];
+  activeOncooSession: OncooSession | null;
+  saveOncooSession: (session: OncooSession) => Promise<OncooSession>;
+  deleteOncooSession: (id: string) => Promise<void>;
+  toggleShareOncooSession: (id: string) => Promise<void>;
+  duplicateOncooSession: (id: string) => Promise<OncooSession>;
+  updateActiveOncooSession: (session: OncooSession | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -98,6 +108,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeMentiSession, setActiveMentiSession] = useState<MentiLiveSession | null>(() => getCachedPortalData().activeMentiSession || null);
   const [kahootGames, setKahootGames] = useState<KahootGame[]>(() => getCachedPortalData().kahootGames || DEFAULT_KAHOOT_GAMES);
   const [activeKahootSession, setActiveKahootSession] = useState<KahootLiveSession | null>(() => getCachedPortalData().activeKahootSession || null);
+  const [oncooSessions, setOncooSessions] = useState<OncooSession[]>(() => getCachedPortalData().oncooSessions || DEFAULT_ONCOO_TEMPLATES);
+  const [activeOncooSession, setActiveOncooSession] = useState<OncooSession | null>(() => getCachedPortalData().activeOncooSession || null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Load latest data from Cloud on mount
@@ -119,6 +131,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setKahootGames(cloudData.kahootGames);
           }
           setActiveKahootSession(cloudData.activeKahootSession || null);
+          if (cloudData.oncooSessions && cloudData.oncooSessions.length > 0) {
+            setOncooSessions(cloudData.oncooSessions);
+          }
+          setActiveOncooSession(cloudData.activeOncooSession || null);
         }
       } catch (err) {
         console.warn("Cloud init error:", err);
@@ -519,6 +535,102 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await savePortalDataToCloud(cloudData);
   }, []);
 
+  // Oncoo Handlers
+  const saveOncooSession = useCallback(async (session: OncooSession): Promise<OncooSession> => {
+    const existingIndex = oncooSessions.findIndex(s => s.id === session.id);
+    const sessionToSave: OncooSession = {
+      ...session,
+      authorId: session.authorId || currentUser?.id || 'guest',
+      authorName: session.authorName || currentUser?.name || 'Kollege',
+      updatedAt: Date.now()
+    };
+
+    let updatedList: OncooSession[];
+    if (existingIndex >= 0) {
+      updatedList = [...oncooSessions];
+      updatedList[existingIndex] = sessionToSave;
+    } else {
+      updatedList = [sessionToSave, ...oncooSessions];
+    }
+
+    setOncooSessions(updatedList);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.oncooSessions = updatedList;
+    await savePortalDataToCloud(cloudData);
+    return sessionToSave;
+  }, [currentUser, oncooSessions]);
+
+  const deleteOncooSession = useCallback(async (id: string) => {
+    const updated = oncooSessions.filter(s => s.id !== id);
+    setOncooSessions(updated);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.oncooSessions = updated;
+    await savePortalDataToCloud(cloudData);
+  }, [oncooSessions]);
+
+  const toggleShareOncooSession = useCallback(async (id: string) => {
+    const updated = oncooSessions.map(s => {
+      if (s.id === id) {
+        return { ...s, isShared: !s.isShared, updatedAt: Date.now() };
+      }
+      return s;
+    });
+    setOncooSessions(updated);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.oncooSessions = updated;
+    await savePortalDataToCloud(cloudData);
+  }, [oncooSessions]);
+
+  const duplicateOncooSession = useCallback(async (id: string): Promise<OncooSession> => {
+    const orig = oncooSessions.find(s => s.id === id);
+    const newSession: OncooSession = orig ? {
+      ...orig,
+      id: `oncoo-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: `${orig.title} (Kopie)`,
+      authorId: currentUser?.id || 'guest',
+      authorName: currentUser?.name || 'Kollege',
+      isShared: false,
+      pinCode: Math.floor(100000 + Math.random() * 900000).toString(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      isActive: false
+    } : {
+      id: `oncoo-${Date.now()}`,
+      toolType: 'kartenabfrage',
+      title: 'Neue Oncoo-Sitzung',
+      authorId: currentUser?.id || 'guest',
+      authorName: currentUser?.name || 'Kollege',
+      isShared: false,
+      pinCode: Math.floor(100000 + Math.random() * 900000).toString(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      isActive: false,
+      kartenabfrage: {
+        question: 'Welche Ideen hast du zu diesem Thema?',
+        columns: [],
+        cards: [],
+        allowMultipleCards: true,
+        maxCardsPerStudent: 3,
+        showAuthor: true,
+        allowLikes: true
+      }
+    };
+
+    const updated = [newSession, ...oncooSessions];
+    setOncooSessions(updated);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.oncooSessions = updated;
+    await savePortalDataToCloud(cloudData);
+    return newSession;
+  }, [currentUser, oncooSessions]);
+
+  const updateActiveOncooSession = useCallback(async (session: OncooSession | null) => {
+    setActiveOncooSession(session);
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.activeOncooSession = session;
+    await savePortalDataToCloud(cloudData);
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -534,6 +646,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeMentiSession,
         kahootGames,
         activeKahootSession,
+        oncooSessions,
+        activeOncooSession,
         loginWithUser,
         loginWithAdminMaster,
         loginAsGuest,
@@ -554,7 +668,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteKahootGame,
         toggleShareKahootGame,
         duplicateKahootGame,
-        updateActiveKahootSession
+        updateActiveKahootSession,
+        saveOncooSession,
+        deleteOncooSession,
+        toggleShareOncooSession,
+        duplicateOncooSession,
+        updateActiveOncooSession
       }}
     >
       {children}

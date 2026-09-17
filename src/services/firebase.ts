@@ -75,6 +75,7 @@ import { MentiPresentation, MentiLiveSession } from "../types/mentiTypes";
 import { DEFAULT_MENTI_TEMPLATES } from "../data/defaultMentiTemplates";
 import { KahootGame, KahootLiveSession } from "../types/kahootTypes";
 import { DEFAULT_KAHOOT_GAMES } from "../data/defaultKahootTemplates";
+import { OncooSession, DEFAULT_ONCOO_TEMPLATES } from "../types/oncooTypes";
 
 export interface PortalCloudData {
   users: PortalUser[];
@@ -84,6 +85,8 @@ export interface PortalCloudData {
   activeMentiSession?: MentiLiveSession | null;
   kahootGames?: KahootGame[];
   activeKahootSession?: KahootLiveSession | null;
+  oncooSessions?: OncooSession[];
+  activeOncooSession?: OncooSession | null;
   updatedAt: number;
 }
 
@@ -101,6 +104,9 @@ export const getCachedPortalData = (): PortalCloudData => {
       if (!parsed.kahootGames || parsed.kahootGames.length === 0) {
         parsed.kahootGames = DEFAULT_KAHOOT_GAMES;
       }
+      if (!parsed.oncooSessions || parsed.oncooSessions.length === 0) {
+        parsed.oncooSessions = DEFAULT_ONCOO_TEMPLATES;
+      }
       return parsed;
     }
   } catch (e) {
@@ -112,6 +118,7 @@ export const getCachedPortalData = (): PortalCloudData => {
     boardTemplates: [],
     mentiPresentations: DEFAULT_MENTI_TEMPLATES,
     kahootGames: DEFAULT_KAHOOT_GAMES,
+    oncooSessions: DEFAULT_ONCOO_TEMPLATES,
     updatedAt: Date.now()
   };
 };

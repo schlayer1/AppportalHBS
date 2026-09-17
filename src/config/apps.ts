@@ -83,6 +83,28 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
+    id: "hbs-oncoo",
+    title: "HBS Oncoo (Kooperative Lernformen)",
+    shortTitle: "HBS Oncoo",
+    subtitle: "Kartenabfrage, Zielscheibe, Lerntempo & Co.",
+    description: "1:1 Clone der beliebten Oncoo-Werkzeuge: Kartenabfrage mit Clustern, Zielscheiben-Feedback, Lerntempoduett (Tandem-Matching), Helfersystem und Placemat-Methode. Ohne Schüler-Login, 100% DSGVO-konform.",
+    url: "#oncoo",
+    category: "unterricht",
+    badge: "5 Methoden",
+    badgeColor: "teal",
+    icon: "Target",
+    tags: ["Oncoo", "Kartenabfrage", "Zielscheibe", "Lerntempoduett", "Helfersystem", "Placemat", "Kooperatives Lernen"],
+    isFeaturedStudentQr: true,
+    offlineReady: true,
+    privacyBadge: "100% DSGVO-konform",
+    pedagogicalValue: "Aktiviert kooperative Lernformen nach Heinz Klippert, fördert Binnendifferenzierung und strukturiert Schüleraustausch digital und transparent.",
+    quickGuide: [
+      "Methode auswählen (Kartenabfrage, Zielscheibe, Lerntempoduett, Helfersystem oder Placemat).",
+      "Auf dem Smartboard präsentieren – Schüler scannen den QR-Code oder geben den 6-stelligen PIN ein.",
+      "Karten ordnen, Zielscheibe live auswerten oder Tandems und Helfer automatisch matchen."
+    ]
+  },
+  {
     id: "schueler-translator",
     title: "Übersetzer Schüler",
     shortTitle: "Übersetzer Schüler",

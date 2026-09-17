@@ -16,7 +16,8 @@ import {
   Boxes,
   Telescope,
   Wind,
-  Calculator
+  Calculator,
+  Target
 } from 'lucide-react';
 
 interface AnimatedAppIconProps {
@@ -160,6 +161,14 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
     return (
       <div className="relative flex items-center justify-center group/icon">
         <Calculator className={`${className} transition-transform duration-300 group-hover/icon:scale-110 text-blue-700`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Target') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Target className={`${className} transition-transform duration-500 group-hover/icon:rotate-45 group-hover/icon:scale-110 text-emerald-600`} size={size} />
       </div>
     );
   }
