@@ -55,7 +55,6 @@ import {
   Globe,
   Link as LinkIcon,
   BarChart3,
-  EyeOff,
   Share2,
   Sparkles, 
   Trash2, 
@@ -251,7 +250,9 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
           }`}
           style={activeBgPreset.style}
         >
-          {activeScreen.widgets.map((widget) => {
+          {activeScreen.widgets
+            .filter((widget) => widget.type !== 'curtain')
+            .map((widget) => {
             let widgetIcon = <Sparkles className="w-4 h-4" />;
             let widgetContent: React.ReactNode = null;
 
@@ -340,9 +341,6 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
             } else if (widget.type === 'poll') {
               widgetIcon = <BarChart3 className="w-4 h-4 text-purple-600" />;
               widgetContent = <PollWidget />;
-            } else if (widget.type === 'curtain') {
-              widgetIcon = <EyeOff className="w-4 h-4 text-slate-700" />;
-              widgetContent = <CurtainWidget />;
             }
 
             return (
@@ -362,6 +360,19 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit }) => {
           })}
         </div>
       </div>
+
+      {/* Full-Board Curtain & Spotlight Overlays */}
+      {activeScreen.widgets
+        .filter((w) => w.type === 'curtain')
+        .map((curtainWidget) => (
+          <CurtainWidget
+            key={curtainWidget.id}
+            widget={curtainWidget}
+            data={curtainWidget.data}
+            onClose={() => removeWidget(curtainWidget.id)}
+            onUpdateData={(newData) => updateWidgetData(curtainWidget.id, newData)}
+          />
+        ))}
 
       {/* Floating iOS Liquid-Glass Dock */}
       <div className="board-dock no-print">

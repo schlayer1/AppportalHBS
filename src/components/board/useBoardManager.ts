@@ -66,6 +66,23 @@ export const useBoardManager = () => {
   }, [activeScreen.widgets]);
 
   const addWidget = useCallback((type: BoardWidgetType, title?: string, data?: Record<string, any>) => {
+    // If curtain is requested and already active, toggle it off
+    if (type === 'curtain') {
+      const existingCurtain = activeScreen.widgets.find((w) => w.type === 'curtain');
+      if (existingCurtain) {
+        setScreens((prev) =>
+          prev.map((scr, idx) => {
+            if (idx !== activeScreenIndex) return scr;
+            return {
+              ...scr,
+              widgets: scr.widgets.filter((w) => w.id !== existingCurtain.id)
+            };
+          })
+        );
+        return;
+      }
+    }
+
     const newZ = getMaxZIndex() + 1;
     const offset = (activeScreen.widgets.length % 6) * 35;
     
@@ -205,7 +222,7 @@ export const useBoardManager = () => {
         };
       });
     });
-  }, [activeScreenIndex, activeScreen.widgets.length, getMaxZIndex]);
+  }, [activeScreenIndex, activeScreen.widgets, getMaxZIndex]);
 
   const removeWidget = useCallback((id: string) => {
     setScreens((prev) => {

@@ -141,7 +141,7 @@ export default function App() {
   const filteredApps = useMemo(() => {
     return combinedApps.filter((app) => {
       // In Smartboard mode: strictly hide internal collegium/verwaltung apps!
-      if (isSmartboardMode && app.category !== 'unterricht' && app.category !== 'mint') {
+      if (isSmartboardMode && app.category !== 'unterricht') {
         return false;
       }
 
@@ -149,8 +149,6 @@ export default function App() {
       const matchesCategory =
         selectedCategory === 'all' ||
         app.category === selectedCategory ||
-        (selectedCategory === 'mint' && (app.category === 'mint' || app.tags.includes('Simulation') || app.tags.includes('MINT'))) ||
-        (selectedCategory === 'unterricht' && (app.category === 'unterricht' || app.category === 'mint')) ||
         (selectedCategory === 'kollegium' && app.category === 'verwaltung');
 
       // Search filter
