@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Printer, 
@@ -26,6 +26,16 @@ export const TableTentGeneratorModal: React.FC<TableTentGeneratorModalProps> = (
   const [subtitle, setSubtitle] = useState<string>('Direktzugang für den Unterricht');
   const [tableNumber, setTableNumber] = useState<string>('Tisch 1');
   const [showTableField, setShowTableField] = useState<boolean>(true);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -73,7 +83,10 @@ export const TableTentGeneratorModal: React.FC<TableTentGeneratorModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-xs overflow-y-auto">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-xs overflow-y-auto cursor-pointer"
+      onClick={onClose}
+    >
       {/* Print-specific stylesheet */}
       <style>{`
         @media print {
@@ -103,7 +116,10 @@ export const TableTentGeneratorModal: React.FC<TableTentGeneratorModalProps> = (
         }
       `}</style>
 
-      <div className="relative w-full max-w-5xl max-h-[94vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-900 border border-slate-200">
+      <div 
+        className="relative w-full max-w-5xl max-h-[94vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-900 border border-slate-200 cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Header toolbar */}
         <header className="p-4 sm:px-6 bg-slate-900 text-white flex items-center justify-between gap-4 shrink-0 no-print">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   FolderOpen, 
@@ -23,8 +23,8 @@ interface BoardTemplatesDrawerProps {
 
 const SUBJECTS = [
   'Mathematik', 'Deutsch', 'Englisch', 'Biologie', 'Physik', 
-  'Chemie', 'Geschichte', 'Erdkunde', 'Wirtschaft', 'Informatik', 
-  'Kunst', 'Musik', 'Sport', 'Religion/Ethik'
+  'Chemie', 'Geschichte', 'Geografie', 'Wirtschaft / Recht',
+  'Kunst', 'Musik', 'Sport', 'Fächerübergreifend'
 ];
 
 const GRADES = [
@@ -42,6 +42,16 @@ export const BoardTemplatesDrawer: React.FC<BoardTemplatesDrawerProps> = ({
   const [tab, setTab] = useState<'all' | 'mine' | 'school' | 'substitution'>('all');
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [selectedGrade, setSelectedGrade] = useState<string>('all');
+
+  // Close drawer on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -70,8 +80,14 @@ export const BoardTemplatesDrawer: React.FC<BoardTemplatesDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-slate-900/40 backdrop-blur-xs animate-fadeIn">
-      <div className="w-full max-w-md h-full bg-white shadow-2xl border-l border-slate-200 flex flex-col animate-slideInRight">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-end bg-slate-900/40 backdrop-blur-xs animate-fadeIn cursor-pointer"
+      onClick={onClose}
+    >
+      <div 
+        className="w-full max-w-md h-full bg-white shadow-2xl border-l border-slate-200 flex flex-col animate-slideInRight cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Drawer Header */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">

@@ -335,10 +335,15 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
     return () => clearInterval(interval);
   }, [floatingReactions]);
 
-  // Keyboard navigation (Left, Right, F, R)
+  // Keyboard navigation (Left, Right, F, R, Escape)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'Space') {
+      if (e.key === 'Escape') {
+        if (showQrModal) {
+          setShowQrModal(false);
+          return;
+        }
+      } else if (e.key === 'ArrowRight' || e.key === 'Space') {
         if (currentSlideIndex < presentation.slides.length - 1) {
           setCurrentSlideIndex(prev => prev + 1);
         }
@@ -354,7 +359,7 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSlideIndex, presentation.slides.length]);
+  }, [currentSlideIndex, presentation.slides.length, showQrModal]);
 
   const toggleFullscreen = async () => {
     try {
@@ -1114,9 +1119,25 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
 
       {/* QR Code Full Modal Overlay */}
       {showQrModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-4 text-slate-900 animate-fadeIn">
-            <h3 className="text-base font-black">Mit Smartphone scannen</h3>
+        <div 
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer animate-in fade-in duration-150"
+          onClick={() => setShowQrModal(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center space-y-4 text-slate-900 animate-fadeIn cursor-default relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-base font-black text-slate-900">Mit Smartphone scannen</h3>
+              <button
+                type="button"
+                onClick={() => setShowQrModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+                aria-label="Schließen"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
             
             <div className="p-4 bg-white rounded-2xl border-2 border-slate-100 shadow-md inline-block">
               <QRCodeSVG value={studentJoinUrl} size={220} level="M" />
@@ -1131,7 +1152,7 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
 
             <button
               onClick={() => setShowQrModal(false)}
-              className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs shadow-md active:scale-95"
+              className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs shadow-md transition-all active:scale-95"
             >
               Schließen
             </button>

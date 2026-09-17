@@ -19,7 +19,8 @@ import {
   UserCheck,
   Printer,
   Download,
-  Presentation
+  Presentation,
+  X
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -130,6 +131,19 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
       channelRef.current = null;
     };
   }, [session.pinCode, session.isLocked]);
+
+  // Global Escape key listener to close modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isAddCardModalOpen) setIsAddCardModalOpen(false);
+        else if (isAddColumnModalOpen) setIsAddColumnModalOpen(false);
+        else if (isQrModalOpen) setIsQrModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAddCardModalOpen, isAddColumnModalOpen, isQrModalOpen]);
 
   const handleStudentSubmission = (payload: any) => {
     if (session.isLocked) return;
@@ -1409,8 +1423,14 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
 
       {/* ================= 3. QR-CODE BEAMER MODAL ================= */}
       {isQrModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white text-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center space-y-4">
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150 cursor-pointer"
+          onClick={() => setIsQrModalOpen(false)}
+        >
+          <div 
+            className="bg-white text-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <span className="text-xs font-black uppercase tracking-wider text-rose-600">
                 Schüler-Beitritt
@@ -1418,9 +1438,10 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
               <button
                 type="button"
                 onClick={() => setIsQrModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+                aria-label="Schließen"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -1472,9 +1493,25 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
 
       {/* ================= 4. ADD COLUMN MODAL ================= */}
       {isAddColumnModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-white text-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
-            <h3 className="text-base font-black text-slate-900 mb-3">Neue Spalte hinzufügen</h3>
+        <div 
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer animate-in fade-in duration-150"
+          onClick={() => setIsAddColumnModalOpen(false)}
+        >
+          <div 
+            className="bg-white text-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl cursor-default animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
+              <h3 className="text-base font-black text-slate-900">Neue Spalte hinzufügen</h3>
+              <button
+                type="button"
+                onClick={() => setIsAddColumnModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+                aria-label="Schließen"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
             <form onSubmit={handleAddColumn} className="space-y-3">
               <input
                 type="text"
@@ -1488,7 +1525,7 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsAddColumnModalOpen(false)}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600"
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
                 >
                   Abbrechen
                 </button>
@@ -1506,9 +1543,25 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
 
       {/* ================= 5. ADD CARD MODAL ================= */}
       {isAddCardModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-white text-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Kärtchen hinzufügen</h3>
+        <div 
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer animate-in fade-in duration-150"
+          onClick={() => setIsAddCardModalOpen(false)}
+        >
+          <div 
+            className="bg-white text-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 cursor-default animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-base font-black text-slate-900">Kärtchen hinzufügen</h3>
+              <button
+                type="button"
+                onClick={() => setIsAddCardModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+                aria-label="Schließen"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
             <form onSubmit={handleAddCard} className="space-y-3">
               
               <div>
@@ -1559,7 +1612,7 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsAddCardModalOpen(false)}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600"
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
                 >
                   Abbrechen
                 </button>

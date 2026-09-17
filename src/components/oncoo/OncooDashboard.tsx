@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   Play, 
@@ -7,14 +7,15 @@ import {
   Share2, 
   Search, 
   Layers, 
-  ArrowLeft,
-  Users,
-  Target,
-  Zap,
-  HelpCircle,
-  Layout,
-  Sparkles,
-  FolderOpen
+  ArrowLeft, 
+  Users, 
+  Target, 
+  Zap, 
+  HelpCircle, 
+  Layout, 
+  Sparkles, 
+  FolderOpen,
+  X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { OncooSession, OncooToolType } from '../../types/oncooTypes';
@@ -131,6 +132,16 @@ export const OncooDashboard: React.FC<OncooDashboardProps> = ({
   const [newSubject, setNewSubject] = useState<string>('Fächerübergreifend');
   const [newGrade, setNewGrade] = useState<string>('Klasse 7–10');
   const [newQuestion, setNewQuestion] = useState<string>('');
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!isCreateModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsCreateModalOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCreateModalOpen]);
 
   // My Sessions vs School Sessions
   const mySessions = oncooSessions.filter(
@@ -581,8 +592,14 @@ export const OncooDashboard: React.FC<OncooDashboardProps> = ({
 
       {/* CREATE NEW SESSION MODAL */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 sm:p-8 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150 cursor-pointer"
+          onClick={() => setIsCreateModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 sm:p-8 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
               <div className="flex items-center gap-2.5">
@@ -596,9 +613,10 @@ export const OncooDashboard: React.FC<OncooDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center"
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                aria-label="Schließen"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 

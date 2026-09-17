@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { X, Copy, Check, ExternalLink, Maximize2, Minimize2, Printer, Sparkles } from 'lucide-react';
 import { SchoolApp } from '../config/apps';
@@ -11,6 +11,16 @@ interface QrCodeModalProps {
 export const QrCodeModal: React.FC<QrCodeModalProps> = ({ app, onClose }) => {
   const [copied, setCopied] = useState(false);
   const [isBeamerMode, setIsBeamerMode] = useState(false);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!app) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [app, onClose]);
 
   if (!app) return null;
 
@@ -25,10 +35,14 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ app, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto p-4 sm:p-6 flex items-center justify-center bg-hbs-slate-dark/70 backdrop-blur-sm animate-fadeIn">
+    <div 
+      className="fixed inset-0 z-50 overflow-y-auto p-4 sm:p-6 flex items-center justify-center bg-hbs-slate-dark/70 backdrop-blur-sm animate-fadeIn cursor-pointer"
+      onClick={onClose}
+    >
       {/* Modal Container: Max 85dvh, Flex-Col */}
       <div 
-        className={`bg-white rounded-3xl shadow-2xl shadow-black/40 border border-hbs-slate-border/80 w-full transition-all duration-300 relative flex flex-col max-h-[85dvh] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)] ${
+        onClick={(e) => e.stopPropagation()}
+        className={`bg-white rounded-3xl shadow-2xl shadow-black/40 border border-hbs-slate-border/80 w-full transition-all duration-300 relative flex flex-col max-h-[85dvh] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)] cursor-default ${
           isBeamerMode 
             ? 'max-w-3xl p-6 sm:p-8' 
             : 'max-w-lg p-6 sm:p-8'

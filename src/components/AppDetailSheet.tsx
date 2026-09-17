@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { X, ExternalLink, Copy, Check, QrCode, GraduationCap, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { SchoolApp } from '../config/apps';
@@ -17,6 +17,16 @@ export const AppDetailSheet: React.FC<AppDetailSheetProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
+
+  // Close sheet on Escape key
+  useEffect(() => {
+    if (!app) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [app, onClose]);
 
   if (!app) return null;
 

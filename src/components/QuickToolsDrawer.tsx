@@ -185,12 +185,34 @@ export const QuickToolsDrawer: React.FC<QuickToolsDrawerProps> = ({
     };
   }, []);
 
+  // Close drawer on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        stopMic();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-hbs-slate-dark/60 backdrop-blur-xs flex justify-end animate-fadeIn">
+    <div 
+      className="fixed inset-0 z-50 overflow-hidden bg-hbs-slate-dark/60 backdrop-blur-xs flex justify-end animate-fadeIn cursor-pointer"
+      onClick={() => {
+        stopMic();
+        onClose();
+      }}
+    >
       {/* Slide-over Container */}
-      <div className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col justify-between border-l border-hbs-slate-border/80 relative">
+      <div 
+        className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col justify-between border-l border-hbs-slate-border/80 relative cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Top Header */}
         <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">

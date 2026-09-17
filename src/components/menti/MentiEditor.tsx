@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Play, 
@@ -18,7 +18,8 @@ import {
   Cloud, 
   Sparkles,
   Grid2X2,
-  ListOrdered
+  ListOrdered,
+  X
 } from 'lucide-react';
 import { MentiPresentation, MentiSlide, MentiSlideType } from '../../types/mentiTypes';
 import { useAuth } from '../../context/AuthContext';
@@ -69,6 +70,16 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
   const [isSaved, setIsSaved] = useState<boolean>(true);
   const [showTypeSelector, setShowTypeSelector] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<'slides' | 'preview' | 'settings'>('preview');
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!showTypeSelector) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowTypeSelector(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showTypeSelector]);
 
   const activeSlide: MentiSlide = presentation.slides[activeSlideIndex] || presentation.slides[0] || {
     id: 's-default',
@@ -1073,18 +1084,26 @@ export const MentiEditor: React.FC<MentiEditorProps> = ({
 
       {/* New Slide Modal / Dropdown */}
       {showTypeSelector && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 max-w-lg w-full space-y-4 animate-fadeIn">
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer animate-in fade-in duration-150"
+          onClick={() => setShowTypeSelector(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 max-w-lg w-full space-y-4 animate-fadeIn cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-teal-600" />
                 <span>Neuen Folientyp auswählen</span>
               </h3>
               <button
+                type="button"
                 onClick={() => setShowTypeSelector(false)}
-                className="text-xs font-bold text-slate-400 hover:text-slate-600"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+                aria-label="Schließen"
               >
-                Abbrechen ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 

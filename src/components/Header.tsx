@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LogOut, 
   Smartphone, 
@@ -75,6 +75,16 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { currentUser, isAdmin, isGuest } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+
+  // Close mobile menu on Escape key
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileMenuOpen]);
 
   return (
     <header className="bg-white/95 border-b border-hbs-slate-border/70 sticky top-0 z-40 shadow-xs backdrop-blur-md pt-[env(safe-area-inset-top)] w-full max-w-full overflow-visible">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Printer
@@ -18,6 +18,15 @@ export const KahootWorksheetModal: React.FC<KahootWorksheetModalProps> = ({
   const [includeExplanations, setIncludeExplanations] = useState<boolean>(true);
   const [includeNotesSection, setIncludeNotesSection] = useState<boolean>(true);
 
+  // Close modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const totalPoints = game.questions.reduce((acc, q) => acc + (q.points ? Math.round(q.points / 1000) : 1), 0);
 
   const handlePrint = () => {
@@ -25,7 +34,10 @@ export const KahootWorksheetModal: React.FC<KahootWorksheetModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs overflow-y-auto">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs overflow-y-auto cursor-pointer"
+      onClick={onClose}
+    >
       {/* Print-specific stylesheet injected inline */}
       <style>{`
         @media print {
@@ -56,7 +68,10 @@ export const KahootWorksheetModal: React.FC<KahootWorksheetModalProps> = ({
       `}</style>
 
       {/* Outer Modal Container */}
-      <div className="relative w-full max-w-4xl max-h-[92vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-900 border border-slate-200">
+      <div 
+        className="relative w-full max-w-4xl max-h-[92vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-900 border border-slate-200 cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Modal Toolbar (hidden when printing) */}
         <header className="p-4 sm:px-6 bg-slate-900 text-white flex items-center justify-between gap-4 shrink-0 no-print">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Check, Image as ImageIcon, Sparkles, BookOpen, Compass } from 'lucide-react';
 import { BACKGROUND_PRESETS } from './backgrounds';
 import { BoardBackgroundId } from './types';
@@ -19,6 +19,16 @@ export const BoardBackgroundPicker: React.FC<BoardBackgroundPickerProps> = ({
   onSelectBackground
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('all');
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

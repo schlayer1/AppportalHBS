@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Tablet, Smartphone, Laptop, Share2, PlusSquare, MoreVertical, Download, CheckCircle2 } from 'lucide-react';
 
 interface InstallGuideModalProps {
@@ -9,12 +9,28 @@ interface InstallGuideModalProps {
 export const InstallGuideModal: React.FC<InstallGuideModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<'ios' | 'android' | 'desktop'>('ios');
 
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto p-4 sm:p-6 flex items-center justify-center bg-hbs-slate-dark/70 backdrop-blur-sm animate-fadeIn">
+    <div 
+      className="fixed inset-0 z-50 overflow-y-auto p-4 sm:p-6 flex items-center justify-center bg-hbs-slate-dark/70 backdrop-blur-sm animate-fadeIn cursor-pointer"
+      onClick={onClose}
+    >
       {/* Modal Container: Max 85dvh, Flex-Col */}
-      <div className="bg-white rounded-3xl shadow-2xl shadow-black/40 border border-hbs-slate-border/80 w-full max-w-xl p-6 sm:p-8 relative flex flex-col max-h-[85dvh] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]">
+      <div 
+        className="bg-white rounded-3xl shadow-2xl shadow-black/40 border border-hbs-slate-border/80 w-full max-w-xl p-6 sm:p-8 relative flex flex-col max-h-[85dvh] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)] cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Fixed Header */}
         <div className="pb-4 border-b border-slate-100 flex items-start justify-between gap-4 shrink-0">
