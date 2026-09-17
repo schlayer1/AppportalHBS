@@ -8,7 +8,15 @@ import {
   Compass, 
   HeartHandshake,
   Layers,
-  BarChart2
+  BarChart2,
+  Flame,
+  Atom,
+  Zap,
+  FlaskConical,
+  Boxes,
+  Telescope,
+  Wind,
+  Calculator
 } from 'lucide-react';
 
 interface AnimatedAppIconProps {
@@ -25,7 +33,6 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
   if (iconName === 'Coffee') {
     return (
       <div className="relative flex items-center justify-center group/icon">
-        {/* Animated Steam lines */}
         <div className="absolute -top-2 flex gap-1 pointer-events-none">
           <span className="w-0.5 h-2 rounded-full bg-amber-500/60 animate-bounce duration-1000" />
           <span className="w-0.5 h-2.5 rounded-full bg-amber-500/70 animate-bounce duration-1000 delay-150" />
@@ -89,6 +96,70 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
     return (
       <div className="relative flex items-center justify-center group/icon">
         <BarChart2 className={`${className} transition-transform duration-300 group-hover/icon:scale-110 text-teal-600`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Flame') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Flame className={`${className} transition-transform duration-300 group-hover/icon:scale-110 text-purple-600 animate-pulse`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Atom') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Atom className={`${className} transition-transform duration-700 ease-in-out group-hover/icon:rotate-180 group-hover/icon:scale-110 text-teal-600`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Zap') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Zap className={`${className} transition-transform duration-200 group-hover/icon:scale-115 text-amber-500`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'FlaskConical') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <FlaskConical className={`${className} transition-transform duration-300 group-hover/icon:rotate-12 group-hover/icon:scale-110 text-emerald-600`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Boxes') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Boxes className={`${className} transition-transform duration-500 group-hover/icon:scale-110 text-indigo-600`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Telescope') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Telescope className={`${className} transition-transform duration-500 group-hover/icon:-rotate-12 group-hover/icon:scale-110 text-blue-600`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Wind') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Wind className={`${className} transition-transform duration-500 group-hover/icon:translate-x-1 text-sky-600`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Calculator') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Calculator className={`${className} transition-transform duration-300 group-hover/icon:scale-110 text-blue-700`} size={size} />
       </div>
     );
   }

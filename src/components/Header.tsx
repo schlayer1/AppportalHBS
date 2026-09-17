@@ -21,7 +21,8 @@ import {
   BarChart2,
   Flame,
   ChevronDown,
-  Check
+  Check,
+  Atom
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
@@ -387,6 +388,17 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
               <span>Alle Apps</span> (<span className="tabular-nums">{appCount}</span>)
+            </button>
+            <button
+              onClick={() => setSelectedCategory('mint')}
+              className={`min-h-[40px] px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-150 active:scale-[0.98] shrink-0 select-none flex items-center gap-1.5 ${
+                selectedCategory === 'mint'
+                  ? 'bg-hbs-blue text-white shadow-xs shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]'
+                  : 'bg-hbs-blue-soft/70 text-hbs-slate-muted hover:bg-hbs-blue-soft hover:text-hbs-blue border border-hbs-blue/10'
+              }`}
+            >
+              <Atom className="w-3.5 h-3.5 shrink-0 text-teal-500" />
+              <span>MINT & Simulationen</span>
             </button>
             <button
               onClick={() => setSelectedCategory('kollegium')}

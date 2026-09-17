@@ -17,13 +17,18 @@ import {
   ShieldAlert,
   QrCode,
   Maximize2,
-  Tv,
   Calculator,
   Compass,
   HeartHandshake,
   Layers,
   MapPin,
-  HelpCircle
+  HelpCircle,
+  Atom,
+  FlaskConical,
+  Boxes,
+  Telescope,
+  Wind,
+  Zap
 } from 'lucide-react';
 
 export type DisplayMode = 'live' | 'preview' | 'wiki';
@@ -90,10 +95,50 @@ const PRESET_LINKS: PresetLink[] = [
 
   // Interaktive Live-Unterrichtstools (100% Einbettbar)
   {
-    name: 'LearningApps',
-    url: 'https://learningapps.org/',
+    name: 'PhET Stromkreis-Labor',
+    url: 'https://phet.colorado.edu/sims/html/circuit-construction-kit-dc/latest/circuit-construction-kit-dc_all.html',
     category: 'tools',
-    icon: Layers,
+    icon: Atom,
+    color: 'bg-orange-500/10 text-orange-800 hover:bg-orange-500/20 border-orange-200',
+    recommendedMode: 'live'
+  },
+  {
+    name: 'Ptable Periodensystem',
+    url: 'https://ptable.com/?lang=de',
+    category: 'tools',
+    icon: FlaskConical,
+    color: 'bg-amber-500/10 text-amber-900 hover:bg-amber-500/20 border-amber-200',
+    recommendedMode: 'live'
+  },
+  {
+    name: 'LEIFIphysik Portal',
+    url: 'https://www.leifiphysik.de/',
+    category: 'tools',
+    icon: Zap,
+    color: 'bg-blue-500/10 text-blue-800 hover:bg-blue-500/20 border-blue-200',
+    recommendedMode: 'live'
+  },
+  {
+    name: 'MolView 3D-Chemie',
+    url: 'https://molview.org/',
+    category: 'tools',
+    icon: Boxes,
+    color: 'bg-teal-500/10 text-teal-800 hover:bg-teal-500/20 border-teal-200',
+    recommendedMode: 'live'
+  },
+  {
+    name: 'Stellarium 3D-Planetarium',
+    url: 'https://stellarium-web.org/',
+    category: 'tools',
+    icon: Telescope,
+    color: 'bg-indigo-500/10 text-indigo-800 hover:bg-indigo-500/20 border-indigo-200',
+    recommendedMode: 'live'
+  },
+  {
+    name: 'Windy Wetter & Strömung',
+    url: 'https://www.windy.com/',
+    category: 'tools',
+    icon: Wind,
     color: 'bg-sky-500/10 text-sky-800 hover:bg-sky-500/20 border-sky-200',
     recommendedMode: 'live'
   },
@@ -106,11 +151,11 @@ const PRESET_LINKS: PresetLink[] = [
     recommendedMode: 'live'
   },
   {
-    name: 'PhET Physik-Labor',
-    url: 'https://phet.colorado.edu/sims/html/circuit-construction-kit-dc/latest/circuit-construction-kit-dc_all.html',
+    name: 'LearningApps',
+    url: 'https://learningapps.org/',
     category: 'tools',
-    icon: Tv,
-    color: 'bg-orange-500/10 text-orange-800 hover:bg-orange-500/20 border-orange-200',
+    icon: Layers,
+    color: 'bg-sky-500/10 text-sky-800 hover:bg-sky-500/20 border-sky-200',
     recommendedMode: 'live'
   },
   {
