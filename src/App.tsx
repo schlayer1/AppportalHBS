@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { PasswordGate } from './components/PasswordGate';
 import { Header, ViewMode } from './components/Header';
+import { PortalViewMode } from './types/user';
 import { AppCard } from './components/AppCard';
 import { CompactAppCard } from './components/CompactAppCard';
 import { AppDetailSheet } from './components/AppDetailSheet';
@@ -44,6 +45,25 @@ import {
   Plus 
 } from 'lucide-react';
 
+const STORAGE_KEY_PORTAL_VIEW = 'hbs_portal_view_mode';
+
+const getInitialPortalView = (): PortalViewMode => {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_PORTAL_VIEW);
+      if (saved === 'bento' || saved === 'compact' || saved === 'smartboard') {
+        return saved as PortalViewMode;
+      }
+    } catch {
+      // ignore
+    }
+    if (window.innerWidth < 640) {
+      return 'compact';
+    }
+  }
+  return 'bento';
+};
+
 export default function App() {
   const { 
     isAuthenticated, 
@@ -51,17 +71,82 @@ export default function App() {
     userPreferences, 
     updateAppOrder, 
     removeCustomApp, 
+    updatePortalViewMode,
     currentUser, 
     isAdmin 
   } = useAuth();
 
-  // Default to compact view on mobile screens (< 640px)
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 640) {
-      return 'compact';
-    }
-    return 'bento';
+  // Remembered preferred portal view mode (bento | compact | smartboard)
+  const [preferredPortalView, setPreferredPortalView] = useState<PortalViewMode>(getInitialPortalView);
+
+  // Remembers the preferred standard grid ('bento' or 'compact') when switching out of smartboard mode
+  const [normalPortalView, setNormalPortalView] = useState<'bento' | 'compact'>(() => {
+    const initial = getInitialPortalView();
+    return initial === 'compact' ? 'compact' : 'bento';
   });
+
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash === '#menti') return 'menti';
+      if (hash === '#kahoot') return 'kahoot';
+      if (hash === '#oncoo') return 'oncoo';
+    }
+    return getInitialPortalView();
+  });
+
+  // Synchronize preferred portal view from user profile if saved in cloud
+  useEffect(() => {
+    if (userPreferences?.portalViewMode) {
+      const userPref = userPreferences.portalViewMode;
+      setPreferredPortalView(userPref);
+      if (userPref === 'bento' || userPref === 'compact') {
+        setNormalPortalView(userPref);
+      }
+      try {
+        localStorage.setItem(STORAGE_KEY_PORTAL_VIEW, userPref);
+      } catch {
+        // ignore
+      }
+      setViewMode((current) => {
+        if (current === 'bento' || current === 'compact' || current === 'smartboard') {
+          return userPref;
+        }
+        return current;
+      });
+    }
+  }, [userPreferences?.portalViewMode]);
+
+  // Handle active user switching of view modes
+  const handleViewModeChange = useCallback((newMode: ViewMode) => {
+    if (newMode === 'bento' || newMode === 'compact' || newMode === 'smartboard') {
+      setPreferredPortalView(newMode);
+      if (newMode === 'bento' || newMode === 'compact') {
+        setNormalPortalView(newMode);
+      }
+      try {
+        localStorage.setItem(STORAGE_KEY_PORTAL_VIEW, newMode);
+      } catch {
+        // ignore
+      }
+      if (currentUser && updatePortalViewMode) {
+        updatePortalViewMode(newMode);
+      }
+    }
+    setViewMode(newMode);
+  }, [currentUser, updatePortalViewMode]);
+
+  // Cleanly exit an app/tool back to the user's remembered portal view
+  const handleExitToPortal = useCallback(() => {
+    if (window.location.hash) {
+      try {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch {
+        window.location.hash = '';
+      }
+    }
+    setViewMode(preferredPortalView);
+  }, [preferredPortalView]);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -95,18 +180,26 @@ export default function App() {
   // Listen to #menti, #kahoot and #oncoo hashes in URL
   useEffect(() => {
     const checkHash = () => {
-      if (window.location.hash === '#menti') {
+      const hash = window.location.hash;
+      if (hash === '#menti') {
         setViewMode('menti');
-      } else if (window.location.hash === '#kahoot') {
+      } else if (hash === '#kahoot') {
         setViewMode('kahoot');
-      } else if (window.location.hash === '#oncoo') {
+      } else if (hash === '#oncoo') {
         setViewMode('oncoo');
+      } else if (!hash) {
+        setViewMode((prev) => {
+          if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo') {
+            return preferredPortalView;
+          }
+          return prev;
+        });
       }
     };
     window.addEventListener('hashchange', checkHash);
     checkHash();
     return () => window.removeEventListener('hashchange', checkHash);
-  }, []);
+  }, [preferredPortalView]);
 
   // Auto-scroll to top when category or view mode changes
   useEffect(() => {
@@ -296,7 +389,7 @@ export default function App() {
 
   // Fullscreen Classroom Board View (Classroomscreen Replica)
   if (viewMode === 'tafel') {
-    return <ClassroomBoard onExit={() => setViewMode('bento')} />;
+    return <ClassroomBoard onExit={handleExitToPortal} />;
   }
 
   // Fullscreen / Dedicated HBS Menti System (Mentimeter Clone)
@@ -325,10 +418,7 @@ export default function App() {
 
     return (
       <MentiDashboard
-        onBackToPortal={() => {
-          window.location.hash = '';
-          setViewMode('bento');
-        }}
+        onBackToPortal={handleExitToPortal}
         onEditPresentation={(pres) => {
           setActiveMentiPresentation(pres);
           setMentiSubView('editor');
@@ -367,10 +457,7 @@ export default function App() {
 
     return (
       <KahootDashboard
-        onBackToPortal={() => {
-          window.location.hash = '';
-          setViewMode('bento');
-        }}
+        onBackToPortal={handleExitToPortal}
         onEditGame={(game) => {
           setActiveKahootGame(game);
           setKahootSubView('editor');
@@ -396,10 +483,7 @@ export default function App() {
 
     return (
       <OncooDashboard
-        onBackToPortal={() => {
-          window.location.hash = '';
-          setViewMode('bento');
-        }}
+        onBackToPortal={handleExitToPortal}
         onStartSession={(session) => {
           setActiveOncooPresentationSession(session);
           setOncooSubView('presenter');
@@ -421,7 +505,7 @@ export default function App() {
         isReorderMode={isReorderMode}
         onToggleReorderMode={() => setIsReorderMode(!isReorderMode)}
         viewMode={viewMode}
-        setViewMode={setViewMode}
+        setViewMode={handleViewModeChange}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         selectedCategory={selectedCategory}
@@ -478,7 +562,7 @@ export default function App() {
             </div>
 
             <button
-              onClick={() => setViewMode('bento')}
+              onClick={() => handleViewModeChange(normalPortalView)}
               className="min-h-[44px] px-5 py-2 rounded-xl bg-white hover:bg-hbs-amber text-hbs-slate-dark hover:text-white border border-hbs-amber/30 text-xs font-bold shadow-xs transition-all duration-150 active:scale-95 shrink-0"
             >
               Normalansicht wiederherstellen
@@ -694,7 +778,7 @@ export default function App() {
       <FloatingDock
         onOpenQuickTools={() => setIsQuickToolsOpen(true)}
         isSmartboardMode={isSmartboardMode}
-        onToggleSmartboardMode={() => setViewMode(isSmartboardMode ? 'bento' : 'smartboard')}
+        onToggleSmartboardMode={() => handleViewModeChange(isSmartboardMode ? normalPortalView : 'smartboard')}
         onOpenQr={(app) => setActiveQrApp(app)}
         onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
         apps={combinedApps}

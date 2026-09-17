@@ -39,10 +39,13 @@ export interface SavedBoardTemplate {
   updatedAt: number;
 }
 
+export type PortalViewMode = 'bento' | 'compact' | 'smartboard';
+
 export interface UserPreferences {
   userId: string;
   appOrder?: string[]; // ordered array of school app and custom app IDs
   favorites?: string[]; // favorite app IDs
   customApps?: CustomUserApp[];
+  portalViewMode?: PortalViewMode;
   updatedAt: number;
 }

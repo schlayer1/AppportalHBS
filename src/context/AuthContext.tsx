@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { PortalUser, CustomUserApp, SavedBoardTemplate, UserPreferences } from '../types/user';
+import { PortalUser, CustomUserApp, SavedBoardTemplate, UserPreferences, PortalViewMode } from '../types/user';
 import { BoardScreen } from '../components/board/types';
 import { 
   loadPortalDataFromCloud, 
@@ -34,10 +34,11 @@ interface AuthContextType {
   saveUsersList: (newUsers: PortalUser[]) => Promise<void>;
   syncWithVertretungsstatistik: () => Promise<{ added: number; updated: number; total: number }>;
   
-  // Custom Apps & Reordering
+  // Custom Apps & Reordering & Preferences
   updateAppOrder: (newOrder: string[]) => Promise<void>;
   addCustomApp: (app: Omit<CustomUserApp, 'id' | 'createdAt'>) => Promise<void>;
   removeCustomApp: (appId: string) => Promise<void>;
+  updatePortalViewMode: (mode: PortalViewMode) => Promise<void>;
   
   // Board Templates
   saveBoardTemplate: (
@@ -301,6 +302,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...currentPref,
       customApps: updatedCustomApps,
       appOrder: updatedOrder,
+      updatedAt: Date.now()
+    };
+
+    const newAllPrefs = { ...allPreferences, [currentUser.id]: updatedPref };
+    setAllPreferences(newAllPrefs);
+
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.preferences = newAllPrefs;
+    await savePortalDataToCloud(cloudData);
+  }, [currentUser, allPreferences]);
+
+  // Update preferred portal view mode (bento | compact | smartboard)
+  const updatePortalViewMode = useCallback(async (mode: PortalViewMode) => {
+    if (!currentUser) return;
+    const currentPref = allPreferences[currentUser.id] || {
+      userId: currentUser.id,
+      appOrder: [],
+      favorites: [],
+      customApps: [],
+      updatedAt: Date.now()
+    };
+    const updatedPref: UserPreferences = {
+      ...currentPref,
+      portalViewMode: mode,
       updatedAt: Date.now()
     };
 
@@ -657,6 +682,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateAppOrder,
         addCustomApp,
         removeCustomApp,
+        updatePortalViewMode,
         saveBoardTemplate,
         deleteBoardTemplate,
         saveMentiPresentation,

@@ -163,8 +163,11 @@ export const AppDetailSheet: React.FC<AppDetailSheetProps> = ({
 
           <a
             href={app.url}
-            target="_blank"
-            rel="noopener noreferrer"
+            target={app.url.startsWith('#') ? undefined : "_blank"}
+            rel={app.url.startsWith('#') ? undefined : "noopener noreferrer"}
+            onClick={() => {
+              if (app.url.startsWith('#')) onClose();
+            }}
             className="flex-1 min-h-[44px] px-4 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]"
           >
             <span>App direkt öffnen</span>
