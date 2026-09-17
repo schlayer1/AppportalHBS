@@ -2,7 +2,6 @@ import React from 'react';
 import { QrCode, Star, ArrowUpRight, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { SchoolApp } from '../config/apps';
 import { AnimatedAppIcon } from './AnimatedAppIcon';
-import { useDeviceOrientation } from '../hooks/useDeviceOrientation';
 
 interface CompactAppCardProps {
   app: SchoolApp;
@@ -27,8 +26,6 @@ export const CompactAppCard: React.FC<CompactAppCardProps> = ({
   onMoveRight,
   onDeleteCustom
 }) => {
-  const { tiltX, tiltY, isSupported } = useDeviceOrientation();
-
   // Vibrant iOS-Widget Gradients & Accents strictly adhering to Stitch school palette
   const themeStyles = {
     blue: {
@@ -61,18 +58,9 @@ export const CompactAppCard: React.FC<CompactAppCardProps> = ({
     },
   }[app.badgeColor];
 
-  // Subtle mobile gyroscope motion
-  const gyroStyle: React.CSSProperties = isSupported
-    ? {
-        transform: `perspective(700px) rotateX(${(-tiltY * 4).toFixed(1)}deg) rotateY(${(tiltX * 4).toFixed(1)}deg)`,
-        transition: 'transform 0.2s ease-out',
-      }
-    : {};
-
   return (
     <div
-      style={gyroStyle}
-      className={`group relative bg-white/95 backdrop-blur-xl rounded-3xl p-4 sm:p-5 border border-white/80 shadow-[0_10px_25px_-5px_rgba(9,29,46,0.08),0_4px_10px_-2px_rgba(9,29,46,0.04),inset_0_1px_1px_0_rgba(255,255,255,1)] hover:shadow-[0_20px_35px_-10px_rgba(11,123,167,0.18)] active:scale-[0.97] transition-all duration-200 flex flex-col justify-between overflow-hidden ${themeStyles.cardBorder}`}
+      className={`group relative bg-white/95 backdrop-blur-xl rounded-3xl p-4 sm:p-5 border border-white/80 shadow-[0_10px_25px_-5px_rgba(9,29,46,0.08),0_4px_10px_-2px_rgba(9,29,46,0.04),inset_0_1px_1px_0_rgba(255,255,255,1)] hover:shadow-[0_20px_35px_-10px_rgba(11,123,167,0.18)] hover:-translate-y-1 active:scale-[0.98] transition-all duration-200 flex flex-col justify-between overflow-hidden ${themeStyles.cardBorder}`}
     >
       {/* Ambient background glow inside the card */}
       <div 

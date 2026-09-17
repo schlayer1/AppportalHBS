@@ -494,7 +494,6 @@ export default function App() {
                       src="/Siegel_bunt.png" 
                       alt="Heimbürgeschule Siegel" 
                       className="w-full h-full object-contain filter drop-shadow-sm transition-transform duration-500 hover:scale-105"
-                      style={{ transform: 'translateZ(20px)' }}
                     />
                   </div>
                 </CardTilt>

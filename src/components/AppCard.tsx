@@ -117,7 +117,6 @@ export const AppCard: React.FC<AppCardProps> = ({
                   
                   {/* Rich Gradient Squircle App Icon */}
                   <div 
-                    style={{ transform: 'translateZ(26px)' }}
                     className={`w-16 h-16 rounded-2xl p-3.5 bg-gradient-to-br ${theme.gradient} text-white shadow-xl shadow-slate-900/15 flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105 shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.4)]`}
                   >
                     <AnimatedAppIcon iconName={app.icon} className="w-8 h-8 text-white" size={32} />
@@ -204,7 +203,6 @@ export const AppCard: React.FC<AppCardProps> = ({
                 {/* Titles */}
                 <div className="mb-2.5">
                   <h3 
-                    style={{ transform: 'translateZ(18px)' }}
                     className="text-xl sm:text-2xl font-black text-[#091D2E] tracking-tight leading-snug group-hover:text-hbs-blue transition-colors"
                   >
                     {app.title}
