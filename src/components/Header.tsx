@@ -21,7 +21,9 @@ import {
   BarChart2,
   Flame,
   Users,
-  QrCode
+  QrCode,
+  Compass,
+  BookOpen
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
@@ -35,6 +37,8 @@ interface HeaderProps {
   onOpenTableTent?: () => void;
   onOpenAdminPanel?: () => void;
   onOpenAddCustomLink?: () => void;
+  onOpenHandbook?: () => void;
+  onOpenTour?: () => void;
   isReorderMode?: boolean;
   onToggleReorderMode?: () => void;
   viewMode: ViewMode;
@@ -63,6 +67,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenTableTent,
   onOpenAdminPanel,
   onOpenAddCustomLink,
+  onOpenHandbook,
+  onOpenTour,
   isReorderMode,
   onToggleReorderMode,
   viewMode,
@@ -203,6 +209,32 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
 
+            {/* Tour trigger (lg:flex) */}
+            {onOpenTour && (
+              <button
+                onClick={onOpenTour}
+                className="hidden lg:flex h-9 p-2 px-3 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-800 border border-teal-300/40 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                title="Interaktive Portal-Tour starten"
+                aria-label="Portal-Tour"
+              >
+                <Compass className="w-4 h-4 text-teal-600 shrink-0" />
+                <span>Tour</span>
+              </button>
+            )}
+
+            {/* Handbook trigger (lg:flex) */}
+            {onOpenHandbook && (
+              <button
+                onClick={onOpenHandbook}
+                className="hidden lg:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-hbs-blue hover:bg-hbs-blue-soft border border-transparent hover:border-hbs-blue/20 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                title="Bebildertes Kollegiums-Handbuch & Dokumentation öffnen"
+                aria-label="Handbuch öffnen"
+              >
+                <BookOpen className="w-4 h-4 text-hbs-blue shrink-0" />
+                <span>Handbuch</span>
+              </button>
+            )}
+
             {/* Table Tent Generator modal trigger (xl:flex) */}
             {onOpenTableTent && (
               <button
@@ -280,6 +312,26 @@ export const Header: React.FC<HeaderProps> = ({
                       >
                         <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
                         <span>{isReorderMode ? 'Sortieren beenden' : 'Apps frei sortieren'}</span>
+                      </button>
+                    )}
+
+                    {onOpenTour && (
+                      <button
+                        onClick={() => { onOpenTour(); setIsMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-teal-800 hover:bg-teal-50 flex items-center gap-2"
+                      >
+                        <Compass className="w-3.5 h-3.5 text-teal-600" />
+                        <span>Portal-Tour & Einführung</span>
+                      </button>
+                    )}
+
+                    {onOpenHandbook && (
+                      <button
+                        onClick={() => { onOpenHandbook(); setIsMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-hbs-blue hover:bg-hbs-blue-soft flex items-center gap-2"
+                      >
+                        <BookOpen className="w-3.5 h-3.5 text-hbs-blue" />
+                        <span>Kollegiums-Handbuch (PDF)</span>
                       </button>
                     )}
 

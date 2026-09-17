@@ -38,6 +38,8 @@ const InstallGuideModal = lazy(() => import('./components/InstallGuideModal').th
 const AdminPanelModal = lazy(() => import('./components/admin/AdminPanelModal').then(m => ({ default: m.AdminPanelModal })));
 const AddCustomLinkModal = lazy(() => import('./components/links/AddCustomLinkModal').then(m => ({ default: m.AddCustomLinkModal })));
 const TableTentGeneratorModal = lazy(() => import('./components/tools/TableTentGeneratorModal').then(m => ({ default: m.TableTentGeneratorModal })));
+const HandbookModal = lazy(() => import('./components/handbook/HandbookModal').then(m => ({ default: m.HandbookModal })));
+const OnboardingTourModal = lazy(() => import('./components/onboarding/OnboardingTourModal').then(m => ({ default: m.OnboardingTourModal })));
 import { EmptyState } from './components/ui/empty-state';
 import { CardTilt } from './components/ui/card-tilt';
 import { AuroraBackground } from './components/ui/aurora-background';
@@ -180,6 +182,8 @@ export default function App() {
   const [isAddCustomLinkOpen, setIsAddCustomLinkOpen] = useState<boolean>(false);
   const [isTableTentOpen, setIsTableTentOpen] = useState<boolean>(false);
   const [isReorderMode, setIsReorderMode] = useState<boolean>(false);
+  const [isHandbookOpen, setIsHandbookOpen] = useState<boolean>(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
 
   // Menti presentation state
   const [activeMentiPresentation, setActiveMentiPresentation] = useState<MentiPresentation | null>(null);
@@ -198,7 +202,24 @@ export default function App() {
 
   const isSmartboardMode = viewMode === 'smartboard';
 
-  // Listen to #menti, #kahoot and #oncoo hashes in URL
+  // Automatically start onboarding tour on first visit for logged-in colleagues
+  useEffect(() => {
+    if (isAuthenticated && !isGuest) {
+      try {
+        const completed = localStorage.getItem('hbs_onboarding_completed');
+        if (!completed) {
+          const timer = setTimeout(() => {
+            setIsOnboardingOpen(true);
+          }, 700);
+          return () => clearTimeout(timer);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [isAuthenticated, isGuest]);
+
+  // Listen to #menti, #kahoot, #oncoo, #tafel and #handbuch hashes in URL
   useEffect(() => {
     const checkHash = () => {
       const hash = window.location.hash;
@@ -208,9 +229,18 @@ export default function App() {
         setViewMode('kahoot');
       } else if (hash === '#oncoo') {
         setViewMode('oncoo');
+      } else if (hash === '#tafel') {
+        setViewMode('tafel');
+      } else if (hash === '#handbuch') {
+        setIsHandbookOpen(true);
+        try {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        } catch {
+          window.location.hash = '';
+        }
       } else if (!hash) {
         setViewMode((prev) => {
-          if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo') {
+          if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo' || prev === 'tafel') {
             return preferredPortalView;
           }
           return prev;
@@ -570,6 +600,8 @@ export default function App() {
         onOpenTableTent={() => setIsTableTentOpen(true)}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenAddCustomLink={() => setIsAddCustomLinkOpen(true)}
+        onOpenHandbook={() => setIsHandbookOpen(true)}
+        onOpenTour={() => setIsOnboardingOpen(true)}
         isReorderMode={isReorderMode}
         onToggleReorderMode={() => setIsReorderMode(!isReorderMode)}
         viewMode={viewMode}
@@ -899,6 +931,30 @@ export default function App() {
           <TableTentGeneratorModal
             isOpen={isTableTentOpen}
             onClose={() => setIsTableTentOpen(false)}
+          />
+        )}
+
+        {/* Kollegiums-Handbuch (Readme & PDF) Modal */}
+        {isHandbookOpen && (
+          <HandbookModal
+            isOpen={isHandbookOpen}
+            onClose={() => setIsHandbookOpen(false)}
+            onStartTour={() => {
+              setIsHandbookOpen(false);
+              setIsOnboardingOpen(true);
+            }}
+          />
+        )}
+
+        {/* Onboarding Tour Walkthrough Modal */}
+        {isOnboardingOpen && (
+          <OnboardingTourModal
+            isOpen={isOnboardingOpen}
+            onClose={() => setIsOnboardingOpen(false)}
+            onOpenHandbook={() => {
+              setIsOnboardingOpen(false);
+              setIsHandbookOpen(true);
+            }}
           />
         )}
       </Suspense>

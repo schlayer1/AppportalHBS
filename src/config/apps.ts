@@ -39,6 +39,50 @@ export const PORTAL_CONFIG = {
 
 export const SCHOOL_APPS: SchoolApp[] = [
   {
+    id: "kollegiums-handbuch",
+    title: "Kollegiums-Handbuch & Guide",
+    shortTitle: "Handbuch & Guide",
+    subtitle: "Bebilderte Anleitung, Tipps & PDF-Download",
+    description: "Das offizielle Handbuch der Heimbürgeschule für das gesamte Kollegium: Ausführliche Anleitungen zu allen Tools, didaktische Praxistipps, Screenshots, Architektur-Erklärung und druckfertige PDF-Version.",
+    url: "#handbuch",
+    category: "kollegium",
+    badge: "Bebildert & PDF",
+    badgeColor: "blue",
+    icon: "BookOpen",
+    tags: ["Handbuch", "Anleitung", "PDF-Download", "Einführung", "Tipps", "Kollegium"],
+    isFeaturedStudentQr: false,
+    offlineReady: true,
+    privacyBadge: "Offizieller Schul-Guide",
+    pedagogicalValue: "Unterstützt Kolleginnen und Kollegen beim souveränen Einstieg, liefert Best-Practice-Methoden und erklärt alle Funktionen Schritt für Schritt.",
+    quickGuide: [
+      "Kachel antippen, um das bebilderte Handbuch direkt im Portal interaktiv zu durchstöbern.",
+      "Kapitel für die gewünschte App (Tafel, Menti, Kahoot, Oncoo, Tischaufsteller) auswählen.",
+      "Vollständige PDF-Version mit einem Klick herunterladen oder die interaktive Portal-Tour starten."
+    ]
+  },
+  {
+    id: "digitale-tafel",
+    title: "Digitale Tafel (Classroom-Screen)",
+    shortTitle: "Digitale Tafel",
+    subtitle: "26 Widgets, Timer, Lärmampel & Zeichenfläche",
+    description: "Vollwertige interaktive Schultafel für Smartboards und Tablets mit 26 Unterrichts-Widgets: Timer, Lärmampel, Zufalls-Schülerauswahl, PDF-Viewer, Würfel, Gruppen-Generator und Tafelbild-Export.",
+    url: "#tafel",
+    category: "unterricht",
+    badge: "26 Widgets & Smartboard",
+    badgeColor: "teal",
+    icon: "Presentation",
+    tags: ["Smartboard", "Classroomscreen", "Timer", "Lärmampel", "Zufallsauswahl", "Zeichnen", "Widgets"],
+    isFeaturedStudentQr: false,
+    offlineReady: true,
+    privacyBadge: "100% DSGVO-konform",
+    pedagogicalValue: "Strukturiert den Unterrichtsablauf visuell, fördert Aufmerksamkeit und Zeitmanagement und spart wertvolle Vorbereitungszeit.",
+    quickGuide: [
+      "Kachel antippen oder oben in der Navigationsleiste auf 'Tafel' klicken.",
+      "Unten aus dem Dock beliebige Widgets (Uhr, Timer, Zufallsrad, Lärmampel) auf die Tafel ziehen.",
+      "Tafelbild bei Bedarf als PDF/Bild speichern oder per QR-Code an Schüler übertragen."
+    ]
+  },
+  {
     id: "menti-hbs",
     title: "HBS Menti (Live-Abfragen)",
     shortTitle: "HBS Menti",
