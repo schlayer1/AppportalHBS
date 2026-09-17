@@ -3,6 +3,11 @@
 
 Das **HBS App-Portal** ist die zentrale, datenschutzkonforme Einstiegs- und Arbeitsplattform für das gesamte Kollegium sowie für Schülerinnen und Schüler der Heimbürgeschule Kahla. Es bündelt alle digitalen Unterrichts-, Organisations- und Verwaltungswerkzeuge an einem einzigen Ort – ohne App-Dschungel, ohne externe Werbe-Tracker und optimiert für interaktive Smartboards, iPads, Tablets und Dienstgeräte.
 
+> [!TIP]
+> 📖 **Offizielles Kollegiums-Handbuch als PDF:**  
+> Sie können dieses vollständige Handbuch inklusive aller Abbildungen, Schritt-für-Schritt-Anleitungen und Tabellen auch als druckfertige PDF-Datei herunterladen:  
+> **[📥 HBS_App_Portal_Handbuch.pdf herunterladen](./HBS_App_Portal_Handbuch.pdf)**
+
 ---
 
 ## 📑 Inhaltsverzeichnis
@@ -10,10 +15,10 @@ Das **HBS App-Portal** ist die zentrale, datenschutzkonforme Einstiegs- und Arbe
 1. [Zugang & Authentifizierung](#1-zugang--authentifizierung)
 2. [Ansichts- und Arbeitsmodi](#2-ansichts--und-arbeitsmodi)
 3. [Die Unterrichts- & Schultools im Detail](#3-die-unterrichts--und-schultools-im-detail)
+   - [Digitale Tafel (Classroom-Screen-Erweiterung)](#digitale-tafel-classroom-screen-erweiterung)
    - [HBS Menti (Live-Abfragen & Wortwolken)](#hbs-menti-live-abfragen--wortwolken)
    - [HBS Kahoot! (Gamification, KI-Generator & Notfallblätter)](#hbs-kahoot-gamification-ki-generator--notfallblätter)
    - [HBS Oncoo (Kooperative Lernformen nach Klippert)](#hbs-oncoo-kooperative-lernformen-nach-klippert)
-   - [Digitale Tafel (Classroom-Screen-Erweiterung)](#digitale-tafel-classroom-screen-erweiterung)
    - [Übersetzer Schüler & Übersetzer Lehrer](#übersetzer-schüler--übersetzer-lehrer)
    - [Getränkefundus HBS](#getränkefundus-hbs)
    - [Vertretungsstatistik & AZV](#vertretungsstatistik--azv)
@@ -24,7 +29,7 @@ Das **HBS App-Portal** ist die zentrale, datenschutzkonforme Einstiegs- und Arbe
 4. [Integrierte Werkzeuge & Komfortfunktionen](#4-integrierte-werkzeuge--komfortfunktionen)
    - [QR-Code Tischaufsteller-Generator (DIN A4 Faltprisma)](#qr-code-tischaufsteller-generator-din-a4-faltprisma)
    - [Persönliche Linksammlung & Schnellstart-Drawer](#persönliche-linksammlung--schnellstart-drawer)
-   - [Admin-Panel für Schulleitung & Admins](#admin-panel-für-schulleitung--admins)
+   - [Admin-Panel für Schulleitung & IT-Beauftragte](#admin-panel-für-schulleitung--it-beauftragte)
 5. [Didaktische Einsatzszenarien im Unterricht](#5-didaktische-einsatzszenarien-im-unterricht)
 6. [Technik unter der Haube (Für technisch Interessierte)](#6-technik-unter-der-haube-für-technisch-interessierte)
 
@@ -33,6 +38,9 @@ Das **HBS App-Portal** ist die zentrale, datenschutzkonforme Einstiegs- und Arbe
 ## 1. Zugang & Authentifizierung
 
 Um Ihnen den Zugang so sicher wie möglich und zugleich im Schulalltag so schnell wie möglich zu gestalten, bietet das Portal drei abgestimmte Zugangswege:
+
+![Anmeldeportal der Heimbürgeschule](./docs/screenshots/01_login_gate.png)
+*Abbildung 1: Anmeldeportal mit den 3 Rollen (Kollegium, Admin, Tafel-Gast)*
 
 * **Kollegiums-Zugang (Empfohlen für Lehrkräfte):**
   Wählen Sie in der Anmeldemaske einfach Ihren Namen aus und geben Sie Ihre persönliche 4-stellige PIN ein. Ihr Arbeitsplatz, Ihre Favoriten, Ihre eigens angelegten Weblinks sowie Ihre Menti- und Kahoot-Entwürfe stehen Ihnen sofort auf jedem Endgerät synchronisiert bereit.
@@ -47,6 +55,9 @@ Um Ihnen den Zugang so sicher wie möglich und zugleich im Schulalltag so schnel
 
 Über die obere Navigationsleiste können Sie die Darstellung des Portals flexibel an Ihre Unterrichtssituation anpassen:
 
+![Bento-Grid Übersicht des HBS App-Portals](./docs/screenshots/02_portal_overview.png)
+*Abbildung 2: Moderne Bento-Grid-Ansicht mit Kategoriefilter, Suchfunktion und Schnellzugriffen*
+
 * **Bento-Raster (Standard):** 
   Moderne Kacheldarstellung mit direkt sichtbaren Kurzanleitungen, didaktischen Tipps und pädagogischem Mehrwert.
 * **Kompakt-Ansicht:** 
@@ -60,8 +71,33 @@ Um Ihnen den Zugang so sicher wie möglich und zugleich im Schulalltag so schnel
 
 ## 3. Die Unterrichts- & Schultools im Detail
 
+### Digitale Tafel (Classroom-Screen-Erweiterung)
+*Die interaktive digitale Schultafel für den täglichen Unterrichtseinsatz am Smartboard.*
+
+![Digitale Tafel mit Widgets und Liquid-Glass Dock](./docs/screenshots/03_digitale_tafel.png)
+*Abbildung 3: Digitale Tafel mit Unterrichtsuhr, Kuchen-Timer, Freihandzeichnung (Handballenschutz) und Ampeln*
+
+* **26 einsatzbereite Unterrichts-Widgets:**
+  * **Zeit & Organisation:** Analoge/Digitale Unterrichtsuhr, Countdown-Timer, Visueller Kuchen-Timer, Stoppuhr, Kalender, Schulstundenplan, Event-Countdown.
+  * **Strukturierung & Signale:** Lärmampel (mit Live-Mikrofon-Ausschlag), Verhaltensampel (Rot/Gelb/Grün), Arbeitsphasen-Symbole (Einzelarbeit, Partnerarbeit, Gruppenarbeit, Flüsterphase).
+  * **Zufall & Aktivierung:** Zufallsauswahl für Schülernamen, Gruppen-Generator, 3D-Würfel, interaktive Quick-Umfrage (*Poll*), Punktezähler (*Scoreboard*), Motivations-Sticker.
+  * **Medien & Dokumente:** Tafeltext-Editor, Freihand-Zeichenfenster, Bildanzeige, Video- & YouTube-Player, PDF-Viewer, Web-Einbettung (*iFrame*) und Weblink-Voransicht.
+  * **Kamera & Visualizer:** Nutzen Sie die Webcam oder den USB-Dokumentenkamerastream direkt in einem beweglichen Fenster auf der Tafel.
+  * **Tafel-Vorhang & Spotlight:** Schieben Sie schrittweise eine realistische Rollo-Abdeckung über Aufgaben und Lösungen oder lenken Sie mit einem runden Suchscheinwerfer (*Spotlight*) die Aufmerksamkeit auf einzelne Wörter.
+* **Handballenschutz (Palm Rejection):**
+  Im Zeichen-Widget ignoriert der Stift-Modus aufliegende Handballen auf iPads und Smartboards – nur der Apple Pencil oder Touchpen zeichnet.
+* **Globale Undo/Redo-Historie:**
+  Versehentlich verschobene, veränderte oder gelöschte Tafelwidgets können Sie mit `Strg + Z` (Mac: `Cmd + Z`) oder per Klick auf die Pfeile in der oberen Leiste wiederherstellen.
+* **Tafelbild-Export:**
+  Speichern Sie das Tafelbild als hochauflösendes PNG/JPEG, drucken Sie ein strukturiertes DIN-A4-Stundenprotokoll oder teilen Sie das Tafelbild per Live-QR-Code drahtlos auf die Geräte Ihrer Schüler.
+
+---
+
 ### HBS Menti (Live-Abfragen & Wortwolken)
 *Ein vollwertiger Mentimeter-Klon – 100% datenschutzkonform, werbefrei und ohne Schüler-Accounts.*
+
+![HBS Menti Studio und Dashboard](./docs/screenshots/04_menti_dashboard.png)
+*Abbildung 4: HBS Menti Dashboard mit Ordnerstruktur, Kollegiumsvorlagen und Präsentationsstart*
 
 * **Folientypen & Interaktionen:**
   * **Wortwolke (Word Cloud):** Schüler senden Begriffe per Smartphone ein. Häufig genannte Wörter wachsen in Echtzeit dynamisch an der Tafel.
@@ -80,6 +116,9 @@ Um Ihnen den Zugang so sicher wie möglich und zugleich im Schulalltag so schnel
 ### HBS Kahoot! (Gamification, KI-Generator & Notfallblätter)
 *Echte Quiz-Show-Atmosphäre für den Klassenraum mit integrierter KI-Unterstützung.*
 
+![HBS Kahoot Studio und Arena](./docs/screenshots/05_kahoot_dashboard.png)
+*Abbildung 5: HBS Kahoot Studio mit KI-Fragen-Generator, Kollegiums-Vorlagen & Druckbogen-Export*
+
 * **Gamification & Beamer-Arena:**
   Fragen laufen auf dem Beamer mit Countdown; Schüler antworten über das bekannte 4-Farben-Gamepad (🔺 Rot, 🔷 Blau, 🟡 Gelb, 🟩 Grün). Ein automatischer Geschwindigkeitsbonus und ein animiertes 3-Stufen-Siegertreppchen sorgen für Begeisterung.
 * **Integrierter KI-Quiz-Generator:**
@@ -96,6 +135,9 @@ Um Ihnen den Zugang so sicher wie möglich und zugleich im Schulalltag so schnel
 ### HBS Oncoo (Kooperative Lernformen nach Klippert)
 *Die bewährten Methoden für schülerzentriertes, kooperatives Lernen digitalisiert.*
 
+![HBS Oncoo Werkzeuge](./docs/screenshots/06_oncoo_dashboard.png)
+*Abbildung 6: HBS Oncoo Werkzeuge (Kartenabfrage, Zielscheibe, Lerntempoduett, Helfersystem, Placemat)*
+
 1. **Kartenabfrage (Digitale Pinnwand):**
    Schüler senden farbige Moderationskärtchen (Gelb, Grün, Blau, Rosa, Orange) anonym oder mit Namenskürzel an die Tafel. Lehrkräfte können Spalten anlegen, Karten clustern, die Abfrage sperren und das Gesamtergebnis als **DIN-A4-Druckbogen**, als **Markdown-Dokument** oder direkt auf die **Digitale Tafel** exportieren.
 2. **Zielscheibe:**
@@ -106,25 +148,6 @@ Um Ihnen den Zugang so sicher wie möglich und zugleich im Schulalltag so schnel
    Schüler tragen ein, wo sie Hilfe benötigen oder in welchen Aufgabenbereichen sie anderen als Experte zur Seite stehen können.
 5. **Placemat (Vier-Ecken-Methode):**
    Vier Schüler arbeiten synchron an den vier Außenecken eines Tisches; im gemeinsamen Mittelfeld wird die Gruppensynthese festgehalten.
-
----
-
-### Digitale Tafel (Classroom-Screen-Erweiterung)
-*Die interaktive digitale Schultafel für den täglichen Unterrichtseinsatz am Smartboard.*
-
-* **26 einsatzbereite Unterrichts-Widgets:**
-  * **Zeit & Organisation:** Analoge/Digitale Unterrichtsuhr, Countdown-Timer, Visueller Kuchen-Timer, Stoppuhr, Kalender, Schulstundenplan, Event-Countdown.
-  * **Strukturierung & Signale:** Lärmampel (mit Live-Mikrofon-Ausschlag), Verhaltensampel (Rot/Gelb/Grün), Arbeitsphasen-Symbole (Einzelarbeit, Partnerarbeit, Gruppenarbeit, Flüsterphase).
-  * **Zufall & Aktivierung:** Zufallsauswahl für Schülernamen, Gruppen-Generator, 3D-Würfel, interaktive Quick-Umfrage (*Poll*), Punktezähler (*Scoreboard*), Motivations-Sticker.
-  * **Medien & Dokumente:** Tafeltext-Editor, Freihand-Zeichenfenster, Bildanzeige, Video- & YouTube-Player, PDF-Viewer, Web-Einbettung (*iFrame*) und Weblink-Voransicht.
-  * **Kamera & Visualizer:** Nutzen Sie die Webcam oder den USB-Dokumentenkamerastream direkt in einem beweglichen Fenster auf der Tafel.
-  * **Tafel-Vorhang & Spotlight:** Schieben Sie schrittweise eine realistische Rollo-Abdeckung über Aufgaben und Lösungen oder lenken Sie mit einem runden Suchscheinwerfer (*Spotlight*) die Aufmerksamkeit auf einzelne Wörter.
-* **Handballenschutz (Palm Rejection):**
-  Im Zeichen-Widget ignoriert der Stift-Modus aufliegende Handballen auf iPads und Smartboards – nur der Apple Pencil oder Touchpen zeichnet.
-* **Globale Undo/Redo-Historie:**
-  Versehentlich verschobene, veränderte oder gelöschte Tafelwidgets können Sie mit `Strg + Z` (Mac: `Cmd + Z`) oder per Klick auf die Pfeile in der oberen Leiste wiederherstellen.
-* **Tafelbild-Export:**
-  Speichern Sie das Tafelbild als hochauflösendes PNG/JPEG, drucken Sie ein strukturiertes DIN-A4-Stundenprotokoll oder teilen Sie das Tafelbild per Live-QR-Code drahtlos auf die Geräte Ihrer Schüler.
 
 ---
 
@@ -159,6 +182,10 @@ Erfasst ehrenamtliche Hilfsangebote, Berufsfelder und Talente der Elternschaft z
 
 ### QR-Code Tischaufsteller-Generator (DIN A4 Faltprisma)
 Über den Button **„Aufsteller“** in der Kopfzeile oder im Schnellstart-Drawer können Sie mit zwei Klicks druckfertige Dreiecks-Tischprismen erstellen:
+
+![QR-Code Tischaufsteller Generator Modal](./docs/screenshots/07_tischaufsteller_generator.png)
+*Abbildung 7: Generator für beidseitig lesbare DIN-A4 Dreiecks-Tischaufsteller mit HBS-Siegel*
+
 * **Vorder- und Rückseite:** Zeigt das offizielle HBS-Siegel, die Tischnummer (z. B. *Tisch 1* bis *Tisch 8*), den QR-Code und eine 3-Schritt-Kurzanleitung. Die Rückseite ist um $180^\circ$ gedreht, sodass Schüler auf beiden Tischseiten den Code aufrecht scannen können.
 * **Bodenklappe:** Enthält präzise Falzlinien zum schnellen Zusammenkleben oder Zusammenstecken.
 * **Ziele:** Generierbar für das gesamte Portal, Menti-Live, Kahoot-Live, Oncoo-Sitzungen, die Digitale Tafel oder beliebige eigene URLs.
@@ -168,7 +195,7 @@ Erfasst ehrenamtliche Hilfsangebote, Berufsfelder und Talente der Elternschaft z
 * **Drag & Drop Sortierung:** Über den Button *„Kacheln anordnen“* schieben Sie Ihre Lieblings-Apps an die gewünschte Position.
 * **Schnellstart-Drawer (Seitenleiste):** Ein Klick auf das Menü-Symbol öffnet von rechts eine Werkzeugleiste, mit der Sie aus jeder Anwendung heraus die Tafel starten, Weblinks aufrufen oder PIN-Listen einsehen können.
 
-### Admin-Panel für Schulleitung & Admins
+### Admin-Panel für Schulleitung & IT-Beauftragte
 Im geschützten Admin-Bereich können Sie:
 * Neue Kolleginnen und Kollegen anlegen oder Zugangs-PINs zurücksetzen.
 * Eine druckreife, übersichtliche PIN-Liste für das Lehrerzimmer im PDF-Format generieren.
