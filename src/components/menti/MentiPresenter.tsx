@@ -80,9 +80,16 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
     }
   }, [currentSlideIndex, activeSlide]);
 
+  // Clean up tension audio loop on unmount
+  useEffect(() => {
+    return () => {
+      classroomAudio.stopTensionLoop();
+    };
+  }, []);
+
   // Quiz countdown & audio tension beat
   useEffect(() => {
-    if (!isTimerRunning || timeLeft <= 0) {
+    if (!isTimerRunning) {
       classroomAudio.stopTensionLoop();
       return;
     }
@@ -111,7 +118,7 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
       clearInterval(timer);
       classroomAudio.stopTensionLoop();
     };
-  }, [isTimerRunning, timeLeft, activeSlide.type]);
+  }, [isTimerRunning, activeSlide.type]);
 
   // Leaderboard fanfare
   useEffect(() => {

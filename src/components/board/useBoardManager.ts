@@ -31,15 +31,42 @@ const DEFAULT_SCREEN: BoardScreen = {
   ]
 };
 
+// Defensive sanitizer ensuring no corrupted localStorage state can crash board widgets
+const sanitizeScreens = (parsed: any): BoardScreen[] => {
+  if (!Array.isArray(parsed) || parsed.length === 0) return [DEFAULT_SCREEN];
+  const validScreens: BoardScreen[] = parsed
+    .filter((s: any) => s && typeof s === 'object')
+    .map((s: any, idx: number) => ({
+      id: String(s.id || `screen-${idx + 1}`),
+      title: String(s.title || `Tafel ${idx + 1}`),
+      backgroundId: (s.backgroundId || 'chalkboard') as BoardBackgroundId,
+      widgets: Array.isArray(s.widgets)
+        ? (s.widgets as any[])
+            .filter((w) => w && typeof w === 'object' && typeof w.type === 'string')
+            .map((w, widx) => ({
+              id: String(w.id || `w-${w.type}-${widx}`),
+              type: w.type as BoardWidgetType,
+              title: String(w.title || 'Widget'),
+              x: typeof w.x === 'number' && !isNaN(w.x) ? Math.max(0, w.x) : 40,
+              y: typeof w.y === 'number' && !isNaN(w.y) ? Math.max(0, w.y) : 60,
+              width: typeof w.width === 'number' && !isNaN(w.width) && w.width >= 100 ? w.width : 320,
+              height: typeof w.height === 'number' && !isNaN(w.height) && w.height >= 80 ? w.height : 260,
+              zIndex: typeof w.zIndex === 'number' && !isNaN(w.zIndex) ? w.zIndex : 10,
+              isMinimized: Boolean(w.isMinimized),
+              data: w.data && typeof w.data === 'object' ? w.data : {}
+            }))
+        : []
+    }));
+  return validScreens.length > 0 ? validScreens : [DEFAULT_SCREEN];
+};
+
 export const useBoardManager = () => {
   const [screens, setScreens] = useState<BoardScreen[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
+        return sanitizeScreens(parsed);
       }
     } catch (e) {
       console.warn('Fehler beim Laden des Board-Status:', e);
@@ -52,6 +79,13 @@ export const useBoardManager = () => {
   // Undo / Redo History Stacks
   const [pastScreens, setPastScreens] = useState<BoardScreen[][]>([]);
   const [futureScreens, setFutureScreens] = useState<BoardScreen[][]>([]);
+
+  // Automatically keep activeScreenIndex valid if screens count changes
+  useEffect(() => {
+    if (activeScreenIndex >= screens.length) {
+      setActiveScreenIndex(Math.max(0, screens.length - 1));
+    }
+  }, [screens.length, activeScreenIndex]);
 
   // Record an undoable snapshot before a mutation
   const recordSnapshot = useCallback(() => {
@@ -67,9 +101,12 @@ export const useBoardManager = () => {
       const previousState = newPast.pop()!;
       setFutureScreens((prevFuture) => [JSON.parse(JSON.stringify(screens)), ...prevFuture]);
       setScreens(previousState);
+      if (previousState.length <= activeScreenIndex) {
+        setActiveScreenIndex(Math.max(0, previousState.length - 1));
+      }
       return newPast;
     });
-  }, [screens]);
+  }, [screens, activeScreenIndex]);
 
   // Redo action
   const redo = useCallback(() => {
@@ -79,19 +116,33 @@ export const useBoardManager = () => {
       const nextState = newFuture.shift()!;
       setPastScreens((prevPast) => [...prevPast.slice(-29), JSON.parse(JSON.stringify(screens))]);
       setScreens(nextState);
+      if (nextState.length <= activeScreenIndex) {
+        setActiveScreenIndex(Math.max(0, nextState.length - 1));
+      }
       return newFuture;
     });
-  }, [screens]);
+  }, [screens, activeScreenIndex]);
 
   const canUndo = pastScreens.length > 0;
   const canRedo = futureScreens.length > 0;
 
-  // Autosave to localStorage on changes
+  // Autosave to localStorage on changes with QuotaExceeded fallback
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(screens));
-    } catch (e) {
-      console.warn('Fehler beim Speichern des Board-Status:', e);
+    } catch (e: any) {
+      if (e?.name === 'QuotaExceededError' || e?.code === 22) {
+        console.warn('LocalStorage Quota überschritten, bereinige temporäre Pfade...');
+        try {
+          const compact = screens.map(s => ({
+            ...s,
+            widgets: s.widgets.map(w => w.type === 'draw' ? { ...w, data: { paths: [] } } : w)
+          }));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(compact));
+        } catch {}
+      } else {
+        console.warn('Fehler beim Speichern des Board-Status:', e);
+      }
     }
   }, [screens]);
 

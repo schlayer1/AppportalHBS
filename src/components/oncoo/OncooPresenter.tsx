@@ -137,12 +137,23 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
     setSession((prev) => {
       // 1. Kartenabfrage: new card
       if (prev.toolType === 'kartenabfrage' && payload.card) {
+        const text = String(payload.card.text || '').trim();
+        if (!text) return prev;
         const existing = prev.kartenabfrage?.cards || [];
+        if (payload.card.id && existing.some(c => c.id === payload.card.id)) return prev;
+        const safeCard: OncooCard = {
+          id: payload.card.id || `card-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          text,
+          color: payload.card.color || 'yellow',
+          columnId: payload.card.columnId,
+          createdAt: payload.card.createdAt || Date.now(),
+          authorAlias: payload.card.authorAlias ? String(payload.card.authorAlias).trim() : undefined
+        };
         return {
           ...prev,
           kartenabfrage: {
             ...prev.kartenabfrage!,
-            cards: [payload.card, ...existing]
+            cards: [safeCard, ...existing]
           }
         };
       }
@@ -150,6 +161,7 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
       // 2. Zielscheibe: new vote
       if (prev.toolType === 'zielscheibe' && payload.vote) {
         const existingVotes = prev.zielscheibe?.votes || [];
+        if (payload.vote.id && existingVotes.some(v => v.id === payload.vote.id)) return prev;
         return {
           ...prev,
           zielscheibe: {
@@ -161,7 +173,8 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
 
       // 3. Lerntempoduett: finished student
       if (prev.toolType === 'lerntempoduett' && payload.studentName) {
-        const sName = payload.studentName.trim();
+        const sName = String(payload.studentName).trim();
+        if (!sName) return prev;
         const currentQueue = prev.lerntempoduett?.waitingQueue || [];
         const currentPairs = prev.lerntempoduett?.pairs || [];
 
@@ -213,6 +226,7 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
       // 4. Helfersystem: item
       if (prev.toolType === 'helfersystem' && payload.helpItem) {
         const existing = prev.helfersystem?.items || [];
+        if (payload.helpItem.id && existing.some(i => i.id === payload.helpItem.id)) return prev;
         return {
           ...prev,
           helfersystem: {
@@ -225,18 +239,28 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
       // 5. Placemat: note update
       if (prev.toolType === 'placemat' && payload.placematUpdate) {
         const { groupIndex, cornerKey, note } = payload.placematUpdate;
-        const groups = [...(prev.placemat?.groups || [])];
-        if (groups[groupIndex]) {
-          const targetCorner = groups[groupIndex][cornerKey as 'cornerA' | 'cornerB' | 'cornerC' | 'cornerD'];
-          targetCorner.notes = [...targetCorner.notes, note];
+        if (!note || !cornerKey) return prev;
+        const groups = (prev.placemat?.groups || []).map((grp, gIdx) => {
+          if (gIdx !== groupIndex) return grp;
+          const key = cornerKey as 'cornerA' | 'cornerB' | 'cornerC' | 'cornerD';
+          const corner = grp[key];
+          if (!corner) return grp;
           return {
-            ...prev,
-            placemat: {
-              ...prev.placemat!,
-              groups
+            ...grp,
+            [key]: {
+              ...corner,
+              notes: [...(corner.notes || []), note]
             }
           };
-        }
+        });
+
+        return {
+          ...prev,
+          placemat: {
+            ...prev.placemat!,
+            groups
+          }
+        };
       }
 
       return prev;

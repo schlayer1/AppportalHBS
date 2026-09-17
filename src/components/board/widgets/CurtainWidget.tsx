@@ -120,7 +120,7 @@ export const CurtainWidget: React.FC<CurtainWidgetProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-35 select-none pointer-events-none font-sans">
+    <div className="fixed inset-0 z-[60] select-none pointer-events-none font-sans">
       
       {/* MODE 1: FULL-BOARD ROLLER BLIND (TAFEL-ROLLE / VORHANG) */}
       {mode === 'curtain' && (

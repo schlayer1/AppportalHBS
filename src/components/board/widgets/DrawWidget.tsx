@@ -101,6 +101,11 @@ export const DrawWidget: React.FC<DrawWidgetProps> = ({ data, onUpdateData }) =>
       return;
     }
 
+    e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -119,6 +124,7 @@ export const DrawWidget: React.FC<DrawWidgetProps> = ({ data, onUpdateData }) =>
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (penOnly && e.pointerType === 'touch') return;
     if (!isDrawingRef.current || !currentPathRef.current) return;
+    e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -149,6 +155,11 @@ export const DrawWidget: React.FC<DrawWidgetProps> = ({ data, onUpdateData }) =>
 
   const handlePointerUp = (e?: React.PointerEvent<HTMLCanvasElement>) => {
     if (penOnly && e && e.pointerType === 'touch') return;
+    if (e) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {}
+    }
     if (isDrawingRef.current && currentPathRef.current) {
       isDrawingRef.current = false;
       setPaths((prev) => [...prev, currentPathRef.current!]);

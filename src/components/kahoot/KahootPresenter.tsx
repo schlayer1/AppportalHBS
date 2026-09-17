@@ -239,9 +239,16 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
     return () => clearInterval(interval);
   }, [stage, currentQ]);
 
+  // Cleanup audio loop on unmount
+  useEffect(() => {
+    return () => {
+      classroomAudio.stopTensionLoop();
+    };
+  }, []);
+
   // Question Timer Countdown & Tension Loop
   useEffect(() => {
-    if (stage !== 'question' || !isAnswerOpen || timeLeft <= 0) {
+    if (stage !== 'question' || !isAnswerOpen) {
       classroomAudio.stopTensionLoop();
       return;
     }
@@ -266,7 +273,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
       clearInterval(timer);
       classroomAudio.stopTensionLoop();
     };
-  }, [stage, isAnswerOpen, timeLeft]);
+  }, [stage, isAnswerOpen]);
 
   // Check if all students answered
   useEffect(() => {
@@ -284,32 +291,34 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
     audio.playReveal();
     // Calculate points and streaks for participants
     const correctOpt = currentQ.options.find(o => o.isCorrect);
-    const updatedParticipants = participants.map(p => {
-      if (!p.lastAnswerId) return p;
-      const isCorrect = p.lastAnswerId === correctOpt?.id;
-      let earned = 0;
-      let streak = isCorrect ? (p.streak || 0) + 1 : 0;
+    setParticipants(prevParticipants => {
+      const updatedParticipants = prevParticipants.map(p => {
+        if (!p.lastAnswerId) return p;
+        const isCorrect = p.lastAnswerId === correctOpt?.id;
+        let earned = 0;
+        let streak = isCorrect ? (p.streak || 0) + 1 : 0;
 
-      if (isCorrect) {
-        // Speed bonus: (timeLeft / totalTime) * 500 + 500
-        const totalSec = currentQ.timeLimitSeconds || 20;
-        const speedBonus = Math.round((Math.max(1, timeLeft) / totalSec) * (currentQ.points / 2));
-        const basePoints = Math.round(currentQ.points / 2);
-        earned = basePoints + speedBonus;
-      }
+        if (isCorrect) {
+          // Speed bonus: (timeLeft / totalTime) * 500 + 500
+          const totalSec = currentQ.timeLimitSeconds || 20;
+          const speedBonus = Math.round((Math.max(1, timeLeft) / totalSec) * (currentQ.points / 2));
+          const basePoints = Math.round(currentQ.points / 2);
+          earned = basePoints + speedBonus;
+        }
 
-      return {
-        ...p,
-        score: (p.score || 0) + earned,
-        streak,
-        lastAnswerCorrect: isCorrect,
-        lastPointsEarned: earned
-      };
+        return {
+          ...p,
+          score: (p.score || 0) + earned,
+          streak,
+          lastAnswerCorrect: isCorrect,
+          lastPointsEarned: earned
+        };
+      });
+
+      // Sort participants by score descending
+      updatedParticipants.sort((a, b) => b.score - a.score);
+      return updatedParticipants;
     });
-
-    // Sort participants by score descending
-    updatedParticipants.sort((a, b) => b.score - a.score);
-    setParticipants(updatedParticipants);
     setStage('reveal');
   };
 

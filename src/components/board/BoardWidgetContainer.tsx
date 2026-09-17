@@ -86,7 +86,7 @@ export const BoardWidgetContainer: React.FC<BoardWidgetContainerProps> = ({
       widgetY: widget.y
     };
     setIsDragging(true);
-  }, [onFocus, widget.x, widget.y]);
+  }, [onFocus, onInteractionStart, widget.x, widget.y]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current) return;

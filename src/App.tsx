@@ -317,14 +317,16 @@ export default function App() {
 
   if (isPollVoter) {
     return (
-      <StudentPollVoter 
-        onClose={() => {
-          const url = new URL(window.location.href);
-          url.searchParams.delete('poll');
-          window.history.replaceState({}, '', url.pathname);
-          window.location.reload();
-        }} 
-      />
+      <Suspense fallback={<LoadingSpinner message="Abstimmung wird geladen..." />}>
+        <StudentPollVoter 
+          onClose={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('poll');
+            window.history.replaceState({}, '', url.pathname);
+            window.location.reload();
+          }} 
+        />
+      </Suspense>
     );
   }
 
