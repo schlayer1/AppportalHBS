@@ -12,11 +12,24 @@ import {
   ShieldAlert, 
   LayoutTemplate, 
   Search, 
-  Edit2
+  Edit2,
+  ThumbsUp,
+  MessageSquarePlus,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { PortalUser } from '../../types/user';
-import { DEFAULT_FIREBASE_CONFIG, DEFAULT_SCHOOL_ID } from '../../services/firebase';
+import { 
+  DEFAULT_FIREBASE_CONFIG, 
+  DEFAULT_SCHOOL_ID,
+  subscribeToFeatureRequests,
+  updateFeatureRequestStatus,
+  deleteFeatureRequest
+} from '../../services/firebase';
+import { 
+  FeatureRequest, 
+  RequestStatus 
+} from '../../types/requestTypes';
 
 interface AdminPanelModalProps {
   isOpen: boolean;
@@ -32,7 +45,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
     deleteBoardTemplate 
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'templates' | 'sync'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'templates' | 'requests' | 'sync'>('users');
   const [searchUser, setSearchUser] = useState<string>('');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncResult, setSyncResult] = useState<{ added: number; updated: number; total: number } | null>(null);
@@ -59,6 +72,20 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
   const [editName, setEditName] = useState<string>('');
   const [editPin, setEditPin] = useState<string>('');
   const [editRole, setEditRole] = useState<'teacher' | 'admin'>('teacher');
+  // Feature Requests State
+  const [requests, setRequests] = useState<FeatureRequest[]>([]);
+  const [requestSearch, setRequestSearch] = useState<string>('');
+  const [requestStatusFilter, setRequestStatusFilter] = useState<'all' | RequestStatus>('all');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [adminCommentText, setAdminCommentText] = useState<string>('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsub = subscribeToFeatureRequests((items) => {
+      setRequests(items);
+    });
+    return () => unsub();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -262,6 +289,23 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
           >
             <LayoutTemplate className="w-4 h-4" />
             <span>Schul-Tafelvorlagen ({schoolTemplates.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'requests'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-hbs-slate-muted hover:text-hbs-slate-dark'
+            }`}
+          >
+            <MessageSquarePlus className="w-4 h-4" />
+            <span>Kollegiums-Wünsche ({requests.length})</span>
+            {requests.filter(r => r.status === 'eingereicht' || r.status === 'in_pruefung').length > 0 && (
+              <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-700">
+                {requests.filter(r => r.status === 'eingereicht' || r.status === 'in_pruefung').length} neu
+              </span>
+            )}
           </button>
 
           <button
@@ -539,7 +583,345 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
             </div>
           )}
 
-          {/* TAB 3: VERTRETUNGSSTATISTIK SYNC & CLOUD */}
+          {/* TAB 3: KOLLEGIUMS-WÜNSCHE & REQUEST MANAGEMENT */}
+          {activeTab === 'requests' && (
+            <div className="space-y-4">
+              {/* Stats Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] font-black uppercase text-slate-400 block">Offen / Neu</span>
+                  <span className="text-xl font-black text-slate-800">
+                    {requests.filter(r => r.status === 'eingereicht').length}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] font-black uppercase text-amber-600 block">In Prüfung</span>
+                  <span className="text-xl font-black text-amber-800">
+                    {requests.filter(r => r.status === 'in_pruefung').length}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] font-black uppercase text-cyan-600 block">In Planung</span>
+                  <span className="text-xl font-black text-cyan-800">
+                    {requests.filter(r => r.status === 'in_planung').length}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-white rounded-2xl border border-emerald-200 bg-emerald-50/40 shadow-2xs">
+                  <span className="text-[10px] font-black uppercase text-emerald-700 block">Eingebaut & Fertig ✓</span>
+                  <span className="text-xl font-black text-emerald-800">
+                    {requests.filter(r => r.status === 'umgesetzt').length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Toolbar: Search & Status Filters */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                <div className="relative flex-1">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={requestSearch}
+                    onChange={(e) => setRequestSearch(e.target.value)}
+                    placeholder="Wünsche nach Titel, Text oder Kollege suchen..."
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                  />
+                  {requestSearch && (
+                    <button 
+                      onClick={() => setRequestSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 sm:pb-0">
+                  <button
+                    onClick={() => setRequestStatusFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
+                      requestStatusFilter === 'all'
+                        ? 'bg-slate-800 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    Alle ({requests.length})
+                  </button>
+                  <button
+                    onClick={() => setRequestStatusFilter('eingereicht')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
+                      requestStatusFilter === 'eingereicht'
+                        ? 'bg-slate-700 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    Offen
+                  </button>
+                  <button
+                    onClick={() => setRequestStatusFilter('in_pruefung')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
+                      requestStatusFilter === 'in_pruefung'
+                        ? 'bg-amber-600 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    In Prüfung
+                  </button>
+                  <button
+                    onClick={() => setRequestStatusFilter('in_planung')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
+                      requestStatusFilter === 'in_planung'
+                        ? 'bg-cyan-600 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    In Planung
+                  </button>
+                  <button
+                    onClick={() => setRequestStatusFilter('umgesetzt')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
+                      requestStatusFilter === 'umgesetzt'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    Eingebaut ✓
+                  </button>
+                </div>
+              </div>
+
+              {/* Request Cards List */}
+              {requests.length === 0 ? (
+                <div className="p-8 bg-white rounded-2xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">
+                  Noch keine Wünsche oder Anfragen aus dem Kollegium eingereicht.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {requests
+                    .filter((r) => {
+                      const matchesStatus = requestStatusFilter === 'all' || r.status === requestStatusFilter;
+                      const q = requestSearch.toLowerCase().trim();
+                      const matchesSearch = !q || 
+                        r.title.toLowerCase().includes(q) || 
+                        r.description.toLowerCase().includes(q) || 
+                        r.authorName.toLowerCase().includes(q);
+                      return matchesStatus && matchesSearch;
+                    })
+                    .map((req) => {
+                      const isEditingComment = editingCommentId === req.id;
+
+                      return (
+                        <div
+                          key={req.id}
+                          className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3 transition-all"
+                        >
+                          {/* Top Row: Meta Badges */}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {/* Category Badge */}
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                                {req.category === 'wunsch' ? 'Funktionswunsch' :
+                                 req.category === 'app_idee' ? 'App-Idee' :
+                                 req.category === 'unterricht' ? 'Unterricht & Didaktik' : 'Problem / Fehler'}
+                              </span>
+
+                              {/* Status Badge */}
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                                req.status === 'umgesetzt' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                                req.status === 'in_planung' ? 'bg-cyan-100 text-cyan-800 border-cyan-300' :
+                                req.status === 'in_pruefung' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                                req.status === 'geschlossen' ? 'bg-slate-100 text-slate-500 border-slate-200' :
+                                'bg-slate-100 text-slate-700 border-slate-200'
+                              }`}>
+                                {req.status === 'umgesetzt' ? 'Eingebaut & Bereitgestellt ✓' :
+                                 req.status === 'in_planung' ? 'In Planung' :
+                                 req.status === 'in_pruefung' ? 'In Prüfung' :
+                                 req.status === 'geschlossen' ? 'Geschlossen / Abgelehnt' : 'Neu eingereicht'}
+                              </span>
+
+                              <span className="text-xs text-slate-400 font-medium">
+                                von <strong>{req.authorName}</strong> • {new Date(req.createdAt).toLocaleDateString('de-DE')}
+                              </span>
+                            </div>
+
+                            {/* Votes Counter */}
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 border border-purple-200 text-purple-800 text-xs font-black shrink-0">
+                              <ThumbsUp className="w-3.5 h-3.5" />
+                              <span>{req.votes?.length || 0} {req.votes?.length === 1 ? 'Stimme' : 'Stimmen'}</span>
+                            </div>
+                          </div>
+
+                          {/* Content */}
+                          <div>
+                            <h4 className="text-sm sm:text-base font-black text-slate-800">
+                              {req.title}
+                            </h4>
+                            <p className="text-xs text-slate-600 mt-1 whitespace-pre-line leading-relaxed">
+                              {req.description}
+                            </p>
+                          </div>
+
+                          {/* Admin Feedback Display */}
+                          {req.adminComment && !isEditingComment && (
+                            <div className="p-2.5 rounded-xl bg-blue-50/80 border border-blue-200 text-xs text-blue-900 flex items-start justify-between gap-2">
+                              <div className="flex items-start gap-2">
+                                <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-bold">Admin-Rückmeldung an das Kollegium: </span>
+                                  <span>{req.adminComment}</span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setEditingCommentId(req.id);
+                                  setAdminCommentText(req.adminComment || '');
+                                }}
+                                className="text-[11px] font-bold text-blue-700 hover:underline shrink-0"
+                              >
+                                Bearbeiten
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Admin Feedback Input Editor */}
+                          {isEditingComment && (
+                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                              <label className="text-[11px] font-bold text-slate-700 block">
+                                Offizielle Rückmeldung / Begründung für das Kollegium hinterlegen:
+                              </label>
+                              <textarea
+                                value={adminCommentText}
+                                onChange={(e) => setAdminCommentText(e.target.value)}
+                                placeholder="z. B. In Version 2.3.0 eingebaut und freigeschaltet!"
+                                className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-blue-500/30 bg-white"
+                                rows={2}
+                              />
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingCommentId(null);
+                                    setAdminCommentText('');
+                                  }}
+                                  className="px-3 py-1 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-200"
+                                >
+                                  Abbrechen
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    await updateFeatureRequestStatus(req.id, req.status, adminCommentText.trim());
+                                    setEditingCommentId(null);
+                                    setAdminCommentText('');
+                                  }}
+                                  className="px-3.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs"
+                                >
+                                  Rückmeldung speichern
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Admin Action Buttons Row */}
+                          <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-black uppercase text-slate-400">
+                                Status ändern:
+                              </span>
+
+                              <button
+                                onClick={() => updateFeatureRequestStatus(req.id, 'eingereicht', req.adminComment)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
+                                  req.status === 'eingereicht'
+                                    ? 'bg-slate-800 text-white border-slate-800'
+                                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
+                                }`}
+                              >
+                                Neu / Offen
+                              </button>
+
+                              <button
+                                onClick={() => updateFeatureRequestStatus(req.id, 'in_pruefung', req.adminComment)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
+                                  req.status === 'in_pruefung'
+                                    ? 'bg-amber-600 text-white border-amber-600'
+                                    : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border-amber-200'
+                                }`}
+                              >
+                                In Prüfung
+                              </button>
+
+                              <button
+                                onClick={() => updateFeatureRequestStatus(req.id, 'in_planung', req.adminComment)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
+                                  req.status === 'in_planung'
+                                    ? 'bg-cyan-600 text-white border-cyan-600'
+                                    : 'bg-cyan-50 text-cyan-800 hover:bg-cyan-100 border-cyan-200'
+                                }`}
+                              >
+                                In Planung
+                              </button>
+
+                              <button
+                                onClick={() => updateFeatureRequestStatus(req.id, 'umgesetzt', req.adminComment || 'In Version 2.3.0 eingebaut!')}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
+                                  req.status === 'umgesetzt'
+                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border-emerald-300'
+                                }`}
+                                title="Wunsch als eingebaut / hinzugefügt markieren"
+                              >
+                                Eingebaut & Bereitgestellt ✓
+                              </button>
+
+                              <button
+                                onClick={() => updateFeatureRequestStatus(req.id, 'geschlossen', req.adminComment)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
+                                  req.status === 'geschlossen'
+                                    ? 'bg-slate-600 text-white border-slate-600'
+                                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border-slate-200'
+                                }`}
+                              >
+                                Schließen
+                              </button>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {!req.adminComment && !isEditingComment && (
+                                <button
+                                  onClick={() => {
+                                    setEditingCommentId(req.id);
+                                    setAdminCommentText('');
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  <span>Rückmeldung verfassen</span>
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Möchten Sie den Eintrag „${req.title}“ wirklich löschen?`)) {
+                                    deleteFeatureRequest(req.id);
+                                  }
+                                }}
+                                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200"
+                                title="Eintrag löschen"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: VERTRETUNGSSTATISTIK SYNC & CLOUD */}
           {activeTab === 'sync' && (
             <div className="space-y-4 max-w-2xl">
               <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
