@@ -69,7 +69,7 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
     version: '2.2.1',
     title: 'Offizieller Schulname & Original-Screenshots im Handbuch',
-    date: '18. September 2026',
+    date: '17. September 2026',
     highlight: 'Korrektur des Schulnamens im Handbuch und Austausch der Abbildungen für HBS Menti, Kahoot und Oncoo.',
     items: [
       {
@@ -127,7 +127,7 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
     version: '2.1.0',
     title: 'Interaktive Kennenlern-Tour & QR-Tischaufsteller',
-    date: '16. September 2026',
+    date: '17. September 2026',
     highlight: '6-Schritte Onboarding-Tour für Kolleginnen und Kollegen, DIN-A4 Tischaufsteller-Generator und QuickTools.',
     items: [
       {
@@ -156,7 +156,7 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
     version: '2.0.1',
     title: 'Individuelle Startseite, App-Sortierung & Eigene Weblinks',
-    date: '10. September 2026',
+    date: '17. September 2026',
     highlight: 'Apps frei anordnen, eigene Links abspeichern und persönliche Favoriten-Sterne vergeben.',
     items: [
       {
@@ -185,7 +185,7 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
     version: '2.0.0',
     title: 'Offizieller Start des HBS App-Portals',
-    date: '1. September 2026',
+    date: '17. September 2026',
     highlight: 'Zentrale Schaltzentrale der Heimbürgeschule mit 26 Tafel-Werkzeugen, HBS Menti, Kahoot und Oncoo.',
     items: [
       {
