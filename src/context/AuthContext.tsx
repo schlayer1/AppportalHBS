@@ -4,6 +4,7 @@ import { BoardScreen } from '../components/board/types';
 import { 
   loadPortalDataFromCloud, 
   savePortalDataToCloud, 
+  subscribeToPortalData,
   syncTeachersFromVertretungsstatistik, 
   MASTER_ADMIN_PIN, 
   getCachedPortalData 
@@ -34,8 +35,9 @@ interface AuthContextType {
   saveUsersList: (newUsers: PortalUser[]) => Promise<void>;
   syncWithVertretungsstatistik: () => Promise<{ added: number; updated: number; total: number }>;
   
-  // Custom Apps & Reordering & Preferences
+  // Custom Apps & Reordering & Preferences & Favorites
   updateAppOrder: (newOrder: string[]) => Promise<void>;
+  updateFavorites: (favorites: string[]) => Promise<void>;
   addCustomApp: (app: Omit<CustomUserApp, 'id' | 'createdAt'>) => Promise<void>;
   removeCustomApp: (appId: string) => Promise<void>;
   updatePortalViewMode: (mode: PortalViewMode) => Promise<void>;
@@ -113,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeOncooSession, setActiveOncooSession] = useState<OncooSession | null>(() => getCachedPortalData().activeOncooSession || null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load latest data from Cloud on mount
+  // Load latest data from Cloud on mount and listen to real-time updates
   useEffect(() => {
     let isMounted = true;
     const init = async () => {
@@ -144,7 +146,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     init();
-    return () => { isMounted = false; };
+
+    // Real-time Firestore sync: updates from iMac immediately appear on iPhone and vice-versa
+    const unsubscribe = subscribeToPortalData((cloudData) => {
+      if (!isMounted) return;
+      setUsers(cloudData.users);
+      setAllPreferences(cloudData.preferences);
+      setBoardTemplates(cloudData.boardTemplates);
+      if (cloudData.mentiPresentations && cloudData.mentiPresentations.length > 0) {
+        setMentiPresentations(cloudData.mentiPresentations);
+      }
+      setActiveMentiSession(cloudData.activeMentiSession || null);
+      if (cloudData.kahootGames && cloudData.kahootGames.length > 0) {
+        setKahootGames(cloudData.kahootGames);
+      }
+      setActiveKahootSession(cloudData.activeKahootSession || null);
+      if (cloudData.oncooSessions && cloudData.oncooSessions.length > 0) {
+        setOncooSessions(cloudData.oncooSessions);
+      }
+      setActiveOncooSession(cloudData.activeOncooSession || null);
+      setIsLoading(false);
+    });
+
+    return () => { 
+      isMounted = false; 
+      unsubscribe();
+    };
   }, []);
 
   const isAuthenticated = !!currentUser || isGuest;
@@ -248,6 +275,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedPref: UserPreferences = {
       ...currentPref,
       appOrder: newOrder,
+      updatedAt: Date.now()
+    };
+
+    const newAllPrefs = { ...allPreferences, [currentUser.id]: updatedPref };
+    setAllPreferences(newAllPrefs);
+
+    const cloudData = await loadPortalDataFromCloud();
+    cloudData.preferences = newAllPrefs;
+    await savePortalDataToCloud(cloudData);
+  }, [currentUser, allPreferences]);
+
+  // Update favorites for current user
+  const updateFavorites = useCallback(async (newFavorites: string[]) => {
+    if (!currentUser) return;
+    const currentPref = allPreferences[currentUser.id] || {
+      userId: currentUser.id,
+      appOrder: [],
+      favorites: [],
+      customApps: [],
+      updatedAt: Date.now()
+    };
+    const updatedPref: UserPreferences = {
+      ...currentPref,
+      favorites: newFavorites,
       updatedAt: Date.now()
     };
 
@@ -680,6 +731,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         saveUsersList,
         syncWithVertretungsstatistik,
         updateAppOrder,
+        updateFavorites,
         addCustomApp,
         removeCustomApp,
         updatePortalViewMode,

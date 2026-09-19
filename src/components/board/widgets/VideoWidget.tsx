@@ -14,7 +14,10 @@ import {
   Play,
   Loader2,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  FileVideo,
+  Info,
+  Film
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -32,13 +35,16 @@ interface VideoResult {
   thumbnail: string;
 }
 
+export type VideoSourceType = 'youtube' | 'direct' | 'vimeo' | 'generic';
+
 export const VideoWidget: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'search' | 'url' | 'qr'>('search');
   const [searchQuery, setSearchQuery] = useState<string>('Physik Experimente Schule');
-  const [currentQuery, setCurrentQuery] = useState<string>('Physik Experimente Schule');
   
-  // Active Video State
+  // Video Playback Source & Mode
+  const [videoType, setVideoType] = useState<VideoSourceType>('youtube');
   const [activeVideoId, setActiveVideoId] = useState<string>('wHfhvltat9o');
+  const [directVideoUrl, setDirectVideoUrl] = useState<string>('');
   const [activeVideoTitle, setActiveVideoTitle] = useState<string>(
     '5 Experimente zum Selbermachen - Physik für die Schule'
   );
@@ -56,12 +62,30 @@ export const VideoWidget: React.FC = () => {
   const [showSearchDrawer, setShowSearchDrawer] = useState<boolean>(false);
   const [iframeKey, setIframeKey] = useState<number>(Date.now());
   const [copied, setCopied] = useState<boolean>(false);
+  const [showIframeNotice, setShowIframeNotice] = useState<boolean>(false);
 
   // Parse YouTube video ID from various URL formats
   const parseYouTubeId = (url: string): string | null => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
     const match = url.match(regExp);
     return match && match[2].length === 11 ? match[2] : null;
+  };
+
+  // Parse Vimeo ID
+  const parseVimeoId = (url: string): string | null => {
+    const regExp = /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/[^\/]*\/videos\/|album\/(?:\d+)\/video\/|video\/|)(\d+))/;
+    const match = url.match(regExp);
+    return match ? match[1] : null;
+  };
+
+  // Detect direct video file extension
+  const isDirectVideoFile = (url: string): boolean => {
+    const cleanUrl = url.split('?')[0].toLowerCase();
+    return cleanUrl.endsWith('.mp4') || 
+           cleanUrl.endsWith('.webm') || 
+           cleanUrl.endsWith('.ogg') || 
+           cleanUrl.endsWith('.mov') || 
+           cleanUrl.endsWith('.m4v');
   };
 
   // Perform search (via API or Presets)
@@ -72,19 +96,24 @@ export const VideoWidget: React.FC = () => {
     // Check if input is actually a URL
     const ytIdFromUrl = parseYouTubeId(trimmed);
     if (ytIdFromUrl) {
-      playVideo(ytIdFromUrl, 'YouTube Video', 'Eingefügter Link');
+      playYouTubeVideo(ytIdFromUrl, 'YouTube Video', 'Eingefügter Link');
       setShowSearchDrawer(false);
       return;
     }
 
-    setCurrentQuery(trimmed);
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      handleLoadGenericUrl(trimmed);
+      setShowSearchDrawer(false);
+      return;
+    }
+
     setIsSearching(true);
     setSearchError(null);
 
     // 1. Instant Preset Fallback: If query matches a preset, load it immediately
     const preset = findPresetForQuery(trimmed);
     if (preset && autoPlayFirst) {
-      playVideo(preset.defaultVideoId, preset.defaultTitle, preset.channel);
+      playYouTubeVideo(preset.defaultVideoId, preset.defaultTitle, preset.channel);
     }
 
     // 2. Fetch live search results via API
@@ -97,7 +126,7 @@ export const VideoWidget: React.FC = () => {
 
         if (list.length > 0) {
           if (autoPlayFirst && (!preset || preset.defaultVideoId === list[0].id)) {
-            playVideo(list[0].id, list[0].title, list[0].channel);
+            playYouTubeVideo(list[0].id, list[0].title, list[0].channel);
           }
         } else if (!preset) {
           setSearchError('Keine Videos gefunden. Versuchen Sie einen anderen Suchbegriff.');
@@ -125,10 +154,64 @@ export const VideoWidget: React.FC = () => {
   // Handle Clicking a Preset Topic
   const handlePresetClick = (topic: PresetTopic) => {
     setSearchQuery(topic.query);
-    playVideo(topic.defaultVideoId, topic.defaultTitle, topic.channel);
-    // Also perform search in background to fetch related videos
+    playYouTubeVideo(topic.defaultVideoId, topic.defaultTitle, topic.channel);
     performSearch(topic.query, false);
     setShowSearchDrawer(false);
+  };
+
+  // Play a YouTube video
+  const playYouTubeVideo = (id: string, title: string, channel: string) => {
+    setVideoType('youtube');
+    setActiveVideoId(id);
+    setDirectVideoUrl('');
+    setActiveVideoTitle(title);
+    setActiveChannel(channel);
+    setShowIframeNotice(false);
+    setIframeKey(Date.now());
+  };
+
+  // Load any generic URL / MP4 / Vimeo
+  const handleLoadGenericUrl = (url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+
+    const ytId = parseYouTubeId(trimmed);
+    if (ytId) {
+      playYouTubeVideo(ytId, 'YouTube Video', 'Eingefügter Link');
+      return;
+    }
+
+    const vimeoId = parseVimeoId(trimmed);
+    if (vimeoId) {
+      setVideoType('vimeo');
+      setActiveVideoId(vimeoId);
+      setDirectVideoUrl(trimmed);
+      setActiveVideoTitle(`Vimeo Video #${vimeoId}`);
+      setActiveChannel('Vimeo');
+      setShowIframeNotice(false);
+      setIframeKey(Date.now());
+      return;
+    }
+
+    if (isDirectVideoFile(trimmed)) {
+      setVideoType('direct');
+      setDirectVideoUrl(trimmed);
+      setActiveVideoId('');
+      setActiveVideoTitle(trimmed.split('/').pop() || 'Videodatei');
+      setActiveChannel('Direktvideo (MP4/WebM)');
+      setShowIframeNotice(false);
+      setIframeKey(Date.now());
+      return;
+    }
+
+    // Generic Web Video / Embed
+    setVideoType('generic');
+    setDirectVideoUrl(trimmed);
+    setActiveVideoId('');
+    setActiveVideoTitle('Webseite / Web-Video');
+    setActiveChannel(trimmed);
+    setShowIframeNotice(true);
+    setIframeKey(Date.now());
   };
 
   // Handle Direct URL Submission
@@ -137,33 +220,32 @@ export const VideoWidget: React.FC = () => {
     const url = videoUrlInput.trim();
     if (!url) return;
 
-    const ytId = parseYouTubeId(url);
-    if (ytId) {
-      playVideo(ytId, 'YouTube Video', 'Eingefügter Link');
-      setShowSearchDrawer(false);
-      setVideoUrlInput('');
-    } else {
-      setSearchError('Ungültige YouTube-URL. Bitte einen gültigen YouTube-Link eingeben.');
-    }
+    handleLoadGenericUrl(url);
+    setShowSearchDrawer(false);
+    setVideoUrlInput('');
   };
 
-  // Play a specific video ID
-  const playVideo = (id: string, title: string, channel: string) => {
-    setActiveVideoId(id);
-    setActiveVideoTitle(title);
-    setActiveChannel(channel);
-    setIframeKey(Date.now());
+  // Get current active share URL
+  const currentShareUrl = () => {
+    if (videoType === 'youtube') {
+      return `https://www.youtube.com/watch?v=${activeVideoId}`;
+    }
+    if (videoType === 'vimeo') {
+      return `https://vimeo.com/${activeVideoId}`;
+    }
+    return directVideoUrl;
   };
 
   const handleCopyCurrentLink = () => {
-    const url = `https://www.youtube.com/watch?v=${activeVideoId}`;
+    const url = currentShareUrl();
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleOpenOnYouTube = () => {
-    window.open(`https://www.youtube.com/watch?v=${activeVideoId}`, '_blank', 'noopener,noreferrer');
+  const handleOpenExternal = () => {
+    const url = currentShareUrl();
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleReload = () => {
@@ -190,15 +272,22 @@ export const VideoWidget: React.FC = () => {
       {/* Top Header Controls Bar */}
       <div className="flex items-center justify-between gap-1.5 pb-2 mb-1.5 border-b border-white/40 shrink-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          <div className="w-6 h-6 rounded-lg bg-red-600 flex items-center justify-center text-white shrink-0 shadow-2xs">
-            <Youtube className="w-3.5 h-3.5" />
+          <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0 shadow-2xs ${
+            videoType === 'youtube' ? 'bg-red-600' :
+            videoType === 'vimeo' ? 'bg-sky-500' :
+            videoType === 'direct' ? 'bg-emerald-600' : 'bg-blue-600'
+          }`}>
+            {videoType === 'youtube' && <Youtube className="w-3.5 h-3.5" />}
+            {videoType === 'vimeo' && <Film className="w-3.5 h-3.5" />}
+            {videoType === 'direct' && <FileVideo className="w-3.5 h-3.5" />}
+            {videoType === 'generic' && <Globe className="w-3.5 h-3.5" />}
           </div>
           <div className="min-w-0">
             <span className="text-xs font-black text-hbs-slate-dark truncate block leading-tight">
               {activeVideoTitle || 'Unterrichts-Video'}
             </span>
             <span className="text-[10px] text-hbs-slate-muted truncate block">
-              {activeChannel ? `${activeChannel}` : `Suche: "${currentQuery}"`}
+              {activeChannel ? `${activeChannel}` : `Quelle: ${videoType.toUpperCase()}`}
             </span>
           </div>
         </div>
@@ -212,14 +301,14 @@ export const VideoWidget: React.FC = () => {
                 ? 'bg-red-600 text-white border-red-600'
                 : 'bg-white/80 hover:bg-white text-hbs-slate-dark border-white'
             }`}
-            title="Thema oder Video auf YouTube suchen"
+            title="Video suchen oder neue URL laden"
           >
             {isSearching ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin text-red-600" />
             ) : (
               <Search className="w-3.5 h-3.5 text-red-600" />
             )}
-            <span className="hidden sm:inline">Suche</span>
+            <span className="hidden sm:inline">Quelle</span>
           </button>
 
           <button
@@ -233,15 +322,15 @@ export const VideoWidget: React.FC = () => {
           <button
             onClick={handleCopyCurrentLink}
             className="p-1.5 rounded-xl bg-white/70 hover:bg-white text-hbs-slate-dark border border-white/80 transition-all active:scale-95"
-            title="YouTube-Link kopieren"
+            title="Video-Link kopieren"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
 
           <button
-            onClick={handleOpenOnYouTube}
+            onClick={handleOpenExternal}
             className="p-1.5 rounded-xl bg-white/70 hover:bg-white text-red-600 border border-white/80 transition-all active:scale-95"
-            title="Auf YouTube im neuen Tab öffnen"
+            title="In neuem Tab abspielen"
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </button>
@@ -253,7 +342,7 @@ export const VideoWidget: React.FC = () => {
         <div className="absolute top-11 inset-x-1 bottom-1 z-30 p-3 bg-white/95 rounded-2xl border border-white shadow-2xl backdrop-blur-md flex flex-col gap-2.5 animate-fadeIn overflow-y-auto">
           {/* Tabs: Suche vs. Direkter Link vs. Schüler-QR */}
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <div className="flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-xl">
+            <div className="flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-xl flex-wrap">
               <button
                 type="button"
                 onClick={() => setActiveTab('search')}
@@ -274,7 +363,7 @@ export const VideoWidget: React.FC = () => {
                     : 'text-hbs-slate-dark hover:bg-white'
                 }`}
               >
-                🔗 Direkt-Link
+                🔗 Freie Video-URL / MP4
               </button>
               <button
                 type="button"
@@ -349,7 +438,7 @@ export const VideoWidget: React.FC = () => {
                         <div
                           key={v.id}
                           onClick={() => {
-                            playVideo(v.id, v.title, v.channel);
+                            playYouTubeVideo(v.id, v.title, v.channel);
                             setShowSearchDrawer(false);
                           }}
                           className={`p-1.5 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all hover:shadow-xs text-left ${
@@ -419,19 +508,19 @@ export const VideoWidget: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 2: DIRECT URL INPUT */}
+          {/* TAB 2: DIRECT URL & FREE VIDEO INPUT */}
           {activeTab === 'url' && (
             <form onSubmit={handleUrlSubmit} className="space-y-3 flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
               <div>
                 <label className="text-xs font-bold text-hbs-slate-dark block mb-1">
-                  YouTube-Link oder Video-Adresse einfügen:
+                  Video-Link, MP4-Datei oder Web-URL einfügen:
                 </label>
                 <div className="flex items-center gap-1.5">
                   <input
                     type="text"
                     value={videoUrlInput}
                     onChange={(e) => setVideoUrlInput(e.target.value)}
-                    placeholder="https://www.youtube.com/watch?v=... oder youtu.be/..."
+                    placeholder="https://... (.mp4, YouTube, Vimeo oder Web-Video)"
                     className="flex-1 px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 font-bold focus:bg-white focus:outline-none focus:ring-2 focus:ring-hbs-blue/30"
                   />
                   <button
@@ -442,9 +531,27 @@ export const VideoWidget: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <p className="text-[11px] text-hbs-slate-muted leading-relaxed">
-                Unterstützt normale YouTube-Links, YouTube Shorts, Mobil-Links (`youtu.be`) sowie datenschutzfreundliche Einbettungen ohne Werbetracking (`youtube-nocookie.com`).
-              </p>
+
+              {/* Supported Video Types Info */}
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/80 space-y-1.5 text-[11px] text-hbs-slate-dark">
+                <div className="font-bold flex items-center gap-1.5 text-hbs-blue">
+                  <Info className="w-3.5 h-3.5" />
+                  <span>Unterstützte Video-Formate & Quellen:</span>
+                </div>
+                <ul className="list-disc list-inside space-y-1 text-slate-600 pl-1">
+                  <li><strong className="text-slate-800">YouTube & Shorts:</strong> Werbefreie, datenschutzkonforme Einbettung (`youtube-nocookie.com`).</li>
+                  <li><strong className="text-slate-800">Direkte Videodateien (.mp4, .webm, .mov):</strong> Nativer HTML5-Player mit flüssiger Wiedergabe.</li>
+                  <li><strong className="text-slate-800">Vimeo:</strong> Direkter Vimeo-Player.</li>
+                  <li><strong className="text-slate-800">Freie Webseiten & Mediatheken:</strong> Einbettung per Web-Frame.</li>
+                </ul>
+              </div>
+
+              <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <p>
+                  <strong>Hinweis zu geschützten Mediatheken:</strong> Einige Websites (z. B. manche öffentlich-rechtliche Mediatheken) blockieren die iFrame-Einbettung durch Sicherheitsheader (<code className="bg-amber-100 px-1 rounded font-mono">X-Frame-Options</code>). Sollte ein Link nicht geladen werden, nutzen Sie oben rechts den Button <em>In neuem Tab abspielen</em> oder den <em>Schüler-QR</em>.
+                </p>
+              </div>
             </form>
           )}
 
@@ -453,7 +560,7 @@ export const VideoWidget: React.FC = () => {
             <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 p-4 text-center sm:text-left">
               <div className="p-3 bg-white rounded-2xl border-2 border-slate-100 shadow-md shrink-0">
                 <QRCodeSVG
-                  value={`https://www.youtube.com/watch?v=${activeVideoId}`}
+                  value={currentShareUrl()}
                   size={140}
                   level="M"
                   includeMargin={false}
@@ -474,16 +581,87 @@ export const VideoWidget: React.FC = () => {
       )}
 
       {/* Main Video Viewport */}
-      <div className="flex-1 rounded-2xl overflow-hidden bg-black border-2 border-white shadow-inner min-h-0 relative">
-        <iframe
-          key={iframeKey}
-          src={`https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=1&rel=0&modestbranding=1`}
-          title={activeVideoTitle || 'Unterrichts-Video Player'}
-          style={{ width: '100%', height: '100%' }}
-          className="w-full h-full border-0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-        />
+      <div className="flex-1 rounded-2xl overflow-hidden bg-black border-2 border-white shadow-inner min-h-0 relative flex items-center justify-center">
+        {/* Type 1: DIRECT VIDEO FILE (MP4, WEBM, MOV) */}
+        {videoType === 'direct' && directVideoUrl && (
+          <video
+            key={iframeKey}
+            src={directVideoUrl}
+            controls
+            autoPlay
+            playsInline
+            className="w-full h-full object-contain bg-black"
+          >
+            Ihr Browser unterstützt dieses Videoformat nicht.
+          </video>
+        )}
+
+        {/* Type 2: VIMEO PLAYER */}
+        {videoType === 'vimeo' && activeVideoId && (
+          <iframe
+            key={iframeKey}
+            src={`https://player.vimeo.com/video/${activeVideoId}?autoplay=1`}
+            title={activeVideoTitle || 'Vimeo Video'}
+            style={{ width: '100%', height: '100%' }}
+            className="w-full h-full border-0"
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+          />
+        )}
+
+        {/* Type 3: YOUTUBE NOCOOKIE PLAYER */}
+        {videoType === 'youtube' && (
+          <iframe
+            key={iframeKey}
+            src={`https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=1&rel=0&modestbranding=1`}
+            title={activeVideoTitle || 'Unterrichts-Video Player'}
+            style={{ width: '100%', height: '100%' }}
+            className="w-full h-full border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        )}
+
+        {/* Type 4: GENERIC WEB VIDEO OR IFRAME */}
+        {videoType === 'generic' && directVideoUrl && (
+          <div className="w-full h-full relative">
+            <iframe
+              key={iframeKey}
+              src={directVideoUrl}
+              title={activeVideoTitle || 'Web Video'}
+              style={{ width: '100%', height: '100%' }}
+              className="w-full h-full border-0 bg-white"
+              allow="autoplay; fullscreen; encrypted-media"
+              allowFullScreen
+            />
+
+            {showIframeNotice && (
+              <div className="absolute top-2 left-2 right-2 bg-slate-900/90 backdrop-blur-md text-white p-2.5 rounded-xl border border-white/20 text-xs shadow-lg flex items-center justify-between gap-3 animate-fadeIn">
+                <div className="flex items-center gap-2 min-w-0">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="truncate">
+                    Wird die Seite nicht angezeigt (X-Frame-Options Sperre)?
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleOpenExternal}
+                    className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] flex items-center gap-1"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    <span>Im neuen Tab öffnen</span>
+                  </button>
+                  <button
+                    onClick={() => setShowIframeNotice(false)}
+                    className="text-slate-400 hover:text-white px-1 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

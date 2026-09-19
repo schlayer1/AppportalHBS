@@ -4,25 +4,29 @@ import {
   doc, 
   getDoc, 
   setDoc, 
+  onSnapshot,
   Firestore
 } from 'firebase/firestore';
 import { PortalUser, UserPreferences, SavedBoardTemplate } from '../types/user';
+import { FeatureRequest, RequestStatus } from '../types/requestTypes';
 
+// Official Firebase Project Config provided for App-Portal Integration (terminkalender-7f269)
 export const DEFAULT_FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCnleowgQT4XoMK5P5b_t1uWYGsWoYxT80",
-  authDomain: "statistik-91f25.firebaseapp.com",
-  projectId: "statistik-91f25",
-  storageBucket: "statistik-91f25.firebasestorage.app",
-  messagingSenderId: "277742289737",
-  appId: "1:277742289737:web:b87043732524cc283d5098"
+  apiKey: "AIzaSyAr8Q3RslUSuaJbIIGiINGV24nm26jYoLQ",
+  authDomain: "terminkalender-7f269.firebaseapp.com",
+  projectId: "terminkalender-7f269",
+  storageBucket: "terminkalender-7f269.firebasestorage.app",
+  messagingSenderId: "919163141331",
+  appId: "1:919163141331:web:12c659f5c2946e7c7e2826"
 };
 
 export const DEFAULT_SCHOOL_ID = "HBS";
 export const MASTER_ADMIN_PIN = "Year2003?!%";
 
-// Document paths under /schools/ (which is allowed by Firestore rules)
-const PORTAL_DOC_ID = "HBS_portal";
-const VERTRETUNG_DOC_ID = "HBS"; // The Vertretungsstatistik document containing teachers
+// Dedicated Collections under terminkalender-7f269 to avoid interference with existing collections
+export const PORTAL_COLLECTION = "hbs_appportal";
+export const PORTAL_DATA_DOC = "portal_data";
+export const REQUESTS_COLLECTION = "hbs_feature_requests";
 
 export let db: Firestore | null = null;
 
@@ -90,7 +94,8 @@ export interface PortalCloudData {
   updatedAt: number;
 }
 
-const LOCAL_STORAGE_BACKUP_KEY = "hbs_portal_cloud_cache_v1";
+const LOCAL_STORAGE_BACKUP_KEY = "hbs_portal_cloud_cache_v2";
+const REQUESTS_CACHE_KEY = "hbs_requests_cache_v1";
 
 // Helper: load cached cloud data
 export const getCachedPortalData = (): PortalCloudData => {
@@ -140,7 +145,7 @@ export const loadPortalDataFromCloud = async (): Promise<PortalCloudData> => {
   if (!db) return localCache;
 
   try {
-    const portalDocRef = doc(db, "schools", PORTAL_DOC_ID);
+    const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
     const snap = await getDoc(portalDocRef);
 
     if (snap.exists()) {
@@ -157,18 +162,68 @@ export const loadPortalDataFromCloud = async (): Promise<PortalCloudData> => {
           ? data.kahootGames
           : (localCache.kahootGames || DEFAULT_KAHOOT_GAMES),
         activeKahootSession: data.activeKahootSession || localCache.activeKahootSession || null,
+        oncooSessions: Array.isArray(data.oncooSessions) && data.oncooSessions.length > 0
+          ? data.oncooSessions
+          : (localCache.oncooSessions || DEFAULT_ONCOO_TEMPLATES),
+        activeOncooSession: data.activeOncooSession || localCache.activeOncooSession || null,
         updatedAt: data.updatedAt || Date.now()
       };
       setCachedPortalData(merged);
       return merged;
     } else {
-      // First-time setup: initialize Firestore with seed data
+      // First-time setup in new collection: initialize Firestore with seed data
       await savePortalDataToCloud(localCache);
       return localCache;
     }
   } catch (err) {
     console.warn("Firestore fetch error, using local cached data:", err);
     return localCache;
+  }
+};
+
+/**
+ * Subscribes in real-time to the portal data document using onSnapshot.
+ * This guarantees that when a teacher changes favorites or settings on an iMac,
+ * their iPhone immediately receives the update without a manual page refresh.
+ */
+export const subscribeToPortalData = (callback: (data: PortalCloudData) => void): (() => void) => {
+  if (!db) {
+    return () => {};
+  }
+  try {
+    const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
+    const unsubscribe = onSnapshot(portalDocRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as PortalCloudData;
+        const localCache = getCachedPortalData();
+        const merged: PortalCloudData = {
+          users: Array.isArray(data.users) && data.users.length > 0 ? data.users : localCache.users,
+          preferences: data.preferences || localCache.preferences || {},
+          boardTemplates: data.boardTemplates || localCache.boardTemplates || [],
+          mentiPresentations: Array.isArray(data.mentiPresentations) && data.mentiPresentations.length > 0 
+            ? data.mentiPresentations 
+            : (localCache.mentiPresentations || DEFAULT_MENTI_TEMPLATES),
+          activeMentiSession: data.activeMentiSession || localCache.activeMentiSession || null,
+          kahootGames: Array.isArray(data.kahootGames) && data.kahootGames.length > 0
+            ? data.kahootGames
+            : (localCache.kahootGames || DEFAULT_KAHOOT_GAMES),
+          activeKahootSession: data.activeKahootSession || localCache.activeKahootSession || null,
+          oncooSessions: Array.isArray(data.oncooSessions) && data.oncooSessions.length > 0
+            ? data.oncooSessions
+            : (localCache.oncooSessions || DEFAULT_ONCOO_TEMPLATES),
+          activeOncooSession: data.activeOncooSession || localCache.activeOncooSession || null,
+          updatedAt: data.updatedAt || Date.now()
+        };
+        setCachedPortalData(merged);
+        callback(merged);
+      }
+    }, (error) => {
+      console.warn("Firestore onSnapshot error:", error);
+    });
+    return unsubscribe;
+  } catch (err) {
+    console.warn("Could not attach Firestore onSnapshot:", err);
+    return () => {};
   }
 };
 
@@ -182,7 +237,7 @@ export const savePortalDataToCloud = async (data: PortalCloudData): Promise<bool
   if (!db) return true;
 
   try {
-    const portalDocRef = doc(db, "schools", PORTAL_DOC_ID);
+    const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
     await setDoc(portalDocRef, updatedData, { merge: true });
     return true;
   } catch (err) {
@@ -191,14 +246,188 @@ export const savePortalDataToCloud = async (data: PortalCloudData): Promise<bool
   }
 };
 
+// ==========================================
+// FEATURE REQUESTS & KOLLEGIUMS-FEEDBACK
+// ==========================================
+
+const DEFAULT_INITIAL_REQUESTS: FeatureRequest[] = [
+  {
+    id: 'req-init-1',
+    title: 'Digitale Stempeluhr & Anwesenheit für Fachräume',
+    description: 'Eine schnelle Möglichkeit für Kolleginnen und Kollegen, Raumbuchungen oder Fachraumnutzungen direkt über das Portal einzusehen.',
+    category: 'wunsch',
+    authorName: 'Kollegium',
+    authorId: 'system',
+    createdAt: Date.now() - 86400000 * 2,
+    votes: ['system-demo-1', 'system-demo-2'],
+    status: 'in_pruefung',
+    adminComment: 'Prüfen wir für die nächste Version.'
+  },
+  {
+    id: 'req-init-2',
+    title: 'Export von Menti-Wortwolken als Vektorgrafik (SVG)',
+    description: 'Wortwolken am Ende einer Stunde direkt als druckbares PDF oder SVG für Schülerhefte exportieren.',
+    category: 'unterricht',
+    authorName: 'Fachlehrer Deutsch/Ethik',
+    authorId: 'system',
+    createdAt: Date.now() - 86400000 * 4,
+    votes: ['system-demo-1', 'system-demo-3', 'system-demo-4'],
+    status: 'in_planung'
+  },
+  {
+    id: 'req-init-3',
+    title: 'Freie Videolinks & MP4 auf der Digitalen Tafel',
+    description: 'Direkte Videodateien ohne YouTube-Werbung auf dem Smartboard abspielen können.',
+    category: 'app_idee',
+    authorName: 'Kollegium Heimbürgeschule',
+    authorId: 'system',
+    createdAt: Date.now() - 86400000 * 6,
+    votes: ['system-demo-1', 'system-demo-2', 'system-demo-3', 'system-demo-4', 'system-demo-5'],
+    status: 'umgesetzt',
+    adminComment: 'In Version 2.3 vollständig umgesetzt!'
+  }
+];
+
+export const getCachedRequests = (): FeatureRequest[] => {
+  try {
+    const raw = localStorage.getItem(REQUESTS_CACHE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return DEFAULT_INITIAL_REQUESTS;
+};
+
+export const setCachedRequests = (requests: FeatureRequest[]) => {
+  try {
+    localStorage.setItem(REQUESTS_CACHE_KEY, JSON.stringify(requests));
+  } catch {}
+};
+
+export const subscribeToFeatureRequests = (callback: (requests: FeatureRequest[]) => void): (() => void) => {
+  if (!db) {
+    callback(getCachedRequests());
+    return () => {};
+  }
+  try {
+    const reqDocRef = doc(db, PORTAL_COLLECTION, REQUESTS_COLLECTION);
+    const unsubscribe = onSnapshot(reqDocRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const list: FeatureRequest[] = Array.isArray(data.items) ? data.items : [];
+        setCachedRequests(list);
+        callback(list);
+      } else {
+        const fallback = getCachedRequests();
+        setDoc(reqDocRef, { items: fallback, updatedAt: Date.now() }).catch(() => {});
+        callback(fallback);
+      }
+    }, (err) => {
+      console.warn("Feature requests onSnapshot error:", err);
+      callback(getCachedRequests());
+    });
+    return unsubscribe;
+  } catch (err) {
+    console.warn("Could not subscribe to feature requests:", err);
+    callback(getCachedRequests());
+    return () => {};
+  }
+};
+
+export const submitFeatureRequest = async (newReq: Omit<FeatureRequest, 'id' | 'createdAt' | 'votes' | 'status'>): Promise<FeatureRequest> => {
+  const req: FeatureRequest = {
+    ...newReq,
+    id: `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    createdAt: Date.now(),
+    votes: [newReq.authorId],
+    status: 'eingereicht'
+  };
+
+  const current = getCachedRequests();
+  const updated = [req, ...current];
+  setCachedRequests(updated);
+
+  if (db) {
+    try {
+      const reqDocRef = doc(db, PORTAL_COLLECTION, REQUESTS_COLLECTION);
+      await setDoc(reqDocRef, { items: updated, updatedAt: Date.now() }, { merge: true });
+    } catch (e) {
+      console.warn("Error saving request to cloud:", e);
+    }
+  }
+
+  return req;
+};
+
+export const toggleVoteFeatureRequest = async (requestId: string, voterId: string): Promise<void> => {
+  const current = getCachedRequests();
+  const updated = current.map((r) => {
+    if (r.id !== requestId) return r;
+    const hasVoted = r.votes.includes(voterId);
+    const newVotes = hasVoted ? r.votes.filter(v => v !== voterId) : [...r.votes, voterId];
+    return { ...r, votes: newVotes };
+  });
+
+  setCachedRequests(updated);
+
+  if (db) {
+    try {
+      const reqDocRef = doc(db, PORTAL_COLLECTION, REQUESTS_COLLECTION);
+      await setDoc(reqDocRef, { items: updated, updatedAt: Date.now() }, { merge: true });
+    } catch (e) {
+      console.warn("Error updating vote in cloud:", e);
+    }
+  }
+};
+
+export const updateFeatureRequestStatus = async (
+  requestId: string, 
+  status: RequestStatus, 
+  adminComment?: string
+): Promise<void> => {
+  const current = getCachedRequests();
+  const updated = current.map((r) => {
+    if (r.id !== requestId) return r;
+    return { 
+      ...r, 
+      status, 
+      adminComment: adminComment !== undefined ? adminComment : r.adminComment 
+    };
+  });
+
+  setCachedRequests(updated);
+
+  if (db) {
+    try {
+      const reqDocRef = doc(db, PORTAL_COLLECTION, REQUESTS_COLLECTION);
+      await setDoc(reqDocRef, { items: updated, updatedAt: Date.now() }, { merge: true });
+    } catch (e) {
+      console.warn("Error updating request status in cloud:", e);
+    }
+  }
+};
+
+export const deleteFeatureRequest = async (requestId: string): Promise<void> => {
+  const current = getCachedRequests();
+  const updated = current.filter(r => r.id !== requestId);
+  setCachedRequests(updated);
+
+  if (db) {
+    try {
+      const reqDocRef = doc(db, PORTAL_COLLECTION, REQUESTS_COLLECTION);
+      await setDoc(reqDocRef, { items: updated, updatedAt: Date.now() }, { merge: true });
+    } catch (e) {
+      console.warn("Error deleting request in cloud:", e);
+    }
+  }
+};
+
 /**
- * Synchronizes / imports teacher roster directly from the existing Vertretungsstatistik document (schools/HBS)
+ * Synchronizes / imports teacher roster directly from a Vertretungsstatistik document
  */
 export const syncTeachersFromVertretungsstatistik = async (): Promise<{ added: number; updated: number; total: number }> => {
   if (!db) throw new Error("Keine Datenbankverbindung");
 
   try {
-    const vertretungDocRef = doc(db, "schools", VERTRETUNG_DOC_ID);
+    const vertretungDocRef = doc(db, "schools", "HBS");
     const snap = await getDoc(vertretungDocRef);
 
     if (!snap.exists()) {
@@ -226,13 +455,11 @@ export const syncTeachersFromVertretungsstatistik = async (): Promise<{ added: n
         : Math.floor(1000 + Math.random() * 9000).toString();
 
       if (existingIdx >= 0) {
-        // Update existing user's PIN if provided
         if (existingUsers[existingIdx].pin !== pinToUse) {
           existingUsers[existingIdx].pin = pinToUse;
           updated++;
         }
       } else {
-        // Add new teacher
         existingUsers.push({
           id: st.id ? `t-${st.id}` : `t-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           name: st.name.trim(),
@@ -254,3 +481,4 @@ export const syncTeachersFromVertretungsstatistik = async (): Promise<{ added: n
     throw err;
   }
 };
+

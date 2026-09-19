@@ -23,7 +23,9 @@ import {
   Users,
   QrCode,
   Compass,
-  BookOpen
+  BookOpen,
+  MessageSquarePlus,
+  History
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
@@ -40,6 +42,8 @@ interface HeaderProps {
   onOpenHandbook?: () => void;
   onOpenTour?: () => void;
   onOpenGeminiSettings?: () => void;
+  onOpenChangelog?: () => void;
+  onOpenRequests?: () => void;
   isReorderMode?: boolean;
   onToggleReorderMode?: () => void;
   viewMode: ViewMode;
@@ -71,6 +75,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHandbook,
   onOpenTour,
   onOpenGeminiSettings,
+  onOpenChangelog,
+  onOpenRequests,
   isReorderMode,
   onToggleReorderMode,
   viewMode,
@@ -263,6 +269,32 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
+            {/* Feedback / Requests trigger (lg:flex) */}
+            {onOpenRequests && (
+              <button
+                onClick={onOpenRequests}
+                className="hidden lg:flex h-9 p-2 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-900 border border-purple-300/60 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                title="Wünsche, App-Ideen & Feedback einreichen"
+                aria-label="Wünsche & Feedback"
+              >
+                <MessageSquarePlus className="w-4 h-4 text-purple-600 shrink-0" />
+                <span>Wünsche</span>
+              </button>
+            )}
+
+            {/* Changelog trigger (xl:flex) */}
+            {onOpenChangelog && (
+              <button
+                onClick={onOpenChangelog}
+                className="hidden xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                title="Was ist neu? (Versions-Changelog)"
+                aria-label="Changelog"
+              >
+                <History className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Changelog</span>
+              </button>
+            )}
+
             {/* Guide modal trigger (xl:flex) */}
             <button
               onClick={onOpenInstallGuide}
@@ -347,6 +379,26 @@ export const Header: React.FC<HeaderProps> = ({
                       >
                         <BookOpen className="w-3.5 h-3.5 text-hbs-blue" />
                         <span>Kollegiums-Handbuch (PDF)</span>
+                      </button>
+                    )}
+
+                    {onOpenRequests && (
+                      <button
+                        onClick={() => { onOpenRequests(); setIsMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-purple-900 hover:bg-purple-50 flex items-center gap-2"
+                      >
+                        <MessageSquarePlus className="w-3.5 h-3.5 text-purple-600" />
+                        <span>Wünsche & Feedback</span>
+                      </button>
+                    )}
+
+                    {onOpenChangelog && (
+                      <button
+                        onClick={() => { onOpenChangelog(); setIsMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-blue-900 hover:bg-blue-50 flex items-center gap-2"
+                      >
+                        <History className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Was ist neu? (Changelog)</span>
                       </button>
                     )}
 

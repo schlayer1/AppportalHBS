@@ -41,6 +41,8 @@ const TableTentGeneratorModal = lazy(() => import('./components/tools/TableTentG
 const HandbookModal = lazy(() => import('./components/handbook/HandbookModal').then(m => ({ default: m.HandbookModal })));
 const OnboardingTourModal = lazy(() => import('./components/onboarding/OnboardingTourModal').then(m => ({ default: m.OnboardingTourModal })));
 const GeminiSettingsModal = lazy(() => import('./components/gemini/GeminiSettingsModal').then(m => ({ default: m.GeminiSettingsModal })));
+const ChangelogModal = lazy(() => import('./components/ChangelogModal').then(m => ({ default: m.ChangelogModal })));
+const RequestModal = lazy(() => import('./components/RequestModal').then(m => ({ default: m.RequestModal })));
 import { EmptyState } from './components/ui/empty-state';
 import { CardTilt } from './components/ui/card-tilt';
 import { AuroraBackground } from './components/ui/aurora-background';
@@ -82,6 +84,7 @@ export default function App() {
     logout, 
     userPreferences, 
     updateAppOrder, 
+    updateFavorites,
     removeCustomApp, 
     updatePortalViewMode,
     currentUser, 
@@ -186,6 +189,8 @@ export default function App() {
   const [isHandbookOpen, setIsHandbookOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [isGeminiSettingsOpen, setIsGeminiSettingsOpen] = useState<boolean>(false);
+  const [isChangelogOpen, setIsChangelogOpen] = useState<boolean>(false);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState<boolean>(false);
 
   // Menti presentation state
   const [activeMentiPresentation, setActiveMentiPresentation] = useState<MentiPresentation | null>(null);
@@ -199,8 +204,11 @@ export default function App() {
   const [activeOncooPresentationSession, setActiveOncooPresentationSession] = useState<OncooSession | null>(null);
   const [oncooSubView, setOncooSubView] = useState<'dashboard' | 'presenter'>('dashboard');
 
-  // Favorites Hook
-  const { favorites, toggleFavorite, isFavorite, hasFavorites } = useFavorites();
+  // Favorites Hook with live Cloud & Cross-Device synchronization
+  const { favorites, toggleFavorite, isFavorite, hasFavorites } = useFavorites(
+    userPreferences?.favorites,
+    updateFavorites
+  );
 
   const isSmartboardMode = viewMode === 'smartboard';
 
@@ -242,6 +250,20 @@ export default function App() {
         }
       } else if (hash === '#gemini' || hash === '#ai') {
         setIsGeminiSettingsOpen(true);
+        try {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        } catch {
+          window.location.hash = '';
+        }
+      } else if (hash === '#changelog' || hash === '#was-ist-neu') {
+        setIsChangelogOpen(true);
+        try {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        } catch {
+          window.location.hash = '';
+        }
+      } else if (hash === '#requests' || hash === '#wuensche' || hash === '#feedback') {
+        setIsRequestModalOpen(true);
         try {
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
         } catch {
@@ -610,8 +632,10 @@ export default function App() {
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenAddCustomLink={() => setIsAddCustomLinkOpen(true)}
         onOpenHandbook={() => setIsHandbookOpen(true)}
-        onOpenTour={() => setIsOnboardingOpen(true)}
+        onOpenTour={isGuest ? undefined : () => setIsOnboardingOpen(true)}
         onOpenGeminiSettings={() => setIsGeminiSettingsOpen(true)}
+        onOpenChangelog={() => setIsChangelogOpen(true)}
+        onOpenRequests={() => setIsRequestModalOpen(true)}
         isReorderMode={isReorderMode}
         onToggleReorderMode={() => setIsReorderMode(!isReorderMode)}
         viewMode={viewMode}
@@ -973,6 +997,30 @@ export default function App() {
           <GeminiSettingsModal
             isOpen={isGeminiSettingsOpen}
             onClose={() => setIsGeminiSettingsOpen(false)}
+          />
+        )}
+
+        {/* Changelog Modal (Was ist neu?) */}
+        {isChangelogOpen && (
+          <ChangelogModal
+            isOpen={isChangelogOpen}
+            onClose={() => setIsChangelogOpen(false)}
+            onOpenRequests={() => {
+              setIsChangelogOpen(false);
+              setIsRequestModalOpen(true);
+            }}
+          />
+        )}
+
+        {/* Feature Requests & Kollegiums-Feedback Modal */}
+        {isRequestModalOpen && (
+          <RequestModal
+            isOpen={isRequestModalOpen}
+            onClose={() => setIsRequestModalOpen(false)}
+            onOpenChangelog={() => {
+              setIsRequestModalOpen(false);
+              setIsChangelogOpen(true);
+            }}
           />
         )}
       </Suspense>

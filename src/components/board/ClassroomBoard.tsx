@@ -192,9 +192,9 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
           </button>
         </div>
 
-        <div className="flex items-center gap-2 pointer-events-auto relative">
+        <div className="flex items-center gap-2 pointer-events-auto overflow-x-auto touch-pan-x scrollbar-none py-1 max-w-[calc(100vw-115px)] sm:max-w-none pr-1">
           {/* Undo & Redo Quick Buttons */}
-          <div className="flex items-center gap-0.5 ios-glass p-0.5 rounded-full shadow-sm">
+          <div className="flex items-center gap-0.5 ios-glass p-0.5 rounded-full shadow-sm shrink-0">
             <button
               onClick={undo}
               disabled={!canUndo}
@@ -224,7 +224,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
           {/* Direct Background Picker Button */}
           <button
             onClick={() => setIsBackgroundPickerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-slate-dark hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-slate-dark hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm shrink-0"
             title="Tafelhintergrund auswählen"
           >
             <Palette className="w-3.5 h-3.5 text-hbs-blue" />
@@ -234,37 +234,41 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
           {/* Scroll / Center View Button (especially helpful on mobile phones) */}
           <button
             onClick={resetScroll}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-slate-dark hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-slate-dark hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm shrink-0"
             title="Tafelansicht auf Start zentrieren"
           >
             <Compass className="w-3.5 h-3.5 text-hbs-blue" />
             <span className="hidden md:inline">Zentrieren</span>
           </button>
 
-          {/* Save Board State Button */}
-          <button
-            onClick={() => setIsSaveModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-teal-deep hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
-            title="Aktuelles Tafelbild speichern"
-          >
-            <Save className="w-3.5 h-3.5 text-hbs-teal-deep" />
-            <span className="hidden sm:inline">Speichern</span>
-          </button>
+          {/* Save Board State Button (Hidden in Guest Mode) */}
+          {!isGuest && (
+            <button
+              onClick={() => setIsSaveModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-teal-deep hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm shrink-0"
+              title="Aktuelles Tafelbild speichern"
+            >
+              <Save className="w-3.5 h-3.5 text-hbs-teal-deep" />
+              <span className="hidden sm:inline">Speichern</span>
+            </button>
+          )}
 
-          {/* Templates & Saved Boards Button */}
-          <button
-            onClick={() => setIsTemplatesDrawerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-blue hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
-            title="Tafelbilder & Vorlagen öffnen"
-          >
-            <FolderOpen className="w-3.5 h-3.5 text-hbs-blue" />
-            <span>Vorlagen</span>
-          </button>
+          {/* Templates & Saved Boards Button (Hidden in Guest Mode) */}
+          {!isGuest && (
+            <button
+              onClick={() => setIsTemplatesDrawerOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-blue hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm shrink-0"
+              title="Tafelbilder & Vorlagen öffnen"
+            >
+              <FolderOpen className="w-3.5 h-3.5 text-hbs-blue" />
+              <span>Vorlagen</span>
+            </button>
+          )}
 
           {/* Export & Share Modal Button */}
           <button
             onClick={() => setIsExportModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-indigo-700 hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-indigo-700 hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm shrink-0"
             title="Tafelbild für Schüler teilen & als PDF drucken"
           >
             <Share2 className="w-3.5 h-3.5 text-indigo-600" />
@@ -278,7 +282,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
                   clearCurrentScreen();
                 }
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-slate-muted hover:text-red-600 hover:bg-red-50/80 text-xs font-bold transition-all active:scale-95 shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-hbs-slate-muted hover:text-red-600 hover:bg-red-50/80 text-xs font-bold transition-all active:scale-95 shadow-sm shrink-0"
               title="Tafel leeren"
             >
               <Trash2 className="w-3.5 h-3.5" />

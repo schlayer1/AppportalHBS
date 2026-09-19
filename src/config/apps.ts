@@ -61,33 +61,6 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
-    id: "gemini-ki-studio",
-    title: "Google Gemini KI-Studio",
-    shortTitle: "Gemini KI-Studio",
-    subtitle: "Unterrichtsideen, Quizfragen & Modell-Manager",
-    description: "Zentraler KI-Assistent der Heimbürgeschule: Zukunftssichere Anbindung an Google Gemini mit automatischer Modell-Kaskadierung, Live-Verbindungstest und nahtloser Fragenerstellung für Kahoot & Menti.",
-    url: "#gemini",
-    category: "kollegium",
-    badge: "Gemini 3.6 Flash",
-    badgeColor: "teal",
-    icon: "Sparkles",
-    tags: ["Künstliche Intelligenz", "Gemini", "Quiz-Generator", "Menti-Assistent", "Unterrichtsideen", "Zukunftssicher"],
-    isFeaturedStudentQr: false,
-    offlineReady: false,
-    privacyBadge: "DSGVO-konform ohne Schülerdaten",
-    pedagogicalValue: "Unterstützt Lehrkräfte bei der Differenzierung, erstellt blitzschnell abwechslungsreiche Quizfragen für Kahoot und interaktive Einstiegsfolien für Menti.",
-    quickGuide: [
-      "Kachel antippen, um das Gemini KI-Studio zu öffnen und den Verbindungsstatus zu prüfen.",
-      "Vorkonfigurierter Schulschlüssel der Heimbürgeschule ist bereits aktiv und einsatzbereit.",
-      "Wählen Sie zwischen automatischer Modell-Kaskadierung oder spezifischen Modellen wie Gemini 3.6 Flash.",
-      "Nutzen Sie die KI direkt in HBS Kahoot und HBS Menti zur 1-Klick-Fragenerstellung."
-    ],
-    shortcuts: [
-      { label: "Menti Abfragen", url: "#menti" },
-      { label: "Kahoot Quizze", url: "#kahoot" }
-    ]
-  },
-  {
     id: "digitale-tafel",
     title: "Digitale Tafel (Classroom-Screen)",
     shortTitle: "Digitale Tafel",

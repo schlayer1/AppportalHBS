@@ -170,25 +170,25 @@ export const BoardDock: React.FC<BoardDockProps> = ({
         </div>
       )}
 
-      {/* Floating Apple Liquid-Glass Dock */}
-      <div className="flex items-center gap-2 sm:gap-2.5 p-2 sm:p-2.5 rounded-full ios-glass-dock shadow-2xl border border-white/80">
+      {/* Floating Apple Liquid-Glass Dock (Horizontally swipeable on iPhone) */}
+      <div className="flex items-center gap-2 sm:gap-2.5 p-2 sm:p-2.5 rounded-full ios-glass-dock shadow-2xl border border-white/80 max-w-[96vw] overflow-x-auto touch-pan-x scrollbar-none px-3">
         
         {/* Background Switcher */}
         <button
           onClick={onOpenBackgroundPicker}
-          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/70 hover:bg-white text-hbs-slate-dark flex items-center justify-center border border-white/80 shadow-xs transition-transform active:scale-90"
+          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/70 hover:bg-white text-hbs-slate-dark flex items-center justify-center border border-white/80 shadow-xs transition-transform active:scale-90 shrink-0"
           title="Hintergrund wechseln"
           aria-label="Hintergrund"
         >
           <ImageIcon className="w-5 h-5 text-hbs-blue" />
         </button>
 
-        <div className="w-[1px] h-6 bg-white/60 mx-0.5" />
+        <div className="w-[1px] h-6 bg-white/60 mx-0.5 shrink-0" />
 
         {/* Primary Widget: Clock */}
         <button
           onClick={() => onAddWidget('clock')}
-          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/70 hover:bg-white text-hbs-slate-dark flex items-center justify-center border border-white/80 shadow-xs transition-transform active:scale-90"
+          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/70 hover:bg-white text-hbs-slate-dark flex items-center justify-center border border-white/80 shadow-xs transition-transform active:scale-90 shrink-0"
           title="Unterrichtsuhr öffnen"
           aria-label="Unterrichtsuhr"
         >
@@ -198,7 +198,7 @@ export const BoardDock: React.FC<BoardDockProps> = ({
         {/* Primary Widget: Timer */}
         <button
           onClick={() => onAddWidget('timer')}
-          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/70 hover:bg-white text-hbs-slate-dark flex items-center justify-center border border-white/80 shadow-xs transition-transform active:scale-90"
+          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/70 hover:bg-white text-hbs-slate-dark flex items-center justify-center border border-white/80 shadow-xs transition-transform active:scale-90 shrink-0"
           title="Countdown-Timer öffnen"
           aria-label="Countdown-Timer"
         >
@@ -208,7 +208,7 @@ export const BoardDock: React.FC<BoardDockProps> = ({
         {/* "More Tools" Flyout Toggle */}
         <button
           onClick={() => setShowMoreFlyout(!showMoreFlyout)}
-          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border shadow-xs transition-all active:scale-90 ${
+          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border shadow-xs transition-all active:scale-90 shrink-0 ${
             showMoreFlyout
               ? 'bg-hbs-blue text-white border-hbs-blue shadow-hbs-blue/30'
               : 'bg-white/70 hover:bg-white text-hbs-slate-dark border-white/80'
@@ -219,10 +219,10 @@ export const BoardDock: React.FC<BoardDockProps> = ({
           <LayoutGrid className="w-5 h-5" />
         </button>
 
-        <div className="w-[1px] h-6 bg-white/60 mx-0.5" />
+        <div className="w-[1px] h-6 bg-white/60 mx-0.5 shrink-0" />
 
         {/* Screen Deck Switcher (< 1/3 > +) */}
-        <div className="flex items-center gap-1 bg-white/60 px-2 py-1 rounded-full border border-white/80">
+        <div className="flex items-center gap-1 bg-white/60 px-2 py-1 rounded-full border border-white/80 shrink-0">
           <button
             onClick={() => onSwitchScreen(screenIndex - 1)}
             disabled={screenIndex <= 0}
@@ -254,12 +254,12 @@ export const BoardDock: React.FC<BoardDockProps> = ({
           </button>
         </div>
 
-        <div className="w-[1px] h-6 bg-white/60 mx-0.5" />
+        <div className="w-[1px] h-6 bg-white/60 mx-0.5 shrink-0" />
 
         {/* Fullscreen Toggle */}
         <button
           onClick={onToggleFullscreen}
-          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/70 hover:bg-white text-hbs-slate-dark flex items-center justify-center border border-white/80 shadow-xs transition-transform active:scale-90"
+          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/70 hover:bg-white text-hbs-slate-dark flex items-center justify-center border border-white/80 shadow-xs transition-transform active:scale-90 shrink-0"
           title={isFullscreen ? 'Vollbild beenden' : 'Vollbildmodus (Smartboard/Beamer)'}
           aria-label="Vollbild"
         >
@@ -269,7 +269,7 @@ export const BoardDock: React.FC<BoardDockProps> = ({
         {/* Exit Board Button */}
         <button
           onClick={onExitBoard}
-          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-red-500/15 hover:bg-red-500 text-red-700 hover:text-white flex items-center justify-center border border-red-300/60 shadow-xs transition-all active:scale-90"
+          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-red-500/15 hover:bg-red-500 text-red-700 hover:text-white flex items-center justify-center border border-red-300/60 shadow-xs transition-all active:scale-90 shrink-0"
           title={isGuest ? "Tafel beenden (Abmelden)" : "Tafelmodus verlassen (zurück zum Portal)"}
           aria-label={isGuest ? "Tafel beenden" : "Tafel verlassen"}
         >
