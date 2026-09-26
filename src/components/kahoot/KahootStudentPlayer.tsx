@@ -426,7 +426,16 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
               </p>
             )}
           </div>
-          <p className="text-xs text-purple-200/70 pt-2">
+
+          {/* Live Lobby Participant Count Badge */}
+          <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md shadow-lg animate-fadeIn">
+            <Users className="w-4 h-4 text-purple-300" />
+            <span className="text-xs font-bold text-purple-100">
+              In der Lobby: <strong className="text-white font-black text-sm">{session?.participants?.length || 1}</strong> {session?.gameMode === 'team' ? 'Teams' : 'Spieler'}
+            </span>
+          </div>
+
+          <p className="text-xs text-purple-200/70 pt-1">
             Warte auf den Start durch die Lehrkraft am Smartboard...
           </p>
         </main>

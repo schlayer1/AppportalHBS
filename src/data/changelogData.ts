@@ -2,10 +2,40 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '2.5.2',
+    title: 'Kahoot: Lobby-Spielerzähler, KI-Antwortzufall & manuelle Antwort-Sortierung',
+    date: '26. September 2026',
+    isLatest: true,
+    highlight: 'Drei gezielte Erweiterungen für HBS Kahoot: Prominenter Live-Spielerzähler in der Lobby (auf Smartboard und Schüler-Handy), Zufallsverteilung der richtigen Antwort bei KI-generierten Fragen sowie flexible manuelle Umsortierung und Mischen von Antworten im Quiz-Editor.',
+    items: [
+      {
+        id: 'cl-252-1',
+        type: 'behoben',
+        title: 'Lobby: Zuverlässige Anzeige der angemeldeten Spielerzahl',
+        description: 'Vollständige Bereinigung der PIN- und Sitzungscodes (Entfernung von Leerzeichen in allen Firebase-Pfaden) und Hinzufügen einer gut sichtbaren Live-Spielerzahlanzeige sowohl auf dem Lehrer-Smartboard als auch direkt auf dem Schüler-Smartphone nach dem Beitreten.',
+        badge: 'Lobby-Sync'
+      },
+      {
+        id: 'cl-252-2',
+        type: 'verbessert',
+        title: 'KI-Fragengenerierung: Zufallsverteilung der richtigen Antwort',
+        description: 'Didaktische Optimierung des Gemini-Prompts und automatisches Mischen der Antwortoptionen (Fisher-Yates-Algorithmus). Die richtige Antwort steht nun zufällig verteilt auf Position 1, 2, 3 oder 4 und nicht mehr vorwiegend auf der ersten Position.',
+        badge: 'KI-Generator'
+      },
+      {
+        id: 'cl-252-3',
+        type: 'neu',
+        title: 'Editor: Antwort-Reihenfolge ändern & Antworten mischen',
+        description: 'Lehrkräfte können im Quiz-Editor und im KI-Vorschaumodus die Reihenfolge der 4 Antworten zu jeder Frage mit Pfeiltasten (Nach oben / Nach unten) frei vertauschen oder die Antworten mit 1 Klick („🎲 Antworten mischen“) zufällig anordnen lassen.',
+        badge: 'Quiz-Editor'
+      }
+    ]
+  },
+  {
     version: '2.5.1',
     title: 'Rock-Solid Gameplay-Synchronisation für Kahoot, Mentimeter & Oncoo',
     date: '26. September 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Umfassende Härtung und Zuverlässigkeits-Update für alle interaktiven Unterrichts-Tools: Beseitigung des automatischen Weiterspringens bei Kahoot-Fragen 2 & 3, fehlerfreier Lobby-Zustand, lückenlose Folien-Erkennung bei Mentimeter und sofortige Echtzeit-Rückmeldung bei Oncoo.',
     items: [
       {

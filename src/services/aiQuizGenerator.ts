@@ -43,6 +43,18 @@ export const generateQuizQuestionsWithAi = async (
   return generateCurriculumFallback(request);
 };
 
+/**
+ * Randomizes the order of options so the correct answer is not always first
+ */
+export function shuffleOptions<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 async function fetchGeminiQuizQuestions(
   request: AiQuizRequest,
   apiKey: string
@@ -54,16 +66,17 @@ ${request.contextText ? `Zusatzkontext / Lehrplantext:\n"${request.contextText}"
 
 WICHTIGE DIDAKTISCHE VORGABEN:
 1. Jede Frage MUSS genau 4 Antwortmöglichkeiten haben (1 eindeutig fachlich korrekte Antwort, 3 plausible Schülertäuschungen/Distraktoren).
-2. Die Fragen müssen altersgerecht, motivierend und direkt für Schüler verständlich formuliert sein.
-3. Antworte STRIKT als valides JSON-Array ohne Markdown-Backticks:
+2. ZUFÄLLIGE POSITION DER RICHTIGEN ANTWORT: Die richtige Antwort ("isCorrect": true) darf NIEMALS immer an der ersten Stelle stehen! Verteile die richtige Antwort zufällig und abwechselnd auf Position 1, 2, 3 oder 4!
+3. Die Fragen müssen altersgerecht, motivierend und direkt für Schüler verständlich formuliert sein.
+4. Antworte STRIKT als valides JSON-Array ohne Markdown-Backticks:
 [
   {
     "question": "Fragetext hier",
     "options": [
-      { "text": "Richtige Antwort", "isCorrect": true },
-      { "text": "Falsche Antwort 1", "isCorrect": false },
-      { "text": "Falsche Antwort 2", "isCorrect": false },
-      { "text": "Falsche Antwort 3", "isCorrect": false }
+      { "text": "Antwort 1", "isCorrect": false },
+      { "text": "Antwort 2 (z. B. korrekt)", "isCorrect": true },
+      { "text": "Antwort 3", "isCorrect": false },
+      { "text": "Antwort 4", "isCorrect": false }
     ],
     "explanation": "Kurze prägnante Erklärung für die gemeinsame Auswertung",
     "timeLimitSeconds": 20
@@ -73,8 +86,8 @@ WICHTIGE DIDAKTISCHE VORGABEN:
   const result = await geminiService.executeWithCascade({
     key: apiKey,
     prompt,
-    systemInstruction: 'Du bist ein erfahrener Pädagoge und erstellst hochwertige Schul-Quizfragen im strikten JSON-Format.',
-    temperature: 0.35,
+    systemInstruction: 'Du bist ein erfahrener Pädagoge und erstellst hochwertige Schul-Quizfragen im strikten JSON-Format mit zufällig verteilten richtigen Antworten.',
+    temperature: 0.45,
     responseMimeType: 'application/json',
   });
 
@@ -82,15 +95,22 @@ WICHTIGE DIDAKTISCHE VORGABEN:
   const parsed = JSON.parse(cleanJson);
 
   if (Array.isArray(parsed) && parsed.length > 0) {
-    return parsed.map((item: any) => ({
-      question: String(item.question || 'Frage'),
-      options: Array.isArray(item.options) ? item.options.map((o: any) => ({
+    return parsed.map((item: any) => {
+      const rawOpts: { text: string; isCorrect: boolean }[] = Array.isArray(item.options) ? item.options.map((o: any) => ({
         text: String(o.text || ''),
         isCorrect: Boolean(o.isCorrect)
-      })) : [],
-      explanation: item.explanation ? String(item.explanation) : undefined,
-      timeLimitSeconds: Number(item.timeLimitSeconds) || 20
-    }));
+      })) : [];
+
+      // Programmatically shuffle options to guarantee position randomness
+      const randomizedOptions: { text: string; isCorrect: boolean }[] = shuffleOptions(rawOpts);
+
+      return {
+        question: String(item.question || 'Frage'),
+        options: randomizedOptions,
+        explanation: item.explanation ? String(item.explanation) : undefined,
+        timeLimitSeconds: Number(item.timeLimitSeconds) || 20
+      };
+    });
   }
 
   throw new Error('Ungültiges Fragenformat von der Gemini-Schnittstelle empfangen.');
@@ -162,7 +182,11 @@ function generateCurriculumFallback(request: AiQuizRequest): AiGeneratedQuestion
   ];
 
   for (let i = 0; i < Math.min(questionCount, genericPool.length); i++) {
-    drafts.push(genericPool[i]);
+    const item = genericPool[i];
+    drafts.push({
+      ...item,
+      options: shuffleOptions(item.options)
+    });
   }
 
   return drafts;

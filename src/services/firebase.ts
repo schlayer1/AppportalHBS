@@ -496,8 +496,9 @@ export const syncKahootLiveSession = async (
 ): Promise<void> => {
   if (!db || !session.sessionCode) return;
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${session.sessionCode}`);
-    const dataToWrite: any = { ...session, updatedAt: Date.now() };
+    const cleanCode = (session.sessionCode || '').replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${cleanCode}`);
+    const dataToWrite: any = { ...session, sessionCode: cleanCode, updatedAt: Date.now() };
 
     // If caller did not provide participants explicitly, do NOT overwrite participants in Firestore
     if (!session.participants) {
@@ -523,7 +524,8 @@ export const subscribeToKahootSession = (
 ): (() => void) => {
   if (!db || !sessionCode) return () => {};
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${sessionCode}`);
+    const cleanCode = sessionCode.replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${cleanCode}`);
     const unsubscribe = onSnapshot(sessionDocRef, (snap) => {
       if (snap.exists()) {
         callback(snap.data() as KahootLiveSession);
@@ -531,7 +533,7 @@ export const subscribeToKahootSession = (
         // Fallback check schools/HBS_portal
         const schoolDocRef = doc(db!, 'schools', 'HBS_portal');
         getDoc(schoolDocRef).then((sSnap) => {
-          if (sSnap.exists() && sSnap.data().activeKahootSession?.sessionCode === sessionCode) {
+          if (sSnap.exists() && sSnap.data().activeKahootSession?.sessionCode === cleanCode) {
             callback(sSnap.data().activeKahootSession as KahootLiveSession);
           } else {
             callback(null);
@@ -551,7 +553,8 @@ export const subscribeToKahootSession = (
 export const getKahootLiveSessionFromCloud = async (sessionCode: string): Promise<KahootLiveSession | null> => {
   if (!db || !sessionCode) return null;
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${sessionCode}`);
+    const cleanCode = sessionCode.replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${cleanCode}`);
     const snap = await getDoc(sessionDocRef);
     if (snap.exists()) {
       return snap.data() as KahootLiveSession;
@@ -571,7 +574,8 @@ export const joinKahootSessionInCloud = async (
 ): Promise<void> => {
   if (!db || !sessionCode) return;
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${sessionCode}`);
+    const cleanCode = sessionCode.replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${cleanCode}`);
     const snap = await getDoc(sessionDocRef);
     let participants: KahootParticipant[] = [];
 
@@ -582,7 +586,7 @@ export const joinKahootSessionInCloud = async (
     const updated = [...participants.filter(p => p.id !== participant.id), participant];
 
     await setDoc(sessionDocRef, {
-      sessionCode,
+      sessionCode: cleanCode,
       participants: updated,
       updatedAt: Date.now()
     }, { merge: true });
@@ -609,7 +613,8 @@ export const submitKahootAnswerInCloud = async (
 ): Promise<void> => {
   if (!db || !sessionCode) return;
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${sessionCode}`);
+    const cleanCode = sessionCode.replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${cleanCode}`);
     const snap = await getDoc(sessionDocRef);
     let participants: KahootParticipant[] = [];
     if (snap.exists()) {

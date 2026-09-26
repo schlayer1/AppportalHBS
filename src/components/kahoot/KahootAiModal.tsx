@@ -8,7 +8,9 @@ import {
   AlertCircle, 
   Loader2, 
   ArrowRight,
-  Settings2
+  Settings2,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { 
   AiQuizRequest, 
@@ -126,6 +128,29 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
       ...opt,
       isCorrect: idx === correctOptIndex
     }));
+    setDrafts(updated);
+  };
+
+  const handleMoveDraftOption = (qIndex: number, optIndex: number, direction: 'up' | 'down') => {
+    const updated = [...drafts];
+    const opts = [...updated[qIndex].options];
+    const targetIndex = direction === 'up' ? optIndex - 1 : optIndex + 1;
+    if (targetIndex < 0 || targetIndex >= opts.length) return;
+    const temp = opts[optIndex];
+    opts[optIndex] = opts[targetIndex];
+    opts[targetIndex] = temp;
+    updated[qIndex].options = opts;
+    setDrafts(updated);
+  };
+
+  const handleShuffleDraftOptions = (qIndex: number) => {
+    const updated = [...drafts];
+    const opts = [...updated[qIndex].options];
+    for (let i = opts.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [opts[i], opts[j]] = [opts[j], opts[i]];
+    }
+    updated[qIndex].options = opts;
     setDrafts(updated);
   };
 
@@ -391,13 +416,25 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
                         />
                       </div>
 
-                      <button
-                        onClick={() => handleDeleteDraft(qIdx)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all shrink-0"
-                        title="Frage verwerfen"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleShuffleDraftOptions(qIdx)}
+                          className="px-2 py-1 rounded-lg text-[10px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-all flex items-center gap-1"
+                          title="Antworten dieser Frage zufällig mischen"
+                        >
+                          <span>🎲 Mischen</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDraft(qIdx)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                          title="Frage verwerfen"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Answer Options Grid */}
@@ -430,6 +467,28 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
                             onChange={(e) => handleUpdateDraftOption(qIdx, optIdx, e.target.value)}
                             className="flex-1 bg-transparent text-xs font-medium outline-none"
                           />
+
+                          {/* Reorder Buttons (Up / Down) */}
+                          <div className="flex flex-col gap-0.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveDraftOption(qIdx, optIdx, 'up')}
+                              disabled={optIdx === 0}
+                              className="p-0.5 rounded text-slate-400 hover:text-purple-600 disabled:opacity-20 transition-all cursor-pointer"
+                              title="Nach oben verschieben"
+                            >
+                              <ChevronUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveDraftOption(qIdx, optIdx, 'down')}
+                              disabled={optIdx === draft.options.length - 1}
+                              className="p-0.5 rounded text-slate-400 hover:text-purple-600 disabled:opacity-20 transition-all cursor-pointer"
+                              title="Nach unten verschieben"
+                            >
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

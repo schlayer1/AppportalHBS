@@ -203,31 +203,31 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
 
   // Firestore Snapshot Listener & Active Heartbeat: Listen for students joining or answering in real time continuously
   useEffect(() => {
+    const applyParticipants = (liveList: KahootParticipant[]) => {
+      if (!Array.isArray(liveList)) return;
+      setParticipants(prev => {
+        if (stageRef.current === 'lobby' && liveList.length > prev.length) {
+          audio.playTick();
+        }
+        return liveList;
+      });
+    };
+
     const unsubscribe = subscribeToKahootSession(sessionCode, (liveSess) => {
       if (liveSess && Array.isArray(liveSess.participants)) {
-        setParticipants(prev => {
-          if (stageRef.current === 'lobby' && liveSess.participants.length > prev.length) {
-            audio.playTick();
-          }
-          return liveSess.participants;
-        });
+        applyParticipants(liveSess.participants);
       }
     });
 
-    // Active 2s Polling Heartbeat while in lobby or question to guarantee instant updates
+    // Active 1.5s Polling Heartbeat while in lobby or question to guarantee instant updates
     const heartbeat = setInterval(async () => {
       if (stageRef.current === 'lobby' || stageRef.current === 'question') {
         const live = await getKahootLiveSessionFromCloud(sessionCode);
         if (live && Array.isArray(live.participants)) {
-          setParticipants(prev => {
-            if (stageRef.current === 'lobby' && live.participants.length > prev.length) {
-              audio.playTick();
-            }
-            return live.participants;
-          });
+          applyParticipants(live.participants);
         }
       }
-    }, 2000);
+    }, 1500);
 
     return () => {
       unsubscribe();
@@ -545,14 +545,16 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
           </div>
 
           {/* Participant Bubbles */}
-          <div className="w-full flex-1 max-h-48 overflow-y-auto px-4 py-2 mt-4">
-            <div className="flex items-center justify-center gap-2 mb-2 text-xs font-black uppercase tracking-wider text-purple-300">
-              <Users className="w-4 h-4" />
-              <span>In der Lobby: {participants.length} {gameMode === 'team' ? 'Teams' : 'Spieler'}</span>
+          <div className="w-full flex-1 max-h-52 overflow-y-auto px-4 py-2 mt-4 flex flex-col items-center">
+            <div className="flex items-center gap-2.5 px-5 py-2 rounded-2xl bg-purple-600/30 border border-purple-400/50 shadow-lg mb-3">
+              <Users className="w-5 h-5 text-purple-300" />
+              <span className="text-sm font-black uppercase tracking-wider text-purple-200">
+                In der Lobby angemeldet: <strong className="text-amber-300 text-lg font-mono font-black ml-1">{participants.length}</strong> {gameMode === 'team' ? 'Teams' : 'Spieler'}
+              </span>
             </div>
 
             {participants.length === 0 ? (
-              <div className="text-center text-sm text-purple-300/60 animate-pulse mt-4">
+              <div className="text-center text-sm text-purple-300/70 animate-pulse mt-2">
                 {gameMode === 'team'
                   ? 'Warte auf Tischgruppen... Schließt euch zusammen und tretet bei!'
                   : 'Warte auf Spieler... Scanne den QR-Code oder gib den PIN ein!'}

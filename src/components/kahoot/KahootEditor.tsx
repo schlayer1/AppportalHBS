@@ -153,6 +153,40 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
     handleUpdateCurrentQuestion({ options: newOpts });
   };
 
+  const handleMoveOption = (fromIndex: number, direction: 'up' | 'down') => {
+    if (!currentQ) return;
+    const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= currentQ.options.length) return;
+
+    const newOpts = [...currentQ.options];
+    const temp = newOpts[fromIndex];
+    newOpts[fromIndex] = newOpts[toIndex];
+    newOpts[toIndex] = temp;
+
+    // Remap shapes & colors according to slot order
+    const remapped = newOpts.map((opt, idx) => ({
+      ...opt,
+      shape: SHAPE_CONFIG[idx % 4].shape,
+      color: SHAPE_CONFIG[idx % 4].color
+    }));
+    handleUpdateCurrentQuestion({ options: remapped });
+  };
+
+  const handleShuffleOptions = () => {
+    if (!currentQ || currentQ.options.length <= 1) return;
+    const shuffled = [...currentQ.options];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const remapped = shuffled.map((opt, idx) => ({
+      ...opt,
+      shape: SHAPE_CONFIG[idx % 4].shape,
+      color: SHAPE_CONFIG[idx % 4].color
+    }));
+    handleUpdateCurrentQuestion({ options: remapped });
+  };
+
   const handleSetQuestionType = (type: 'quiz' | 'true_false') => {
     if (!currentQ) return;
     if (type === 'true_false') {
@@ -425,50 +459,88 @@ export const KahootEditor: React.FC<KahootEditorProps> = ({
               </div>
 
               {/* 4 Large Kahoot Shape Option Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {currentQ.options.map((opt, oIdx) => {
-                  const shapeMeta = SHAPE_CONFIG.find(s => s.shape === opt.shape) || SHAPE_CONFIG[oIdx % 4];
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs font-black uppercase tracking-wider text-purple-300">
+                    Antwortmöglichkeiten ({currentQ.options.length})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleShuffleOptions}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-400/40 text-purple-200 hover:text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+                    title="Reihenfolge der Antworten zufällig mischen"
+                  >
+                    <span>🎲 Antworten mischen</span>
+                  </button>
+                </div>
 
-                  return (
-                    <div
-                      key={opt.id || oIdx}
-                      className={`relative rounded-3xl p-4 sm:p-5 flex items-center gap-3 transition-all border-2 ${
-                        opt.color === 'red' ? 'bg-red-600/90 border-red-500 hover:bg-red-600' :
-                        opt.color === 'blue' ? 'bg-blue-600/90 border-blue-500 hover:bg-blue-600' :
-                        opt.color === 'yellow' ? 'bg-amber-500/90 border-amber-400 hover:bg-amber-500' :
-                        'bg-emerald-600/90 border-emerald-500 hover:bg-emerald-600'
-                      } ${opt.isCorrect ? 'ring-4 ring-white/40 shadow-xl' : 'opacity-90'}`}
-                    >
-                      {/* Geometric Shape Icon */}
-                      <span className="text-2xl drop-shadow-md shrink-0">
-                        {shapeMeta.icon}
-                      </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {currentQ.options.map((opt, oIdx) => {
+                    const shapeMeta = SHAPE_CONFIG.find(s => s.shape === opt.shape) || SHAPE_CONFIG[oIdx % 4];
 
-                      {/* Text Input */}
-                      <input
-                        type="text"
-                        value={opt.text}
-                        onChange={e => handleUpdateOptionText(oIdx, e.target.value)}
-                        placeholder={`Antwort ${oIdx + 1}...`}
-                        className="flex-1 bg-black/20 hover:bg-black/30 focus:bg-black/40 border border-white/20 rounded-xl px-3 py-2.5 text-sm sm:text-base font-black text-white placeholder:text-white/60 focus:outline-none"
-                      />
-
-                      {/* Correct / Incorrect Check Toggle */}
-                      <button
-                        type="button"
-                        onClick={() => handleToggleCorrectOption(oIdx)}
-                        className={`w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 ${
-                          opt.isCorrect
-                            ? 'bg-white text-emerald-700 shadow-md ring-2 ring-white scale-110'
-                            : 'bg-black/30 text-white/40 hover:text-white hover:bg-black/50 border border-white/30'
-                        }`}
-                        title={opt.isCorrect ? 'Richtige Antwort' : 'Als richtig markieren'}
+                    return (
+                      <div
+                        key={opt.id || oIdx}
+                        className={`relative rounded-3xl p-4 sm:p-5 flex items-center gap-3 transition-all border-2 ${
+                          opt.color === 'red' ? 'bg-red-600/90 border-red-500 hover:bg-red-600' :
+                          opt.color === 'blue' ? 'bg-blue-600/90 border-blue-500 hover:bg-blue-600' :
+                          opt.color === 'yellow' ? 'bg-amber-500/90 border-amber-400 hover:bg-amber-500' :
+                          'bg-emerald-600/90 border-emerald-500 hover:bg-emerald-600'
+                        } ${opt.isCorrect ? 'ring-4 ring-white/40 shadow-xl' : 'opacity-90'}`}
                       >
-                        <Check className={`w-5 h-5 stroke-[3] ${opt.isCorrect ? 'opacity-100' : 'opacity-30'}`} />
-                      </button>
-                    </div>
-                  );
-                })}
+                        {/* Geometric Shape Icon */}
+                        <span className="text-2xl drop-shadow-md shrink-0">
+                          {shapeMeta.icon}
+                        </span>
+
+                        {/* Text Input */}
+                        <input
+                          type="text"
+                          value={opt.text}
+                          onChange={e => handleUpdateOptionText(oIdx, e.target.value)}
+                          placeholder={`Antwort ${oIdx + 1}...`}
+                          className="flex-1 bg-black/20 hover:bg-black/30 focus:bg-black/40 border border-white/20 rounded-xl px-3 py-2.5 text-sm sm:text-base font-black text-white placeholder:text-white/60 focus:outline-none"
+                        />
+
+                        {/* Reorder Buttons (Up / Down) */}
+                        <div className="flex flex-col gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveOption(oIdx, 'up')}
+                            disabled={oIdx === 0}
+                            className="w-6 h-6 rounded-lg bg-black/30 hover:bg-black/50 disabled:opacity-20 disabled:hover:bg-black/30 flex items-center justify-center text-white transition-all cursor-pointer"
+                            title="Nach oben verschieben"
+                          >
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveOption(oIdx, 'down')}
+                            disabled={oIdx === currentQ.options.length - 1}
+                            className="w-6 h-6 rounded-lg bg-black/30 hover:bg-black/50 disabled:opacity-20 disabled:hover:bg-black/30 flex items-center justify-center text-white transition-all cursor-pointer"
+                            title="Nach unten verschieben"
+                          >
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Correct / Incorrect Check Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCorrectOption(oIdx)}
+                          className={`w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 ${
+                            opt.isCorrect
+                              ? 'bg-white text-emerald-700 shadow-md ring-2 ring-white scale-110'
+                              : 'bg-black/30 text-white/40 hover:text-white hover:bg-black/50 border border-white/30'
+                          }`}
+                          title={opt.isCorrect ? 'Richtige Antwort' : 'Als richtig markieren'}
+                        >
+                          <Check className={`w-5 h-5 stroke-[3] ${opt.isCorrect ? 'opacity-100' : 'opacity-30'}`} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
             </div>
