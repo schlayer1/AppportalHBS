@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { 
   subscribeToMentiSession, 
+  getMentiLiveSessionFromCloud,
   submitMentiVoteInCloud, 
   submitMentiReactionInCloud 
 } from '../../services/firebase';
@@ -48,9 +49,10 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     return localStorage.getItem('hbs_menti_student_nick') || '';
   });
 
-  // State of votes for current slide
-  const [hasVotedForCurrentSlide, setHasVotedForCurrentSlide] = useState<boolean>(false);
-  const [votedSlideId, setVotedSlideId] = useState<string | null>(null);
+  // State of votes for slides (slideId -> boolean)
+  const [votedSlides, setVotedSlides] = useState<Record<string, boolean>>({});
+  const [lastActiveSlideId, setLastActiveSlideId] = useState<string | null>(null);
+  const hasVotedForCurrentSlide = Boolean(session?.activeSlide?.id && votedSlides[session.activeSlide.id]);
 
   // Wordcloud inputs (1 to 3 words)
   const [words, setWords] = useState<string[]>(['', '', '']);
@@ -106,7 +108,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     };
   }, [pinCode]);
 
-  // Listen to Firestore active Menti Session
+  // Listen to Firestore active Menti Session with active polling heartbeat
   useEffect(() => {
     if (!pinCode) return;
     const unsubscribe = subscribeToMentiSession(pinCode, (sess) => {
@@ -114,14 +116,25 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
         setSession(sess);
       }
     });
-    return () => unsubscribe();
+
+    const heartbeat = setInterval(async () => {
+      const live = await getMentiLiveSessionFromCloud(pinCode);
+      if (live) {
+        setSession(live);
+      }
+    }, 2000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(heartbeat);
+    };
   }, [pinCode]);
 
-  // When active slide changes in the session, reset vote state for new slide!
+  // When active slide changes in the session, reset input fields for new slide!
   useEffect(() => {
     if (session?.activeSlide) {
-      if (session.activeSlide.id !== votedSlideId) {
-        setHasVotedForCurrentSlide(false);
+      if (session.activeSlide.id !== lastActiveSlideId) {
+        setLastActiveSlideId(session.activeSlide.id);
         setWords(['', '', '']);
         setOpenText('');
         // Initialize scales
@@ -141,7 +154,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
         }
       }
     }
-  }, [session?.activeSlide?.id, session?.currentSlideIndex, votedSlideId]);
+  }, [session?.activeSlide?.id, lastActiveSlideId]);
 
   // Send realtime floating reaction (❤️, 👍, 💡, 👏, 🎉)
   const handleSendReaction = async (emoji: string) => {
@@ -172,8 +185,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     const cleanWords = words.map(w => w.trim()).filter(w => w.length > 0);
     if (cleanWords.length === 0) return;
 
-    setHasVotedForCurrentSlide(true);
-    setVotedSlideId(session.activeSlide.id);
+    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
 
     // Broadcast locally
     if (broadcastRef.current) {
@@ -198,8 +210,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Submit Choice
   const handleSelectChoice = async (optionId: string) => {
     if (!session || !session.isVotingOpen) return;
-    setHasVotedForCurrentSlide(true);
-    setVotedSlideId(session.activeSlide.id);
+    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
 
     // Broadcast locally
     if (broadcastRef.current) {
@@ -221,8 +232,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Submit Open-ended
   const handleSubmitOpen = async () => {
     if (!session || !openText.trim()) return;
-    setHasVotedForCurrentSlide(true);
-    setVotedSlideId(session.activeSlide.id);
+    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
 
     const newResponse = {
       id: `resp-${Date.now()}-${Math.random()}`,
@@ -250,8 +260,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Submit Scales
   const handleSubmitScales = async () => {
     if (!session) return;
-    setHasVotedForCurrentSlide(true);
-    setVotedSlideId(session.activeSlide.id);
+    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
 
     // Broadcast locally
     if (broadcastRef.current) {
@@ -274,8 +283,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   const handleSelectQuiz = async (optionId: string, isCorrect: boolean) => {
     if (!session || !session.isVotingOpen) return;
     const finalNick = nickname.trim() || 'Schüler';
-    setHasVotedForCurrentSlide(true);
-    setVotedSlideId(session.activeSlide.id);
+    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
     const score = isCorrect ? 1000 : 0;
 
     // Broadcast locally
@@ -301,8 +309,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Submit Matrix
   const handleSubmitMatrix = async () => {
     if (!session || !session.isVotingOpen) return;
-    setHasVotedForCurrentSlide(true);
-    setVotedSlideId(session.activeSlide.id);
+    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
 
     const vote = {
       x: Math.round(matrixCoords.x),
@@ -330,8 +337,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Submit Ranking
   const handleSubmitRanking = async () => {
     if (!session || !session.isVotingOpen || rankingOrder.length === 0) return;
-    setHasVotedForCurrentSlide(true);
-    setVotedSlideId(session.activeSlide.id);
+    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
 
     // Broadcast locally
     if (broadcastRef.current) {

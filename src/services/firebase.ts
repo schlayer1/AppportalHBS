@@ -548,6 +548,20 @@ export const subscribeToKahootSession = (
   }
 };
 
+export const getKahootLiveSessionFromCloud = async (sessionCode: string): Promise<KahootLiveSession | null> => {
+  if (!db || !sessionCode) return null;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${sessionCode}`);
+    const snap = await getDoc(sessionDocRef);
+    if (snap.exists()) {
+      return snap.data() as KahootLiveSession;
+    }
+  } catch (err) {
+    console.warn("Error getting Kahoot session from cloud:", err);
+  }
+  return null;
+};
+
 /**
  * Student joins the Kahoot lobby from their smartphone via QR code / PIN.
  */
@@ -584,12 +598,13 @@ export const joinKahootSessionInCloud = async (
 };
 
 /**
- * Student submits their answer in Kahoot from their smartphone.
+ * Student submits their answer in Kahoot from their smartphone for a specific question.
  */
 export const submitKahootAnswerInCloud = async (
   sessionCode: string,
   studentId: string,
   optionId: string,
+  questionIndex: number,
   studentInfo?: { nickname?: string; avatar?: string }
 ): Promise<void> => {
   if (!db || !sessionCode) return;
@@ -606,7 +621,12 @@ export const submitKahootAnswerInCloud = async (
     const updated = participants.map(p => {
       if (p.id === studentId) {
         found = true;
-        return { ...p, lastAnswerId: optionId, lastAnswerTime: Date.now() };
+        return {
+          ...p,
+          lastAnswerId: optionId,
+          lastAnswerTime: Date.now(),
+          answeredQuestionIndex: questionIndex
+        };
       }
       return p;
     });
@@ -620,11 +640,12 @@ export const submitKahootAnswerInCloud = async (
         score: 0,
         streak: 0,
         lastAnswerId: optionId,
-        lastAnswerTime: Date.now()
+        lastAnswerTime: Date.now(),
+        answeredQuestionIndex: questionIndex
       });
     }
 
-    const answersReceived = updated.filter(p => p.lastAnswerId).length;
+    const answersReceived = updated.filter(p => p.answeredQuestionIndex === questionIndex && p.lastAnswerId).length;
 
     await setDoc(sessionDocRef, {
       participants: updated,
@@ -662,6 +683,20 @@ export const syncMentiLiveSession = async (session: MentiLiveSession): Promise<v
   } catch (err) {
     console.warn("Menti sync to cloud warning:", err);
   }
+};
+
+export const getMentiLiveSessionFromCloud = async (sessionCode: string): Promise<MentiLiveSession | null> => {
+  if (!db || !sessionCode) return null;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${sessionCode}`);
+    const snap = await getDoc(sessionDocRef);
+    if (snap.exists()) {
+      return snap.data() as MentiLiveSession;
+    }
+  } catch (err) {
+    console.warn("Error getting Menti session from cloud:", err);
+  }
+  return null;
 };
 
 /**
@@ -814,6 +849,20 @@ export const syncOncooLiveSession = async (session: OncooSession): Promise<void>
   } catch (err) {
     console.warn("Oncoo sync to cloud warning:", err);
   }
+};
+
+export const getOncooLiveSessionFromCloud = async (pinCode: string): Promise<OncooSession | null> => {
+  if (!db || !pinCode) return null;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${pinCode}`);
+    const snap = await getDoc(sessionDocRef);
+    if (snap.exists()) {
+      return snap.data() as OncooSession;
+    }
+  } catch (err) {
+    console.warn("Error getting Oncoo session from cloud:", err);
+  }
+  return null;
 };
 
 /**

@@ -2,10 +2,40 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '2.5.1',
+    title: 'Rock-Solid Gameplay-Synchronisation für Kahoot, Mentimeter & Oncoo',
+    date: '26. September 2026',
+    isLatest: true,
+    highlight: 'Umfassende Härtung und Zuverlässigkeits-Update für alle interaktiven Unterrichts-Tools: Beseitigung des automatischen Weiterspringens bei Kahoot-Fragen 2 & 3, fehlerfreier Lobby-Zustand, lückenlose Folien-Erkennung bei Mentimeter und sofortige Echtzeit-Rückmeldung bei Oncoo.',
+    items: [
+      {
+        id: 'cl-251-1',
+        type: 'behoben',
+        title: 'Kahoot: Frage-2-&-3-Auto-Advance & Antwortfelder behoben',
+        description: 'Bisher konnte eine Antwort aus Frage 1 dazu führen, dass Folgefragen fälschlicherweise als bereits beantwortet galten und die Spielleiter-Ansicht sofort weiterlief. Durch strenge Frage-Index-Zuordnung (answeredQuestionIndex) und per-Frage-Zustand im Schüler-Client sind die 4 Farbfelder nun bei jeder neuen Frage garantiert voll bedienbar.',
+        badge: 'Kahoot'
+      },
+      {
+        id: 'cl-251-2',
+        type: 'verbessert',
+        title: 'Lobby & Netzwerkausfallsicherheit: Aktiver 2s-Polling-Heartbeat',
+        description: 'Geräte in Schul-WLANs und mobilen Funknetzen erhalten zusätzlich zum WebSocket-Stream einen automatischen 2-Sekunden-Heartbeat. Schüler erscheinen dadurch ohne Verzögerung oder manuelles Neuladen in der Spielleiter-Lobby.',
+        badge: 'Echtzeit-Sync'
+      },
+      {
+        id: 'cl-251-3',
+        type: 'verbessert',
+        title: 'Mentimeter & Oncoo: Strikte Trennung von Präsentations- und Abstimmungsdaten',
+        description: 'Vermeidung von Daten-Echoeffekten: Folienwechsel der Lehrkraft überschreiben niemals eingegangene Schüler-Voten. Volle Unterstützung für Zielscheibe, Kartenabfrage, Helfersystem, Placemat und Lerntempoduett mit automatischer Kriterien-Vorbelegung.',
+        badge: 'Menti & Oncoo'
+      }
+    ]
+  },
+  {
     version: '2.5.0',
     title: 'Neu im Portal: Projektkompass 2.0 (Agile Projekt-Suite mit KI-Coach & Lehrer-Cockpit)',
     date: '26. September 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Der brandneue Projektkompass 2.0 ist ab sofort im App-Portal integriert: Mit Live-Lehrer-Cockpit (Klassenradar & Hilferuf-Ampel), didaktischem KI-Projektcoach bei Hürden, geräteübergreifender Cloud-Synchronisation per Gruppen-Code, digitalem Tagebuch, Meilenstein-Zeitstrahl und offiziellem PDF-Druckbericht.',
     items: [
       {

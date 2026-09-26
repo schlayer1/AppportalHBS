@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { 
   subscribeToKahootSession, 
+  getKahootLiveSessionFromCloud,
   joinKahootSessionInCloud, 
   submitKahootAnswerInCloud 
 } from '../../services/firebase';
@@ -67,8 +68,8 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
   const [teamMembersStr, setTeamMembersStr] = useState<string>('');
   const [teamConsultationLeft, setTeamConsultationLeft] = useState<number>(0);
 
-  // Answer state for current question
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  // Answer state mapped per questionIndex
+  const [answersByQuestion, setAnswersByQuestion] = useState<Record<number, string>>({});
   const [lastQuestionIndex, setLastQuestionIndex] = useState<number>(-1);
 
   const broadcastRef = useRef<BroadcastChannel | null>(null);
@@ -111,7 +112,7 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
     };
   }, [pinCode]);
 
-  // Snapshot listener for active Kahoot session from Firestore
+  // Snapshot listener + 2s fallback heartbeat for active Kahoot session from Firestore
   useEffect(() => {
     if (!pinCode) return;
     const unsubscribe = subscribeToKahootSession(pinCode, (sess) => {
@@ -119,18 +120,25 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
         setSession(sess);
       }
     });
-    return () => unsubscribe();
+
+    const heartbeat = setInterval(async () => {
+      const live = await getKahootLiveSessionFromCloud(pinCode);
+      if (live) {
+        setSession(live);
+      }
+    }, 2000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(heartbeat);
+    };
   }, [pinCode]);
 
-  // When question changes or stage resets to get_ready, reset selected answer and start team consultation countdown
+  // When question changes, start team consultation countdown if team mode
   useEffect(() => {
     if (session) {
-      if (session.stage === 'get_ready') {
-        setSelectedOptionId(null);
-      }
       if (session.currentQuestionIndex !== lastQuestionIndex) {
         setLastQuestionIndex(session.currentQuestionIndex);
-        setSelectedOptionId(null);
         if (session.gameMode === 'team') {
           setTeamConsultationLeft(5);
         } else {
@@ -138,7 +146,7 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
         }
       }
     }
-  }, [session?.currentQuestionIndex, session?.stage, lastQuestionIndex, session?.gameMode]);
+  }, [session?.currentQuestionIndex, lastQuestionIndex, session?.gameMode]);
 
   // Team consultation 5s countdown
   useEffect(() => {
@@ -213,22 +221,23 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
 
   // Student submits their answer
   const handleSelectOption = async (optionId: string) => {
-    if (selectedOptionId) return;
+    const currentQIdx = session?.currentQuestionIndex ?? 0;
+    if (answersByQuestion[currentQIdx]) return;
     if (session && (session.stage !== 'question' || !session.isAnswerOpen)) return;
 
-    setSelectedOptionId(optionId);
+    setAnswersByQuestion(prev => ({ ...prev, [currentQIdx]: optionId }));
 
     // Broadcast locally
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
         type: 'STUDENT_ANSWER',
-        payload: { studentId, optionId }
+        payload: { studentId, optionId, questionIndex: currentQIdx }
       });
     }
 
     // Cloud submit across all devices
     if (pinCode) {
-      submitKahootAnswerInCloud(pinCode, studentId, optionId, {
+      submitKahootAnswerInCloud(pinCode, studentId, optionId, currentQIdx, {
         nickname: nickname.trim() || 'Schüler',
         avatar: selectedAvatar
       });
@@ -439,75 +448,80 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
       )}
 
       {/* VIEW 5: QUESTION - THE CLASSIC 4-COLOR GAMEPAD */}
-      {hasJoinedLobby && session?.stage === 'question' && (
-        <main className="flex-1 flex flex-col p-3 w-full justify-between">
-          
-          {selectedOptionId ? (
-            // Answer submitted confirmation screen
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-3 animate-fadeIn">
-              <div className="w-20 h-20 rounded-full bg-purple-600 flex items-center justify-center text-4xl shadow-xl animate-bounce">
-                ✓
-              </div>
-              <h2 className="text-2xl font-black">Antwort gesendet!</h2>
-              <p className="text-xs text-purple-200">
-                Warten auf die Auflösung... Schau auf das Smartboard!
-              </p>
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col justify-between h-full">
-              {/* Team Consultation Banner */}
-              {session?.gameMode === 'team' && teamConsultationLeft > 0 && (
-                <div className="p-3 mb-2 rounded-2xl bg-amber-500/25 border-2 border-amber-400 text-amber-100 text-center animate-pulse shrink-0">
-                  <div className="text-[10px] uppercase font-black tracking-widest text-amber-300 flex items-center justify-center gap-1.5">
-                    <Users className="w-3.5 h-3.5" />
-                    <span>Team-Beratungsphase</span>
-                  </div>
-                  <div className="text-xs sm:text-sm font-bold mt-0.5">
-                    Sprecht euch am Tisch ab! Freigabe in <span className="font-mono text-base font-black text-amber-300">{teamConsultationLeft}s</span>
-                  </div>
+      {hasJoinedLobby && session?.stage === 'question' && (() => {
+        const currentQIdx = session?.currentQuestionIndex ?? 0;
+        const myAnswerForThisQ = answersByQuestion[currentQIdx];
+
+        return (
+          <main className="flex-1 flex flex-col p-3 w-full justify-between">
+            {myAnswerForThisQ ? (
+              // Answer submitted confirmation screen
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-3 animate-fadeIn">
+                <div className="w-20 h-20 rounded-full bg-purple-600 flex items-center justify-center text-4xl shadow-xl animate-bounce">
+                  ✓
                 </div>
-              )}
-
-              {/* Gamepad Buttons */}
-              <div className="flex-1 grid grid-cols-2 gap-3 h-full max-h-[85vh]">
-                {session?.activeQuestion?.options.map((opt, idx) => {
-                  const shapeMeta = SHAPE_CONFIG[opt.shape] || SHAPE_CONFIG.triangle;
-                  const isLockedByConsultation = session?.gameMode === 'team' && teamConsultationLeft > 0;
-
-                  return (
-                    <button
-                      key={opt.id || idx}
-                      onClick={() => !isLockedByConsultation && handleSelectOption(opt.id)}
-                      disabled={isLockedByConsultation}
-                      className={`min-h-[140px] sm:min-h-[180px] rounded-3xl flex items-center justify-center text-6xl sm:text-7xl shadow-2xl transition-all active:scale-90 select-none touch-manipulation cursor-pointer ${
-                        isLockedByConsultation ? 'opacity-40 cursor-not-allowed' : ''
-                      } ${
-                        opt.color === 'red' ? 'bg-red-600 active:bg-red-700' :
-                        opt.color === 'blue' ? 'bg-blue-600 active:bg-blue-700' :
-                        opt.color === 'yellow' ? 'bg-amber-500 active:bg-amber-600' :
-                        'bg-emerald-600 active:bg-emerald-700'
-                      }`}
-                    >
-                      <span className="drop-shadow-lg pointer-events-none">
-                        {shapeMeta.icon}
-                      </span>
-                    </button>
-                  );
-                })}
+                <h2 className="text-2xl font-black">Antwort gesendet!</h2>
+                <p className="text-xs text-purple-200">
+                  Warten auf die Auflösung... Schau auf das Smartboard!
+                </p>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="flex-1 flex flex-col justify-between h-full">
+                {/* Team Consultation Banner */}
+                {session?.gameMode === 'team' && teamConsultationLeft > 0 && (
+                  <div className="p-3 mb-2 rounded-2xl bg-amber-500/25 border-2 border-amber-400 text-amber-100 text-center animate-pulse shrink-0">
+                    <div className="text-[10px] uppercase font-black tracking-widest text-amber-300 flex items-center justify-center gap-1.5">
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Team-Beratungsphase</span>
+                    </div>
+                    <div className="text-xs sm:text-sm font-bold mt-0.5">
+                      Sprecht euch am Tisch ab! Freigabe in <span className="font-mono text-base font-black text-amber-300">{teamConsultationLeft}s</span>
+                    </div>
+                  </div>
+                )}
 
-        </main>
-      )}
+                {/* Gamepad Buttons */}
+                <div className="flex-1 grid grid-cols-2 gap-3 h-full max-h-[85vh]">
+                  {session?.activeQuestion?.options.map((opt, idx) => {
+                    const shapeMeta = SHAPE_CONFIG[opt.shape] || SHAPE_CONFIG.triangle;
+                    const isLockedByConsultation = session?.gameMode === 'team' && teamConsultationLeft > 0;
+
+                    return (
+                      <button
+                        key={opt.id || idx}
+                        onClick={() => !isLockedByConsultation && handleSelectOption(opt.id)}
+                        disabled={isLockedByConsultation}
+                        className={`min-h-[140px] sm:min-h-[180px] rounded-3xl flex items-center justify-center text-6xl sm:text-7xl shadow-2xl transition-all active:scale-90 select-none touch-manipulation cursor-pointer ${
+                          isLockedByConsultation ? 'opacity-40 cursor-not-allowed' : ''
+                        } ${
+                          opt.color === 'red' ? 'bg-red-600 active:bg-red-700' :
+                          opt.color === 'blue' ? 'bg-blue-600 active:bg-blue-700' :
+                          opt.color === 'yellow' ? 'bg-amber-500 active:bg-amber-600' :
+                          'bg-emerald-600 active:bg-emerald-700'
+                        }`}
+                      >
+                        <span className="drop-shadow-lg pointer-events-none">
+                          {shapeMeta.icon}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </main>
+        );
+      })()}
 
       {/* VIEW 6: REVEAL / SCOREBOARD FEEDBACK */}
       {hasJoinedLobby && (session?.stage === 'reveal' || session?.stage === 'scoreboard') && (() => {
+        const currentQIdx = session?.currentQuestionIndex ?? 0;
         const correctOpt = session?.activeQuestion?.options.find(o => o.isCorrect);
-        const isCorrect = (myParticipant && myParticipant.lastAnswerCorrect !== undefined)
+        const myAnswer = answersByQuestion[currentQIdx];
+        const isCorrect = (myParticipant && myParticipant.answeredQuestionIndex === currentQIdx && myParticipant.lastAnswerCorrect !== undefined)
           ? myParticipant.lastAnswerCorrect
-          : (selectedOptionId !== null && correctOpt && selectedOptionId === correctOpt.id);
-        const pointsEarned = myParticipant?.lastPointsEarned !== undefined
+          : (Boolean(myAnswer) && correctOpt && myAnswer === correctOpt.id);
+        const pointsEarned = (myParticipant && myParticipant.answeredQuestionIndex === currentQIdx && myParticipant.lastPointsEarned !== undefined)
           ? myParticipant.lastPointsEarned
           : (isCorrect ? Math.round((session?.activeQuestion?.points || 1000) / 2) : 0);
 

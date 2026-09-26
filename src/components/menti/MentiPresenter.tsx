@@ -21,7 +21,7 @@ import {
   VolumeX
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { syncMentiLiveSession, subscribeToMentiSession } from '../../services/firebase';
+import { syncMentiLiveSession, subscribeToMentiSession, getMentiLiveSessionFromCloud } from '../../services/firebase';
 import { MentiPresentation, MentiSlide, MentiLiveSession, MentiLiveReaction } from '../../types/mentiTypes';
 import { useAuth } from '../../context/AuthContext';
 import { classroomAudio } from '../../utils/classroomAudio';
@@ -159,7 +159,7 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
 
     // Sync to Firestore cloud (dedicated session doc & mirrors)
     syncMentiLiveSession(sessionState);
-  }, [currentSlideIndex, isVotingOpen, showResults, sessionCode, presentation.id, slideResponses, participantsCount]);
+  }, [currentSlideIndex, isVotingOpen, showResults, sessionCode, presentation.id]);
 
   // Listen to incoming votes & reactions via BroadcastChannel (local/offline)
   useEffect(() => {
@@ -283,9 +283,9 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
     };
   }, [sessionCode]);
 
-  // Listen to incoming votes and reactions from Firestore
+  // Listen to incoming votes and reactions from Firestore with active polling heartbeat
   useEffect(() => {
-    const unsubscribe = subscribeToMentiSession(sessionCode, (sess) => {
+    const applySession = (sess: MentiLiveSession) => {
       if (sess && sess.sessionCode === sessionCode) {
         if (sess.responses) {
           setSlideResponses(sess.responses);
@@ -301,8 +301,21 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
           });
         }
       }
+    };
+
+    const unsubscribe = subscribeToMentiSession(sessionCode, (sess) => {
+      if (sess) applySession(sess);
     });
-    return () => unsubscribe();
+
+    const heartbeat = setInterval(async () => {
+      const live = await getMentiLiveSessionFromCloud(sessionCode);
+      if (live) applySession(live);
+    }, 2500);
+
+    return () => {
+      unsubscribe();
+      clearInterval(heartbeat);
+    };
   }, [sessionCode]);
 
   // Clean up old floating reactions

@@ -16,7 +16,7 @@ import {
   OncooTargetVote, 
   OncooHelpItem 
 } from '../../types/oncooTypes';
-import { getCachedPortalData, subscribeToOncooSession, submitOncooActionInCloud } from '../../services/firebase';
+import { getCachedPortalData, subscribeToOncooSession, submitOncooActionInCloud, getOncooLiveSessionFromCloud } from '../../services/firebase';
 
 interface OncooStudentClientProps {
   initialCode?: string;
@@ -81,19 +81,40 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
   // Broadcast Channel for live sync
   const broadcastRef = React.useRef<BroadcastChannel | null>(null);
 
-  // Auto-join if PIN is present
+  // Auto-join and live Firestore subscription + polling
   useEffect(() => {
     if (pinCode && pinCode.length >= 6) {
       attemptJoinSession(pinCode);
     }
     if (pinCode) {
-      const unsub = subscribeToOncooSession(pinCode, (cloudSess) => {
+      const applySession = (cloudSess: OncooSession | null) => {
         if (cloudSess) {
           setSession(cloudSess);
           setHasJoined(true);
+          if (cloudSess.toolType === 'zielscheibe' && cloudSess.zielscheibe) {
+            setTargetScores(prev => {
+              if (Object.keys(prev).length > 0) return prev;
+              const defaults: Record<string, number> = {};
+              cloudSess.zielscheibe?.criteria.forEach(c => {
+                defaults[c.id] = 4;
+              });
+              return defaults;
+            });
+          }
         }
-      });
-      return () => unsub();
+      };
+
+      const unsub = subscribeToOncooSession(pinCode, applySession);
+
+      const heartbeat = setInterval(async () => {
+        const live = await getOncooLiveSessionFromCloud(pinCode);
+        if (live) applySession(live);
+      }, 2500);
+
+      return () => {
+        unsub();
+        clearInterval(heartbeat);
+      };
     }
   }, [pinCode]);
 

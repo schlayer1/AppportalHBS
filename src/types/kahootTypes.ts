@@ -50,6 +50,7 @@ export interface KahootParticipant {
   lastAnswerTime?: number;
   lastAnswerCorrect?: boolean;
   lastPointsEarned?: number;
+  answeredQuestionIndex?: number;
 }
 
 export type KahootSessionStage = 

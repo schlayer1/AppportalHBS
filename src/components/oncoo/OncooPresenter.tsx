@@ -31,7 +31,7 @@ import {
   OncooDuettPair
 } from '../../types/oncooTypes';
 import { useAuth } from '../../context/AuthContext';
-import { syncOncooLiveSession, subscribeToOncooSession } from '../../services/firebase';
+import { syncOncooLiveSession, subscribeToOncooSession, getOncooLiveSessionFromCloud } from '../../services/firebase';
 
 interface OncooPresenterProps {
   session: OncooSession;
@@ -137,16 +137,30 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
     };
   }, [session.pinCode, session.isLocked]);
 
-  // Listen to cross-device student submissions from smartphones via Firestore in real time
+  // Listen to cross-device student submissions from smartphones via Firestore in real time + active polling
   useEffect(() => {
     if (!session.pinCode) return;
-    const unsubscribe = subscribeToOncooSession(session.pinCode, (updatedSess) => {
-      if (updatedSess && (!updatedSess.updatedAt || updatedSess.updatedAt >= lastLocalSyncRef.current)) {
-        lastLocalSyncRef.current = updatedSess.updatedAt || Date.now();
-        setSession(updatedSess);
+
+    const handleRemoteSession = (updatedSess: OncooSession | null) => {
+      if (updatedSess && updatedSess.pinCode === session.pinCode) {
+        if (!updatedSess.updatedAt || updatedSess.updatedAt >= lastLocalSyncRef.current - 500) {
+          lastLocalSyncRef.current = updatedSess.updatedAt || Date.now();
+          setSession(updatedSess);
+        }
       }
-    });
-    return () => unsubscribe();
+    };
+
+    const unsubscribe = subscribeToOncooSession(session.pinCode, handleRemoteSession);
+
+    const heartbeat = setInterval(async () => {
+      const live = await getOncooLiveSessionFromCloud(session.pinCode);
+      if (live) handleRemoteSession(live);
+    }, 2500);
+
+    return () => {
+      unsubscribe();
+      clearInterval(heartbeat);
+    };
   }, [session.pinCode]);
 
   // Global Escape key listener to close modals
