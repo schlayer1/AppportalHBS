@@ -207,7 +207,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
       if (!Array.isArray(liveList)) return;
       setParticipants(prev => {
         if (stageRef.current === 'lobby' && liveList.length > prev.length) {
-          audio.playTick();
+          try { audio.playTick(); } catch {}
         }
         return liveList;
       });
@@ -219,7 +219,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
       }
     });
 
-    // Active 1.5s Polling Heartbeat while in lobby or question to guarantee instant updates
+    // Active 1s Polling Heartbeat while in lobby or question to guarantee instant updates
     const heartbeat = setInterval(async () => {
       if (stageRef.current === 'lobby' || stageRef.current === 'question') {
         const live = await getKahootLiveSessionFromCloud(sessionCode);
@@ -227,7 +227,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
           applyParticipants(live.participants);
         }
       }
-    }, 1500);
+    }, 1000);
 
     return () => {
       unsubscribe();
@@ -254,14 +254,13 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
           setTimeLeft(initialTime);
           setIsAnswerOpen(true);
           // Clear last answers for this question
-          const cleared = participantsRef.current.map(p => ({
-            ...p,
-            lastAnswerId: undefined,
-            lastAnswerTime: undefined,
-            lastAnswerCorrect: undefined,
-            lastPointsEarned: 0,
-            answeredQuestionIndex: undefined
-          }));
+          const cleared = participantsRef.current.map(p => {
+            const { lastAnswerId, lastAnswerTime, lastAnswerCorrect, answeredQuestionIndex, ...rest } = p;
+            return {
+              ...rest,
+              lastPointsEarned: 0
+            };
+          });
           setParticipants(cleared);
           syncSessionToCloud({
             stage: 'question',
@@ -269,10 +268,10 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
             isAnswerOpen: true,
             participants: cleared
           });
-          audio.playTick();
+          try { audio.playTick(); } catch {}
           return 0;
         }
-        audio.playTick();
+        try { audio.playTick(); } catch {}
         return prev - 1;
       });
     }, 1000);

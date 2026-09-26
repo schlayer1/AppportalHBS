@@ -2,10 +2,33 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '2.5.3',
+    title: 'Kahoot: Lobby-Echtzeit-Synchronisation & Firestore-Undefined-Fix',
+    date: '26. September 2026',
+    isLatest: true,
+    highlight: 'Behebung des Übertragungsfehlers beim Beitreten der Kahoot-Lobby: Durch eine globale Firestore-Sanitierungs-Pipeline werden optionale Felder wie teamMembers und ungesetzte Antwort-Keys vor dem Senden bereinigt, wodurch beigetretene Spieler sofort und ohne Verzögerung im Spielleiter-Smartboard erscheinen.',
+    items: [
+      {
+        id: 'cl-253-1',
+        type: 'behoben',
+        title: 'Lobby: Sofortige Spielleiter-Aktualisierung bei Schüler-Beitritt',
+        description: 'Ein von Firestore erzeugter „Unsupported field value: undefined“-Fehler beim Beitreten im Einzelspieler-Modus verhinderte bisher das Speichern neuer Teilnehmer in der Lobby. Mit der neuen automatischen Tiefen-Bereinigung und einer auf 1 Sekunde beschleunigten Abfrage erscheinen Spieler nun augenblicklich im Lehrer-Dashboard.',
+        badge: 'Lobby-Sync'
+      },
+      {
+        id: 'cl-253-2',
+        type: 'verbessert',
+        title: 'Firestore: Robuste Payload-Sanitization für alle Unterrichtstools',
+        description: 'Alle Datenflüsse für Kahoot, Mentimeter und Oncoo werden nun vor dem Firestore-Transport gegen ungültige Werte gehärtet, um Abstürze bei unvollständigen Netzwerk-Objekten auszuschließen.',
+        badge: 'Firestore-Härtung'
+      }
+    ]
+  },
+  {
     version: '2.5.2',
     title: 'Kahoot: Lobby-Spielerzähler, KI-Antwortzufall & manuelle Antwort-Sortierung',
     date: '26. September 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Drei gezielte Erweiterungen für HBS Kahoot: Prominenter Live-Spielerzähler in der Lobby (auf Smartboard und Schüler-Handy), Zufallsverteilung der richtigen Antwort bei KI-generierten Fragen sowie flexible manuelle Umsortierung und Mischen von Antworten im Quiz-Editor.',
     items: [
       {

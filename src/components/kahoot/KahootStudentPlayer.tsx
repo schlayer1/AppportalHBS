@@ -189,7 +189,7 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
       score: 0,
       streak: 0,
       isTeam,
-      teamMembers: members
+      ...(members && members.length > 0 ? { teamMembers: members } : {})
     };
 
     // Broadcast locally
@@ -215,7 +215,7 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
 
     // Cloud join across all devices
     if (pinCode) {
-      joinKahootSessionInCloud(pinCode, newParticipant);
+      await joinKahootSessionInCloud(pinCode, newParticipant);
     }
   };
 

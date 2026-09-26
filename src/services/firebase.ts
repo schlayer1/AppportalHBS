@@ -488,6 +488,15 @@ export const syncTeachersFromVertretungsstatistik = async (): Promise<{ added: n
 // =========================================================
 
 /**
+ * Safely strips any undefined values from objects/arrays recursively
+ * before sending to Firestore, preventing "Unsupported field value: undefined" runtime errors.
+ */
+export const sanitizeForFirestore = <T>(data: T): T => {
+  if (data === undefined || data === null) return data;
+  return JSON.parse(JSON.stringify(data));
+};
+
+/**
  * Syncs the active Kahoot live session to Firestore.
  * Writes to dedicated document and mirrors to schools/HBS_portal and portal_data.
  */
@@ -498,7 +507,7 @@ export const syncKahootLiveSession = async (
   try {
     const cleanCode = (session.sessionCode || '').replace(/\s+/g, '');
     const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${cleanCode}`);
-    const dataToWrite: any = { ...session, sessionCode: cleanCode, updatedAt: Date.now() };
+    const dataToWrite: any = sanitizeForFirestore({ ...session, sessionCode: cleanCode, updatedAt: Date.now() });
 
     // If caller did not provide participants explicitly, do NOT overwrite participants in Firestore
     if (!session.participants) {
@@ -509,7 +518,7 @@ export const syncKahootLiveSession = async (
 
     // Mirror to schools/HBS_portal with setDoc (never crashes if doc is missing)
     const schoolDocRef = doc(db, 'schools', 'HBS_portal');
-    await setDoc(schoolDocRef, { activeKahootSession: dataToWrite }, { merge: true }).catch(() => {});
+    await setDoc(schoolDocRef, sanitizeForFirestore({ activeKahootSession: dataToWrite }), { merge: true }).catch(() => {});
   } catch (err) {
     console.warn("Kahoot sync to cloud warning:", err);
   }
@@ -571,10 +580,10 @@ export const getKahootLiveSessionFromCloud = async (sessionCode: string): Promis
 export const joinKahootSessionInCloud = async (
   sessionCode: string,
   participant: KahootParticipant
-): Promise<void> => {
-  if (!db || !sessionCode) return;
+): Promise<boolean> => {
+  if (!db || !sessionCode) return false;
   try {
-    const cleanCode = sessionCode.replace(/\s+/g, '');
+    const cleanCode = (sessionCode || '').replace(/\s+/g, '');
     const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${cleanCode}`);
     const snap = await getDoc(sessionDocRef);
     let participants: KahootParticipant[] = [];
@@ -583,21 +592,32 @@ export const joinKahootSessionInCloud = async (
       const data = snap.data() as KahootLiveSession;
       participants = Array.isArray(data.participants) ? data.participants : [];
     }
-    const updated = [...participants.filter(p => p.id !== participant.id), participant];
+    const cleanParticipant = sanitizeForFirestore(participant);
+    const updated = [...participants.filter(p => p.id !== cleanParticipant.id), cleanParticipant];
 
-    await setDoc(sessionDocRef, {
+    const dataToWrite = sanitizeForFirestore({
       sessionCode: cleanCode,
       participants: updated,
       updatedAt: Date.now()
-    }, { merge: true });
+    });
+
+    await setDoc(sessionDocRef, dataToWrite, { merge: true });
 
     // Mirror to schools/HBS_portal
     const schoolDocRef = doc(db, 'schools', 'HBS_portal');
-    await setDoc(schoolDocRef, {
-      'activeKahootSession.participants': updated
-    }, { merge: true }).catch(() => {});
+    await setDoc(schoolDocRef, sanitizeForFirestore({
+      activeKahootSession: {
+        ...(snap.exists() ? snap.data() : {}),
+        sessionCode: cleanCode,
+        participants: updated,
+        updatedAt: Date.now()
+      }
+    }), { merge: true }).catch(() => {});
+
+    return true;
   } catch (err) {
     console.warn("Error joining Kahoot session in cloud:", err);
+    return false;
   }
 };
 
@@ -613,7 +633,7 @@ export const submitKahootAnswerInCloud = async (
 ): Promise<void> => {
   if (!db || !sessionCode) return;
   try {
-    const cleanCode = sessionCode.replace(/\s+/g, '');
+    const cleanCode = (sessionCode || '').replace(/\s+/g, '');
     const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${cleanCode}`);
     const snap = await getDoc(sessionDocRef);
     let participants: KahootParticipant[] = [];
@@ -652,18 +672,24 @@ export const submitKahootAnswerInCloud = async (
 
     const answersReceived = updated.filter(p => p.answeredQuestionIndex === questionIndex && p.lastAnswerId).length;
 
-    await setDoc(sessionDocRef, {
+    const dataToWrite = sanitizeForFirestore({
       participants: updated,
       answersReceived,
       updatedAt: Date.now()
-    }, { merge: true });
+    });
+
+    await setDoc(sessionDocRef, dataToWrite, { merge: true });
 
     // Mirror to schools/HBS_portal
     const schoolDocRef = doc(db, 'schools', 'HBS_portal');
-    await setDoc(schoolDocRef, {
-      'activeKahootSession.participants': updated,
-      'activeKahootSession.answersReceived': answersReceived
-    }, { merge: true }).catch(() => {});
+    await setDoc(schoolDocRef, sanitizeForFirestore({
+      activeKahootSession: {
+        ...(snap.exists() ? snap.data() : {}),
+        participants: updated,
+        answersReceived,
+        updatedAt: Date.now()
+      }
+    }), { merge: true }).catch(() => {});
   } catch (err) {
     console.warn("Error submitting Kahoot answer in cloud:", err);
   }
