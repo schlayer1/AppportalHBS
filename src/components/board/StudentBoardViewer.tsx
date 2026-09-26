@@ -12,7 +12,7 @@ import {
   ZoomIn
 } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { db, PORTAL_COLLECTION } from '../../services/firebase';
 import { PORTAL_CONFIG } from '../../config/apps';
 
 interface SharedBoardData {
@@ -42,7 +42,7 @@ export const StudentBoardViewer: React.FC<StudentBoardViewerProps> = ({ onClose 
     // 1. Try to load from Firestore live stream
     if (db) {
       try {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
+        const portalDocRef = doc(db, PORTAL_COLLECTION, 'shared_board');
         const unsubscribe = onSnapshot(portalDocRef, (snap) => {
           if (snap.exists()) {
             const d = snap.data();
@@ -52,8 +52,16 @@ export const StudentBoardViewer: React.FC<StudentBoardViewerProps> = ({ onClose 
               return;
             }
           }
-          // Fallback to local cache if no cloud data
-          loadFromLocalCache();
+          // Fallback check schools/HBS_portal
+          const schoolDocRef = doc(db!, 'schools', 'HBS_portal');
+          onSnapshot(schoolDocRef, (sSnap) => {
+            if (sSnap.exists() && sSnap.data().sharedBoard) {
+              setBoardData(sSnap.data().sharedBoard as SharedBoardData);
+              setLoading(false);
+              return;
+            }
+            loadFromLocalCache();
+          });
         });
         return () => unsubscribe();
       } catch (e) {

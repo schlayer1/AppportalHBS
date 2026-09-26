@@ -15,8 +15,7 @@ import {
   VolumeX
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { syncKahootLiveSession, subscribeToKahootSession } from '../../services/firebase';
 import { 
   KahootGame, 
   KahootQuestion, 
@@ -114,16 +113,8 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
       }
     } catch (e) {}
 
-    if (db) {
-      try {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        updateDoc(portalDocRef, {
-          activeKahootSession: sessionState
-        }).catch(err => console.warn('Kahoot sync warning:', err));
-      } catch (e) {
-        console.warn('Firebase error:', e);
-      }
-    }
+    // Sync to Firestore cloud (dedicated session doc & mirrors)
+    syncKahootLiveSession(sessionState);
   };
 
   // Push updates when stage / index / answer status change
@@ -182,27 +173,20 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
     };
   }, [sessionCode, stage, currentQuestionIndex]);
 
-  // Firestore Snapshot Listener: Listen for students joining or answering
+  // Firestore Snapshot Listener: Listen for students joining or answering in real time
   useEffect(() => {
-    if (!db) return;
-    try {
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      const unsubscribe = onSnapshot(portalDocRef, (snap) => {
-        if (snap.exists()) {
-          const d = snap.data();
-          const liveSess = d.activeKahootSession as KahootLiveSession;
-          if (liveSess && liveSess.sessionCode === sessionCode) {
-            if (Array.isArray(liveSess.participants)) {
-              setParticipants(liveSess.participants);
-            }
+    const unsubscribe = subscribeToKahootSession(sessionCode, (liveSess) => {
+      if (liveSess && Array.isArray(liveSess.participants)) {
+        setParticipants(prev => {
+          if (stage === 'lobby' && liveSess.participants.length > prev.length) {
+            audio.playTick();
           }
-        }
-      });
-      return () => unsubscribe();
-    } catch (e) {
-      console.warn('Snapshot listener error:', e);
-    }
-  }, [sessionCode]);
+          return liveSess.participants;
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, [sessionCode, stage]);
 
   // Handle stage transitions
   const handleStartGame = () => {
@@ -523,14 +507,28 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
           </div>
 
           {/* Start Button */}
-          <button
-            onClick={handleStartGame}
-            disabled={participants.length === 0}
-            className="w-full max-w-md py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black text-lg shadow-xl shadow-purple-600/40 transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Play className="w-6 h-6 fill-white" />
-            <span>Quiz starten ({participants.length} {gameMode === 'team' ? 'Teams' : 'bereit'})</span>
-          </button>
+          <div className="w-full max-w-md flex flex-col items-center gap-2">
+            <button
+              onClick={handleStartGame}
+              className={`w-full py-4 rounded-2xl font-black text-lg transition-all active:scale-95 flex items-center justify-center gap-3 shadow-xl cursor-pointer ${
+                participants.length > 0
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-purple-600/40 ring-2 ring-pink-400/50'
+                  : 'bg-white/20 hover:bg-white/30 text-white border border-white/20'
+              }`}
+            >
+              <Play className="w-6 h-6 fill-white" />
+              <span>
+                {participants.length > 0
+                  ? `Quiz starten (${participants.length} ${gameMode === 'team' ? 'Teams' : 'bereit'})`
+                  : 'Quiz jetzt starten (oder auf Schüler warten)'}
+              </span>
+            </button>
+            {participants.length === 0 && (
+              <p className="text-[11px] text-purple-200/70 text-center">
+                Schüler scannen links den QR-Code mit der Handy-Kamera. Sie können das Quiz auch jederzeit direkt starten.
+              </p>
+            )}
+          </div>
         </main>
       )}
 

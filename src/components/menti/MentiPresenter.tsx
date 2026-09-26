@@ -21,8 +21,7 @@ import {
   VolumeX
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { syncMentiLiveSession, subscribeToMentiSession } from '../../services/firebase';
 import { MentiPresentation, MentiSlide, MentiLiveSession, MentiLiveReaction } from '../../types/mentiTypes';
 import { useAuth } from '../../context/AuthContext';
 import { classroomAudio } from '../../utils/classroomAudio';
@@ -158,16 +157,8 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
       }
     } catch (e) {}
 
-    if (db) {
-      try {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        updateDoc(portalDocRef, {
-          activeMentiSession: sessionState
-        }).catch(err => console.warn('Menti session push warning:', err));
-      } catch (e) {
-        console.warn('Firebase error:', e);
-      }
-    }
+    // Sync to Firestore cloud (dedicated session doc & mirrors)
+    syncMentiLiveSession(sessionState);
   }, [currentSlideIndex, isVotingOpen, showResults, sessionCode, presentation.id, slideResponses, participantsCount]);
 
   // Listen to incoming votes & reactions via BroadcastChannel (local/offline)
@@ -294,35 +285,24 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
 
   // Listen to incoming votes and reactions from Firestore
   useEffect(() => {
-    if (!db) return;
-    try {
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      const unsubscribe = onSnapshot(portalDocRef, (snap) => {
-        if (snap.exists()) {
-          const d = snap.data();
-          const sess = d.activeMentiSession;
-          if (sess && sess.sessionCode === sessionCode) {
-            if (sess.responses) {
-              setSlideResponses(sess.responses);
-            }
-            if (sess.participantsCount !== undefined) {
-              setParticipantsCount(sess.participantsCount);
-            }
-            if (sess.recentReactions && sess.recentReactions.length > 0) {
-              // Add new reactions
-              setFloatingReactions(prev => {
-                const existingIds = new Set(prev.map(r => r.id));
-                const newOnes = sess.recentReactions.filter((r: MentiLiveReaction) => !existingIds.has(r.id));
-                return [...prev, ...newOnes];
-              });
-            }
-          }
+    const unsubscribe = subscribeToMentiSession(sessionCode, (sess) => {
+      if (sess && sess.sessionCode === sessionCode) {
+        if (sess.responses) {
+          setSlideResponses(sess.responses);
         }
-      });
-      return () => unsubscribe();
-    } catch (e) {
-      console.warn('Menti snapshot listener error:', e);
-    }
+        if (sess.participantsCount !== undefined) {
+          setParticipantsCount(sess.participantsCount);
+        }
+        if (sess.recentReactions && sess.recentReactions.length > 0) {
+          setFloatingReactions(prev => {
+            const existingIds = new Set(prev.map(r => r.id));
+            const newOnes = sess.recentReactions!.filter((r: MentiLiveReaction) => !existingIds.has(r.id));
+            return [...prev, ...newOnes];
+          });
+        }
+      }
+    });
+    return () => unsubscribe();
   }, [sessionCode]);
 
   // Clean up old floating reactions
@@ -380,12 +360,19 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
     if (window.confirm('Möchtest du die Stimmen für diese Folie wirklich zurücksetzen?')) {
       const updated = { ...slideResponses, [activeSlide.id]: null };
       setSlideResponses(updated);
-      if (db) {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        updateDoc(portalDocRef, {
-          [`activeMentiSession.responses.${activeSlide.id}`]: null
-        });
-      }
+      syncMentiLiveSession({
+        presentationId: presentation.id,
+        presentationTitle: presentation.title,
+        sessionCode,
+        currentSlideIndex,
+        totalSlides: presentation.slides.length,
+        activeSlide,
+        isVotingOpen,
+        showResults,
+        responses: updated,
+        participantsCount,
+        updatedAt: Date.now()
+      });
     }
   };
 

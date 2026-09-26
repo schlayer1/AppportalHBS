@@ -18,8 +18,8 @@ import html2canvas from 'html2canvas';
 import { BoardScreen } from './types';
 import { PORTAL_CONFIG } from '../../config/apps';
 import { useAuth } from '../../context/AuthContext';
-import { db } from '../../services/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { db, PORTAL_COLLECTION } from '../../services/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 interface ExportBoardModalProps {
   isOpen: boolean;
@@ -153,10 +153,15 @@ export const ExportBoardModal: React.FC<ExportBoardModalProps> = ({
     try {
       localStorage.setItem('hbs_live_shared_board', JSON.stringify(sharedPayload));
       if (db) {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(portalDocRef, {
+        const portalDocRef = doc(db, PORTAL_COLLECTION, 'shared_board');
+        await setDoc(portalDocRef, {
           sharedBoard: sharedPayload
-        });
+        }, { merge: true });
+
+        const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+        await setDoc(schoolDocRef, {
+          sharedBoard: sharedPayload
+        }, { merge: true }).catch(() => {});
       }
     } catch (e) {
       console.warn('Fehler beim Publizieren des Schüler-Tafelbildes:', e);

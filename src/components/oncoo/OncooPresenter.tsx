@@ -31,6 +31,7 @@ import {
   OncooDuettPair
 } from '../../types/oncooTypes';
 import { useAuth } from '../../context/AuthContext';
+import { syncOncooLiveSession, subscribeToOncooSession } from '../../services/firebase';
 
 interface OncooPresenterProps {
   session: OncooSession;
@@ -107,6 +108,7 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
     // Set as active session for cloud & local storage
     updateActiveOncooSession(session);
     saveOncooSession(session);
+    syncOncooLiveSession(session);
   }, [session, updateActiveOncooSession, saveOncooSession]);
 
   const channelRef = useRef<BroadcastChannel | null>(null);
@@ -131,6 +133,17 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
       channelRef.current = null;
     };
   }, [session.pinCode, session.isLocked]);
+
+  // Listen to cross-device student submissions from smartphones via Firestore in real time
+  useEffect(() => {
+    if (!session.pinCode) return;
+    const unsubscribe = subscribeToOncooSession(session.pinCode, (updatedSess) => {
+      if (updatedSess && updatedSess.updatedAt && (!session.updatedAt || updatedSess.updatedAt > session.updatedAt)) {
+        setSession(updatedSess);
+      }
+    });
+    return () => unsubscribe();
+  }, [session.pinCode, session.updatedAt]);
 
   // Global Escape key listener to close modals
   useEffect(() => {

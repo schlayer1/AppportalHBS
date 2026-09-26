@@ -4,8 +4,11 @@ import {
   X,
   Users
 } from 'lucide-react';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { 
+  subscribeToKahootSession, 
+  joinKahootSessionInCloud, 
+  submitKahootAnswerInCloud 
+} from '../../services/firebase';
 import { KahootLiveSession, KahootParticipant, KahootShape } from '../../types/kahootTypes';
 
 interface KahootStudentPlayerProps {
@@ -22,6 +25,12 @@ const SHAPE_CONFIG: Record<KahootShape, { icon: string; bgClass: string; activeC
   square: { icon: '🟩', bgClass: 'bg-emerald-600 active:bg-emerald-700', activeClass: 'border-emerald-400' }
 };
 
+const FUN_NICKNAMES = [
+  'Schlauer Fuchs', 'Schneller Gepard', 'Super Eule', 'Cooler Bär',
+  'Turbo Panda', 'Blitz Tiger', 'Raketen Wolf', 'Genie Delfin',
+  'Stern Adler', 'Power Koala', 'Smart Otter', 'Komet Luchs'
+];
+
 export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
   initialPin = '',
   onClose
@@ -31,6 +40,11 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search).get('kahoot');
       if (p) return p.replace(/\s+/g, '');
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#\/?/, ''));
+      const hp = hashParams.get('kahoot');
+      if (hp) return hp.replace(/\s+/g, '');
+      const rawHash = window.location.hash.replace(/^#kahoot=/, '').replace(/^#/, '');
+      if (rawHash && rawHash.length >= 4 && !rawHash.includes('/')) return rawHash.replace(/\s+/g, '');
     }
     return '';
   });
@@ -99,25 +113,13 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
 
   // Snapshot listener for active Kahoot session from Firestore
   useEffect(() => {
-    if (!db) return;
-    try {
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      const unsubscribe = onSnapshot(portalDocRef, (snap) => {
-        if (snap.exists()) {
-          const d = snap.data();
-          const sess = d.activeKahootSession as KahootLiveSession;
-          if (sess) {
-            // Verify PIN code matches!
-            if (!pinCode || sess.sessionCode === pinCode) {
-              setSession(sess);
-            }
-          }
-        }
-      });
-      return () => unsubscribe();
-    } catch (e) {
-      console.warn('Student player snapshot listener error:', e);
-    }
+    if (!pinCode) return;
+    const unsubscribe = subscribeToKahootSession(pinCode, (sess) => {
+      if (sess) {
+        setSession(sess);
+      }
+    });
+    return () => unsubscribe();
   }, [pinCode]);
 
   // When question changes, reset selected answer and start team consultation countdown
@@ -158,9 +160,9 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
   // Join the lobby
   const handleJoinLobby = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nickname.trim()) return;
-
-    localStorage.setItem('hbs_kahoot_nickname', nickname.trim());
+    const effectiveNick = nickname.trim() || FUN_NICKNAMES[Math.floor(Math.random() * FUN_NICKNAMES.length)];
+    setNickname(effectiveNick);
+    localStorage.setItem('hbs_kahoot_nickname', effectiveNick);
 
     const isTeam = session?.gameMode === 'team';
     const members = teamMembersStr
@@ -169,7 +171,7 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
 
     const newParticipant: KahootParticipant = {
       id: studentId,
-      nickname: nickname.trim(),
+      nickname: effectiveNick,
       avatar: selectedAvatar,
       score: 0,
       streak: 0,
@@ -198,18 +200,9 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
       };
     });
 
-    if (db && session) {
-      const currentList = session.participants || [];
-      const updatedList = [...currentList.filter(p => p.id !== studentId), newParticipant];
-
-      try {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(portalDocRef, {
-          'activeKahootSession.participants': updatedList
-        });
-      } catch (err) {
-        console.warn('Error joining lobby in cloud:', err);
-      }
+    // Cloud join across all devices
+    if (pinCode) {
+      joinKahootSessionInCloud(pinCode, newParticipant);
     }
   };
 
@@ -228,27 +221,9 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
       });
     }
 
-    if (db && session) {
-      const currentList = session.participants || [];
-      const updatedList = currentList.map(p => {
-        if (p.id === studentId) {
-          return {
-            ...p,
-            lastAnswerId: optionId,
-            lastAnswerTime: Date.now()
-          };
-        }
-        return p;
-      });
-
-      try {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(portalDocRef, {
-          'activeKahootSession.participants': updatedList
-        });
-      } catch (err) {
-        console.warn('Error submitting answer in cloud:', err);
-      }
+    // Cloud submit across all devices
+    if (pinCode) {
+      submitKahootAnswerInCloud(pinCode, studentId, optionId);
     }
   };
 
@@ -374,6 +349,18 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
                 className="w-full p-3.5 rounded-2xl bg-white/10 border-2 border-white/20 text-base font-bold text-center text-white placeholder:text-white/40 focus:border-purple-400 focus:outline-none"
                 autoFocus
               />
+              <div className="flex justify-end mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const rand = FUN_NICKNAMES[Math.floor(Math.random() * FUN_NICKNAMES.length)];
+                    setNickname(rand);
+                  }}
+                  className="text-xs text-purple-300 hover:text-white font-bold flex items-center gap-1 underline decoration-dotted transition-colors"
+                >
+                  <span>🎲 Zufälligen Namen wählen</span>
+                </button>
+              </div>
             </div>
 
             {/* Team Members Input (if team mode) */}
@@ -395,8 +382,7 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
 
             <button
               type="submit"
-              disabled={!nickname.trim()}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-95 font-black text-sm tracking-wider uppercase transition-all shadow-xl active:scale-95 disabled:opacity-40"
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-95 font-black text-sm tracking-wider uppercase transition-all shadow-xl active:scale-95 cursor-pointer"
             >
               {session?.gameMode === 'team' ? 'Als Team beitreten! 👥' : 'Ins Spiel einsteigen! 🚀'}
             </button>

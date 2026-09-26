@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { RotateCcw, QrCode, Smartphone, Users } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { db, PORTAL_COLLECTION } from '../../../services/firebase';
 
 interface PollOption {
   id: string;
@@ -37,17 +37,27 @@ export const PollWidget: React.FC = () => {
   useEffect(() => {
     if (!db) return;
     try {
-      const pollDocRef = doc(db, 'schools', 'HBS_portal');
+      const pollDocRef = doc(db, PORTAL_COLLECTION, 'live_poll');
 
-      // Publish initial state to Firestore if not present
-      updateDoc(pollDocRef, {
+      // Publish initial state to Firestore
+      setDoc(pollDocRef, {
         livePoll: {
           title: pollQuestion,
           type: pollType,
           active: true,
           updatedAt: Date.now()
         }
-      }).catch(() => {});
+      }, { merge: true }).catch(() => {});
+
+      const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+      setDoc(schoolDocRef, {
+        livePoll: {
+          title: pollQuestion,
+          type: pollType,
+          active: true,
+          updatedAt: Date.now()
+        }
+      }, { merge: true }).catch(() => {});
 
       // Realtime listener for incoming student votes
       const unsubscribe = onSnapshot(pollDocRef, (snap) => {
@@ -93,10 +103,15 @@ export const PollWidget: React.FC = () => {
     setVotesState((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
     if (db) {
       try {
-        const pollDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(pollDocRef, {
+        const pollDocRef = doc(db, PORTAL_COLLECTION, 'live_poll');
+        await setDoc(pollDocRef, {
           [`livePoll.votes.${id}`]: (votesState[id] || 0) + 1
-        });
+        }, { merge: true });
+
+        const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+        await setDoc(schoolDocRef, {
+          [`livePoll.votes.${id}`]: (votesState[id] || 0) + 1
+        }, { merge: true }).catch(() => {});
       } catch {}
     }
   };
@@ -108,11 +123,17 @@ export const PollWidget: React.FC = () => {
 
     if (db) {
       try {
-        const pollDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(pollDocRef, {
+        const pollDocRef = doc(db, PORTAL_COLLECTION, 'live_poll');
+        await setDoc(pollDocRef, {
           'livePoll.votes': resetObj,
           'livePoll.updatedAt': Date.now()
-        });
+        }, { merge: true });
+
+        const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+        await setDoc(schoolDocRef, {
+          'livePoll.votes': resetObj,
+          'livePoll.updatedAt': Date.now()
+        }, { merge: true }).catch(() => {});
       } catch {}
     }
   };

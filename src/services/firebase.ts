@@ -5,6 +5,7 @@ import {
   getDoc, 
   setDoc, 
   onSnapshot,
+  arrayUnion,
   Firestore
 } from 'firebase/firestore';
 import { PortalUser, UserPreferences, SavedBoardTemplate } from '../types/user';
@@ -75,11 +76,11 @@ export const INITIAL_SEED_TEACHERS: PortalUser[] = [
   { id: "t-wesely", name: "Wesely", pin: "7484", role: "teacher", active: true, createdAt: Date.now() }
 ];
 
-import { MentiPresentation, MentiLiveSession } from "../types/mentiTypes";
+import { MentiPresentation, MentiLiveSession, MentiLiveReaction } from "../types/mentiTypes";
 import { DEFAULT_MENTI_TEMPLATES } from "../data/defaultMentiTemplates";
-import { KahootGame, KahootLiveSession } from "../types/kahootTypes";
+import { KahootGame, KahootLiveSession, KahootParticipant } from "../types/kahootTypes";
 import { DEFAULT_KAHOOT_GAMES } from "../data/defaultKahootTemplates";
-import { OncooSession, DEFAULT_ONCOO_TEMPLATES } from "../types/oncooTypes";
+import { OncooSession, OncooCard, OncooHelpItem, OncooTargetVote, OncooDuettPair, DEFAULT_ONCOO_TEMPLATES } from "../types/oncooTypes";
 
 export interface PortalCloudData {
   users: PortalUser[];
@@ -479,6 +480,432 @@ export const syncTeachersFromVertretungsstatistik = async (): Promise<{ added: n
   } catch (err: any) {
     console.error("Sync error:", err);
     throw err;
+  }
+};
+
+// =========================================================
+// REAL-TIME CLASSROOM SESSIONS: KAHOOT, MENTI, ONCOO & POLLS
+// =========================================================
+
+/**
+ * Syncs the active Kahoot live session to Firestore.
+ * Writes to dedicated document and mirrors to schools/HBS_portal and portal_data.
+ */
+export const syncKahootLiveSession = async (session: KahootLiveSession): Promise<void> => {
+  if (!db || !session.sessionCode) return;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${session.sessionCode}`);
+    await setDoc(sessionDocRef, { ...session, updatedAt: Date.now() }, { merge: true });
+
+    // Mirror to schools/HBS_portal with setDoc (never crashes if doc is missing)
+    const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+    await setDoc(schoolDocRef, { activeKahootSession: session }, { merge: true }).catch(() => {});
+
+    // Mirror to portal_data
+    const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
+    await setDoc(portalDocRef, { activeKahootSession: session }, { merge: true }).catch(() => {});
+  } catch (err) {
+    console.warn("Kahoot sync to cloud warning:", err);
+  }
+};
+
+/**
+ * Subscribes in real-time to a Kahoot session by its PIN.
+ */
+export const subscribeToKahootSession = (
+  sessionCode: string,
+  callback: (session: KahootLiveSession | null) => void
+): (() => void) => {
+  if (!db || !sessionCode) return () => {};
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${sessionCode}`);
+    const unsubscribe = onSnapshot(sessionDocRef, (snap) => {
+      if (snap.exists()) {
+        callback(snap.data() as KahootLiveSession);
+      } else {
+        // Fallback check schools/HBS_portal
+        const schoolDocRef = doc(db!, 'schools', 'HBS_portal');
+        getDoc(schoolDocRef).then((sSnap) => {
+          if (sSnap.exists() && sSnap.data().activeKahootSession?.sessionCode === sessionCode) {
+            callback(sSnap.data().activeKahootSession as KahootLiveSession);
+          } else {
+            callback(null);
+          }
+        }).catch(() => callback(null));
+      }
+    }, (err) => {
+      console.warn("Kahoot snapshot error:", err);
+    });
+    return unsubscribe;
+  } catch (err) {
+    console.warn("Could not subscribe to Kahoot session:", err);
+    return () => {};
+  }
+};
+
+/**
+ * Student joins the Kahoot lobby from their smartphone via QR code / PIN.
+ */
+export const joinKahootSessionInCloud = async (
+  sessionCode: string,
+  participant: KahootParticipant
+): Promise<void> => {
+  if (!db || !sessionCode) return;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${sessionCode}`);
+    const snap = await getDoc(sessionDocRef);
+    let participants: KahootParticipant[] = [];
+
+    if (snap.exists()) {
+      const data = snap.data() as KahootLiveSession;
+      participants = Array.isArray(data.participants) ? data.participants : [];
+    }
+    const updated = [...participants.filter(p => p.id !== participant.id), participant];
+
+    await setDoc(sessionDocRef, {
+      sessionCode,
+      participants: updated,
+      updatedAt: Date.now()
+    }, { merge: true });
+
+    // Mirror to schools/HBS_portal
+    const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+    await setDoc(schoolDocRef, {
+      'activeKahootSession.participants': updated
+    }, { merge: true }).catch(() => {});
+  } catch (err) {
+    console.warn("Error joining Kahoot session in cloud:", err);
+  }
+};
+
+/**
+ * Student submits their answer in Kahoot from their smartphone.
+ */
+export const submitKahootAnswerInCloud = async (
+  sessionCode: string,
+  studentId: string,
+  optionId: string
+): Promise<void> => {
+  if (!db || !sessionCode) return;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${sessionCode}`);
+    const snap = await getDoc(sessionDocRef);
+    if (snap.exists()) {
+      const data = snap.data() as KahootLiveSession;
+      const participants = Array.isArray(data.participants) ? data.participants : [];
+      const updated = participants.map(p => {
+        if (p.id === studentId) {
+          return { ...p, lastAnswerId: optionId, lastAnswerTime: Date.now() };
+        }
+        return p;
+      });
+      await setDoc(sessionDocRef, {
+        participants: updated,
+        updatedAt: Date.now()
+      }, { merge: true });
+
+      // Mirror to schools/HBS_portal
+      const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+      await setDoc(schoolDocRef, {
+        'activeKahootSession.participants': updated
+      }, { merge: true }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn("Error submitting Kahoot answer in cloud:", err);
+  }
+};
+
+/**
+ * Syncs the active Menti live session to Firestore.
+ */
+export const syncMentiLiveSession = async (session: MentiLiveSession): Promise<void> => {
+  if (!db || !session.sessionCode) return;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${session.sessionCode}`);
+    await setDoc(sessionDocRef, { ...session, updatedAt: Date.now() }, { merge: true });
+
+    // Mirror to schools/HBS_portal
+    const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+    await setDoc(schoolDocRef, { activeMentiSession: session }, { merge: true }).catch(() => {});
+
+    // Mirror to portal_data
+    const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
+    await setDoc(portalDocRef, { activeMentiSession: session }, { merge: true }).catch(() => {});
+  } catch (err) {
+    console.warn("Menti sync to cloud warning:", err);
+  }
+};
+
+/**
+ * Subscribes in real-time to a Menti session by its PIN.
+ */
+export const subscribeToMentiSession = (
+  sessionCode: string,
+  callback: (session: MentiLiveSession | null) => void
+): (() => void) => {
+  if (!db || !sessionCode) return () => {};
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${sessionCode}`);
+    const unsubscribe = onSnapshot(sessionDocRef, (snap) => {
+      if (snap.exists()) {
+        callback(snap.data() as MentiLiveSession);
+      } else {
+        const schoolDocRef = doc(db!, 'schools', 'HBS_portal');
+        getDoc(schoolDocRef).then((sSnap) => {
+          if (sSnap.exists() && sSnap.data().activeMentiSession?.sessionCode === sessionCode) {
+            callback(sSnap.data().activeMentiSession as MentiLiveSession);
+          } else {
+            callback(null);
+          }
+        }).catch(() => callback(null));
+      }
+    }, (err) => {
+      console.warn("Menti snapshot error:", err);
+    });
+    return unsubscribe;
+  } catch (err) {
+    console.warn("Could not subscribe to Menti session:", err);
+    return () => {};
+  }
+};
+
+/**
+ * Student submits a vote or answer in Menti from their smartphone.
+ */
+export const submitMentiVoteInCloud = async (
+  sessionCode: string,
+  slideId: string,
+  payload: any
+): Promise<void> => {
+  if (!db || !sessionCode) return;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${sessionCode}`);
+    const snap = await getDoc(sessionDocRef);
+    if (snap.exists()) {
+      const data = snap.data() as MentiLiveSession;
+      const responses = data.responses || {};
+      const slideResp = responses[slideId] || { counts: {}, words: [], textAnswers: [], ratings: {}, rankings: [], quizScores: {} };
+
+      if (payload.optionId) {
+        slideResp.counts = slideResp.counts || {};
+        slideResp.counts[payload.optionId] = (slideResp.counts[payload.optionId] || 0) + 1;
+      }
+      if (payload.word) {
+        slideResp.words = slideResp.words || [];
+        slideResp.words.push(payload.word);
+      }
+      if (payload.text) {
+        slideResp.textAnswers = slideResp.textAnswers || [];
+        slideResp.textAnswers.push(payload.text);
+      }
+      if (payload.ratings) {
+        slideResp.ratings = slideResp.ratings || {};
+        Object.entries(payload.ratings).forEach(([scaleId, val]) => {
+          if (!slideResp.ratings[scaleId]) slideResp.ratings[scaleId] = [];
+          slideResp.ratings[scaleId].push(Number(val));
+        });
+      }
+      if (payload.rankingOrder) {
+        slideResp.rankings = slideResp.rankings || [];
+        slideResp.rankings.push(payload.rankingOrder);
+      }
+      if (payload.matrixCoords) {
+        slideResp.matrixPoints = slideResp.matrixPoints || [];
+        slideResp.matrixPoints.push(payload.matrixCoords);
+      }
+
+      responses[slideId] = slideResp;
+      const newCount = (data.participantsCount || 0) + 1;
+
+      await setDoc(sessionDocRef, {
+        responses,
+        participantsCount: newCount,
+        updatedAt: Date.now()
+      }, { merge: true });
+
+      const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+      await setDoc(schoolDocRef, {
+        'activeMentiSession.responses': responses,
+        'activeMentiSession.participantsCount': newCount
+      }, { merge: true }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn("Error submitting Menti vote in cloud:", err);
+  }
+};
+
+/**
+ * Student submits a floating reaction in Menti (❤️, 👍, 💡, 👏, 🎉).
+ */
+export const submitMentiReactionInCloud = async (
+  sessionCode: string,
+  reaction: MentiLiveReaction
+): Promise<void> => {
+  if (!db || !sessionCode) return;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${sessionCode}`);
+    await setDoc(sessionDocRef, {
+      recentReactions: arrayUnion(reaction),
+      updatedAt: Date.now()
+    }, { merge: true });
+
+    const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+    await setDoc(schoolDocRef, {
+      'activeMentiSession.recentReactions': arrayUnion(reaction)
+    }, { merge: true }).catch(() => {});
+  } catch (err) {
+    console.warn("Reaction error:", err);
+  }
+};
+
+/**
+ * Syncs the active Oncoo session to Firestore.
+ */
+export const syncOncooLiveSession = async (session: OncooSession): Promise<void> => {
+  if (!db || !session.pinCode) return;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${session.pinCode}`);
+    await setDoc(sessionDocRef, { ...session, updatedAt: Date.now() }, { merge: true });
+
+    // Mirror to portal_data
+    const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
+    await setDoc(portalDocRef, { activeOncooSession: session }, { merge: true }).catch(() => {});
+  } catch (err) {
+    console.warn("Oncoo sync to cloud warning:", err);
+  }
+};
+
+/**
+ * Subscribes in real-time to an Oncoo session by its PIN.
+ */
+export const subscribeToOncooSession = (
+  pinCode: string,
+  callback: (session: OncooSession | null) => void
+): (() => void) => {
+  if (!db || !pinCode) return () => {};
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${pinCode}`);
+    const unsubscribe = onSnapshot(sessionDocRef, (snap) => {
+      if (snap.exists()) {
+        callback(snap.data() as OncooSession);
+      } else {
+        callback(null);
+      }
+    }, (err) => {
+      console.warn("Oncoo snapshot error:", err);
+    });
+    return unsubscribe;
+  } catch (err) {
+    console.warn("Could not subscribe to Oncoo session:", err);
+    return () => {};
+  }
+};
+
+/**
+ * Student submits an action in Oncoo (card, target rating, help, tandem report, placemat note).
+ */
+export const submitOncooActionInCloud = async (
+  pinCode: string,
+  payload: {
+    card?: OncooCard;
+    vote?: OncooTargetVote;
+    targetRating?: { studentName: string; ratings: Record<string, number> };
+    helpItem?: OncooHelpItem;
+    studentName?: string;
+    tandemFinished?: { studentName: string };
+    placematUpdate?: { groupIndex: number; cornerKey: string; note: string };
+  }
+): Promise<void> => {
+  if (!db || !pinCode) return;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${pinCode}`);
+    const snap = await getDoc(sessionDocRef);
+    if (snap.exists()) {
+      const sess = snap.data() as OncooSession;
+
+      // 1. Kartenabfrage
+      if (payload.card && sess.toolType === 'kartenabfrage' && sess.kartenabfrage) {
+        const existing = sess.kartenabfrage.cards || [];
+        if (!existing.some(c => c.id === payload.card!.id)) {
+          sess.kartenabfrage.cards = [payload.card, ...existing];
+        }
+      }
+
+      // 2. Zielscheibe
+      if ((payload.vote || payload.targetRating) && sess.toolType === 'zielscheibe' && sess.zielscheibe) {
+        const voteToPush: OncooTargetVote = payload.vote || {
+          id: `v-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          studentAlias: payload.targetRating?.studentName || 'Schüler',
+          scores: payload.targetRating?.ratings || {},
+          createdAt: Date.now()
+        };
+        const existingVotes = sess.zielscheibe.votes || [];
+        if (!existingVotes.some(v => v.id === voteToPush.id)) {
+          sess.zielscheibe.votes = [...existingVotes, voteToPush];
+        }
+      }
+
+      // 3. Helfersystem
+      if (payload.helpItem && sess.toolType === 'helfersystem' && sess.helfersystem) {
+        const existingItems = sess.helfersystem.items || [];
+        if (!existingItems.some((i: OncooHelpItem) => i.id === payload.helpItem!.id)) {
+          sess.helfersystem.items = [payload.helpItem, ...existingItems];
+        }
+      }
+
+      // 4. Lerntempoduett
+      const studentName = payload.studentName || payload.tandemFinished?.studentName;
+      if (studentName && sess.toolType === 'lerntempoduett' && sess.lerntempoduett) {
+        const sName = String(studentName).trim();
+        const currentQueue = sess.lerntempoduett.waitingQueue || [];
+        const currentPairs = sess.lerntempoduett.pairs || [];
+        const isAlreadyIn = currentQueue.includes(sName) || currentPairs.some(p => p.student1 === sName || p.student2 === sName);
+        if (!isAlreadyIn) {
+          if (currentQueue.length > 0) {
+            const partner = currentQueue[0];
+            const remainingQueue = currentQueue.slice(1);
+            const newPair: OncooDuettPair = {
+              id: `pair-${Date.now()}`,
+              student1: partner,
+              student2: sName,
+              tableNumber: currentPairs.length + 1,
+              pairedAt: Date.now(),
+              phase: sess.lerntempoduett.currentPhase || 2
+            };
+            sess.lerntempoduett.waitingQueue = remainingQueue;
+            sess.lerntempoduett.pairs = [...currentPairs, newPair];
+          } else {
+            sess.lerntempoduett.waitingQueue = [...currentQueue, sName];
+          }
+        }
+      }
+
+      // 5. Placemat
+      if (payload.placematUpdate && sess.toolType === 'placemat' && sess.placemat) {
+        const { groupIndex, cornerKey, note } = payload.placematUpdate;
+        if (note && cornerKey && sess.placemat.groups) {
+          const groups = sess.placemat.groups.map((grp, gIdx) => {
+            if (gIdx !== groupIndex) return grp;
+            const key = cornerKey as 'cornerA' | 'cornerB' | 'cornerC' | 'cornerD';
+            const corner = grp[key];
+            if (!corner) return grp;
+            return {
+              ...grp,
+              [key]: {
+                ...corner,
+                notes: [...(corner.notes || []), note]
+              }
+            };
+          });
+          sess.placemat.groups = groups;
+        }
+      }
+
+      sess.updatedAt = Date.now();
+      await setDoc(sessionDocRef, sess, { merge: true });
+    }
+  } catch (err) {
+    console.warn("Error submitting Oncoo action in cloud:", err);
   }
 };
 

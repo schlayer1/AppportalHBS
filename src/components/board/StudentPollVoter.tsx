@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import { doc, onSnapshot, updateDoc, increment } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { doc, onSnapshot, setDoc, increment } from 'firebase/firestore';
+import { db, PORTAL_COLLECTION } from '../../services/firebase';
 
 interface StudentPollVoterProps {
   onClose?: () => void;
@@ -26,7 +26,7 @@ export const StudentPollVoter: React.FC<StudentPollVoterProps> = () => {
   useEffect(() => {
     if (!db) return;
     try {
-      const pollDocRef = doc(db, 'schools', 'HBS_portal');
+      const pollDocRef = doc(db, PORTAL_COLLECTION, 'live_poll');
       const unsubscribe = onSnapshot(pollDocRef, (snap) => {
         if (snap.exists()) {
           const d = snap.data();
@@ -37,6 +37,19 @@ export const StudentPollVoter: React.FC<StudentPollVoterProps> = () => {
               active: d.livePoll.active !== false
             });
           }
+        } else {
+          // Fallback check schools/HBS_portal
+          const schoolDocRef = doc(db!, 'schools', 'HBS_portal');
+          onSnapshot(schoolDocRef, (sSnap) => {
+            if (sSnap.exists() && sSnap.data().livePoll) {
+              const d = sSnap.data();
+              setPollData({
+                title: d.livePoll.title || 'Live-Klassenabstimmung',
+                type: d.livePoll.type || 'choice',
+                active: d.livePoll.active !== false
+              });
+            }
+          });
         }
       });
       return () => unsubscribe();
@@ -52,11 +65,19 @@ export const StudentPollVoter: React.FC<StudentPollVoterProps> = () => {
 
     if (db) {
       try {
-        const pollDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(pollDocRef, {
+        const pollDocRef = doc(db, PORTAL_COLLECTION, 'live_poll');
+        await setDoc(pollDocRef, {
+          livePoll: {
+            votes: { [optionId]: increment(1) },
+            lastVoteAt: Date.now()
+          }
+        }, { merge: true });
+
+        const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+        await setDoc(schoolDocRef, {
           [`livePoll.votes.${optionId}`]: increment(1),
           'livePoll.lastVoteAt': Date.now()
-        });
+        }, { merge: true }).catch(() => {});
       } catch (err) {
         console.warn('Error saving vote to Firebase:', err);
       }

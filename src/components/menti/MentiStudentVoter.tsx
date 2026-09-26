@@ -9,8 +9,11 @@ import {
   ArrowDown,
   X
 } from 'lucide-react';
-import { doc, onSnapshot, updateDoc, increment, arrayUnion } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { 
+  subscribeToMentiSession, 
+  submitMentiVoteInCloud, 
+  submitMentiReactionInCloud 
+} from '../../services/firebase';
 import { MentiLiveSession, MentiSlide } from '../../types/mentiTypes';
 
 interface MentiStudentVoterProps {
@@ -23,11 +26,15 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   onClose
 }) => {
   const [pinCode, setPinCode] = useState<string>(() => {
-    // Extract PIN from URL query param if present
-    if (initialCode) return initialCode;
+    if (initialCode) return initialCode.replace(/\s+/g, '');
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search).get('menti');
-      if (p && p.length === 6) return p;
+      if (p) return p.replace(/\s+/g, '');
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#\/?/, ''));
+      const hp = hashParams.get('menti');
+      if (hp) return hp.replace(/\s+/g, '');
+      const rawHash = window.location.hash.replace(/^#menti=/, '').replace(/^#/, '');
+      if (rawHash && rawHash.length >= 4 && !rawHash.includes('/')) return rawHash.replace(/\s+/g, '');
     }
     return '';
   });
@@ -101,24 +108,13 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
 
   // Listen to Firestore active Menti Session
   useEffect(() => {
-    if (!db) return;
-    try {
-      const portalDocRef = doc(db, 'schools', 'HBS_portal');
-      const unsubscribe = onSnapshot(portalDocRef, (snap) => {
-        if (snap.exists()) {
-          const d = snap.data();
-          if (d.activeMentiSession) {
-            // Verify PIN code matches!
-            if (!pinCode || d.activeMentiSession.sessionCode === pinCode) {
-              setSession(d.activeMentiSession);
-            }
-          }
-        }
-      });
-      return () => unsubscribe();
-    } catch (e) {
-      console.warn('Firestore voter listener error:', e);
-    }
+    if (!pinCode) return;
+    const unsubscribe = subscribeToMentiSession(pinCode, (sess) => {
+      if (sess) {
+        setSession(sess);
+      }
+    });
+    return () => unsubscribe();
   }, [pinCode]);
 
   // When active slide changes in the session, reset vote state for new slide!
@@ -165,15 +161,8 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     }
 
     // Cloud push
-    if (db && session) {
-      try {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(portalDocRef, {
-          'activeMentiSession.recentReactions': arrayUnion(reaction)
-        });
-      } catch (e) {
-        console.warn('Reaction error:', e);
-      }
+    if (session && pinCode) {
+      submitMentiReactionInCloud(pinCode, reaction);
     }
   };
 
@@ -198,18 +187,11 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     }
 
     // Cloud push
-    if (db) {
-      try {
-        const updates: Record<string, any> = {};
-        cleanWords.forEach(w => {
-          const capitalized = w.charAt(0).toUpperCase() + w.slice(1);
-          updates[`activeMentiSession.responses.${session.activeSlide.id}.${capitalized}`] = increment(1);
-        });
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(portalDocRef, updates);
-      } catch (e) {
-        console.warn('Submit word error:', e);
-      }
+    if (pinCode) {
+      cleanWords.forEach(w => {
+        const capitalized = w.charAt(0).toUpperCase() + w.slice(1);
+        submitMentiVoteInCloud(pinCode, session.activeSlide.id, { word: capitalized });
+      });
     }
   };
 
@@ -231,15 +213,8 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     }
 
     // Cloud push
-    if (db) {
-      try {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(portalDocRef, {
-          [`activeMentiSession.responses.${session.activeSlide.id}.${optionId}`]: increment(1)
-        });
-      } catch (e) {
-        console.warn('Submit choice error:', e);
-      }
+    if (pinCode) {
+      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { optionId });
     }
   };
 
@@ -267,15 +242,8 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     }
 
     // Cloud push
-    if (db) {
-      try {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(portalDocRef, {
-          [`activeMentiSession.responses.${session.activeSlide.id}`]: arrayUnion(newResponse)
-        });
-      } catch (e) {
-        console.warn('Submit open error:', e);
-      }
+    if (pinCode) {
+      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { text: openText.trim() });
     }
   };
 
@@ -297,18 +265,8 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     }
 
     // Cloud push
-    if (db) {
-      try {
-        const updates: Record<string, any> = {};
-        Object.entries(scaleValues).forEach(([scId, val]) => {
-          updates[`activeMentiSession.responses.${session.activeSlide.id}.${scId}.sum`] = increment(val);
-          updates[`activeMentiSession.responses.${session.activeSlide.id}.${scId}.count`] = increment(1);
-        });
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(portalDocRef, updates);
-      } catch (e) {
-        console.warn('Submit scales error:', e);
-      }
+    if (pinCode) {
+      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { ratings: scaleValues });
     }
   };
 
@@ -335,20 +293,8 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     }
 
     // Cloud push
-    if (db) {
-      try {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(portalDocRef, {
-          [`activeMentiSession.responses.${session.activeSlide.id}.${optionId}`]: increment(1),
-          [`activeMentiSession.responses.${session.activeSlide.id}_scores.${finalNick}`]: {
-            name: finalNick,
-            isCorrect,
-            score
-          }
-        });
-      } catch (e) {
-        console.warn('Submit quiz error:', e);
-      }
+    if (pinCode) {
+      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { optionId });
     }
   };
 
@@ -376,15 +322,8 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     }
 
     // Cloud push
-    if (db) {
-      try {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(portalDocRef, {
-          [`activeMentiSession.responses.${session.activeSlide.id}`]: arrayUnion(vote)
-        });
-      } catch (e) {
-        console.warn('Submit matrix error:', e);
-      }
+    if (pinCode) {
+      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { matrixCoords: vote });
     }
   };
 
@@ -406,15 +345,8 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     }
 
     // Cloud push
-    if (db) {
-      try {
-        const portalDocRef = doc(db, 'schools', 'HBS_portal');
-        await updateDoc(portalDocRef, {
-          [`activeMentiSession.responses.${session.activeSlide.id}`]: arrayUnion(rankingOrder)
-        });
-      } catch (e) {
-        console.warn('Submit ranking error:', e);
-      }
+    if (pinCode) {
+      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { rankingOrder });
     }
   };
 

@@ -16,7 +16,7 @@ import {
   OncooTargetVote, 
   OncooHelpItem 
 } from '../../types/oncooTypes';
-import { getCachedPortalData } from '../../services/firebase';
+import { getCachedPortalData, subscribeToOncooSession, submitOncooActionInCloud } from '../../services/firebase';
 
 interface OncooStudentClientProps {
   initialCode?: string;
@@ -85,6 +85,15 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
   useEffect(() => {
     if (pinCode && pinCode.length >= 6) {
       attemptJoinSession(pinCode);
+    }
+    if (pinCode) {
+      const unsub = subscribeToOncooSession(pinCode, (cloudSess) => {
+        if (cloudSess) {
+          setSession(cloudSess);
+          setHasJoined(true);
+        }
+      });
+      return () => unsub();
     }
   }, [pinCode]);
 
@@ -168,12 +177,17 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
       likes: 0
     };
 
-    // Broadcast to teacher presenter
+    // Broadcast to teacher presenter locally
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
         type: 'STUDENT_SUBMISSION',
         payload: { card: newCard }
       });
+    }
+
+    // Cloud push across all devices
+    if (pinCode) {
+      submitOncooActionInCloud(pinCode, { card: newCard });
     }
 
     setMySentCards(prev => [newCard, ...prev]);
@@ -199,6 +213,16 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
       });
     }
 
+    // Cloud push
+    if (pinCode) {
+      submitOncooActionInCloud(pinCode, {
+        targetRating: {
+          studentName: studentName.trim() || 'Schüler',
+          ratings: targetScores
+        }
+      });
+    }
+
     setHasVotedTarget(true);
   };
 
@@ -211,6 +235,13 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
       broadcastRef.current.postMessage({
         type: 'STUDENT_SUBMISSION',
         payload: { studentName: studentName.trim() }
+      });
+    }
+
+    // Cloud push
+    if (pinCode) {
+      submitOncooActionInCloud(pinCode, {
+        tandemFinished: { studentName: studentName.trim() }
       });
     }
 
@@ -238,6 +269,11 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
       });
     }
 
+    // Cloud push
+    if (pinCode) {
+      submitOncooActionInCloud(pinCode, { helpItem: item });
+    }
+
     setHasSubmittedHelp(true);
   };
 
@@ -255,6 +291,17 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
             cornerKey: placematCorner,
             note: placematNote.trim()
           }
+        }
+      });
+    }
+
+    // Cloud push
+    if (pinCode) {
+      submitOncooActionInCloud(pinCode, {
+        placematUpdate: {
+          groupIndex: placematGroupIndex,
+          cornerKey: placematCorner,
+          note: placematNote.trim()
         }
       });
     }
