@@ -255,24 +255,48 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
+    id: "projektkompass-20",
+    title: "Projektkompass 2.0",
+    shortTitle: "Projektkompass 2.0",
+    subtitle: "Agile Projekt-Suite mit KI-Coach & Lehrer-Cockpit",
+    description: "Die nächste Generation für anspruchsvolle Gruppen- und Langzeitprojekte: Im Unterschied zur Basis-Version mit Echtzeit-Lehrer-Cockpit (Klassenradar & Live-Hilfe-Ampel), geräteübergreifender Cloud-Synchronisation per Gruppen-Code, didaktischem KI-Projektcoach bei Blockaden, digitalem Projekt-Tagebuch, Meilenstein-Zeitstrahl und fertigem PDF-Druckbericht.",
+    url: "https://projektkompass-20.vercel.app",
+    category: "unterricht",
+    badge: "Neu: KI & Cockpit",
+    badgeColor: "teal",
+    icon: "Compass",
+    tags: ["Lehrer-Cockpit", "Klassen-Radar", "KI-Coach", "Projekt-Tagebuch", "Cloud-Sync", "Meilensteine", "PDF-Druck"],
+    isFeaturedStudentQr: true,
+    offlineReady: true,
+    privacyBadge: "Cloud-Sync & DSGVO",
+    pedagogicalValue: "Ermöglicht professionelles selbstorganisiertes Lernen (SOL): Lehrkräfte behalten den Hilfebedarf aller Teams in Echtzeit im Blick, während Schüler durch KI-Impulse und Tagebuch-Reflexion strukturiert durch komplexe Projekte geführt werden.",
+    quickGuide: [
+      "Schüler treten mit anonymem Team-Code (z. B. PK-8A-01) auf Smartphone oder iPad bei.",
+      "Aufgaben per Drag & Drop verwalten, Meilensteine planen und bei Problemen den KI-Coach aktivieren.",
+      "Lehrkraft sieht den Fortschritt aller Teams live im Klassenradar des Lehrer-Cockpits.",
+      "Am Ende das Projekt-Tagebuch ausfüllen und den Bericht als PDF mit Schulsiegel drucken."
+    ]
+  },
+  {
     id: "projektkompass",
-    title: "Projektkompass",
+    title: "Projektkompass (Kompakt)",
     shortTitle: "Projektkompass",
-    subtitle: "Agile Projektarbeit & Aufgaben-Board",
-    description: "Strukturiertes Kanban-Werkzeug für Schülergruppen. Generiert Aufgaben-Checklisten per Zauberstab und fertige Statusberichte für EduPage.",
+    subtitle: "Schlankes Offline-Kanban für den schnellen Einstieg",
+    description: "Die leichtgewichtige, rein lokale Basis-Version des Projektkompasses: Funktioniert komplett im Browser ohne Server, Cloud oder Schüler-Codes. Bietet ein einfaches 3-Spalten-Kanban-Board (Zu erledigen, In Arbeit, Erledigt), basale Aufgabenzerlegung und direkten Text-Export für EduPage-Nachrichten. Ideal für unkomplizierte Mini-Aufgaben und Einzelarbeiten.",
     url: "https://schlayer1.github.io/Projektkompass/",
     category: "unterricht",
-    badge: "Schülerteams",
+    badge: "100% Offline",
     badgeColor: "amber",
     icon: "Compass",
-    tags: ["100% lokal im Browser", "EduPage-Export", "Gruppenarbeit"],
+    tags: ["100% lokal im Browser", "EduPage-Export", "Einfaches Kanban", "Ohne Login"],
+    isFeaturedStudentQr: false,
     offlineReady: true,
     privacyBadge: "Keine Datenübertragung",
-    pedagogicalValue: "Trainiert selbstorganisiertes Lernen (SOL), Teamwork und metakognitive Planung bei Projektarbeiten und Referaten.",
+    pedagogicalValue: "Niedrigschwelliger Einstieg in die Aufgabenorganisation ohne technische Hürden: Schüler visualisieren ihre nächsten Arbeitsschritte direkt auf dem jeweiligen Gerät.",
     quickGuide: [
-      "Thema anlegen und mit dem Zauberstab Teilaufgaben generieren.",
-      "Aufgaben im Kanban-Board per Drag & Drop verschieben.",
-      "Am Ende der Stunde Statusbericht kopieren und in EduPage einreichen."
+      "Thema anlegen und mit dem Zauberstab einfache Teilaufgaben vorschlagen lassen.",
+      "Kärtchen im Kanban-Board per Drag & Drop in die Spalten ziehen.",
+      "Am Stundenende den Kurzbericht kopieren und in eine EduPage-Nachricht einfügen."
     ]
   },
   {

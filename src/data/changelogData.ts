@@ -2,10 +2,54 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '2.5.0',
+    title: 'Neu im Portal: Projektkompass 2.0 (Agile Projekt-Suite mit KI-Coach & Lehrer-Cockpit)',
+    date: '26. September 2026',
+    isLatest: true,
+    highlight: 'Der brandneue Projektkompass 2.0 ist ab sofort im App-Portal integriert: Mit Live-Lehrer-Cockpit (Klassenradar & Hilferuf-Ampel), didaktischem KI-Projektcoach bei Hürden, geräteübergreifender Cloud-Synchronisation per Gruppen-Code, digitalem Tagebuch, Meilenstein-Zeitstrahl und offiziellem PDF-Druckbericht.',
+    items: [
+      {
+        id: 'cl-25-1',
+        type: 'neu',
+        title: 'Projektkompass 2.0 integriert (Große Projekt-Suite für den Fachunterricht)',
+        description: 'Im Unterschied zum kompakten, rein lokalen Projektkompass bietet Version 2.0 volle Cloud-Synchronisation über anonyme Team-PINs (z. B. PK-8A-01). Schülerteams können so zeitgleich von Schul-iPads, Handys und PCs an ihrem gemeinsamen Aufgaben-Board arbeiten – vollkommen datenschutzkonform ohne Benutzerkonten.',
+        badge: 'Projektkompass 2.0'
+      },
+      {
+        id: 'cl-25-2',
+        type: 'neu',
+        title: 'Lehrer-Cockpit & Klassenradar mit Live-Hilfe-Ampel',
+        description: 'Lehrkräfte behalten im Klassenradar den Bearbeitungsstand aller Schülergruppen in Echtzeit im Blick: Grüne/gelbe/rote Status-Signale warnen sofort, wenn ein Team feststeckt oder blockiert ist. Mit 1 Klick können didaktische Feedback-Snippets direkt auf das Schülerboard gesendet werden.',
+        badge: 'Lehrer-Funktion'
+      },
+      {
+        id: 'cl-25-3',
+        type: 'neu',
+        title: 'KI-Zauberstab 2.0 & didaktischer Blocker-Coach',
+        description: 'Komplexe Aufgabenstellungen werden mit dem KI-Zauberstab in machbare 4–5 Teilschritte zerlegt. Gerät ein Team ins Stocken, aktiviert der Klick auf „Hilfe / Blockiert“ den interaktiven KI-Coach mit zielführenden Reflexionsfragen.',
+        badge: 'KI & Pädagogik'
+      },
+      {
+        id: 'cl-25-4',
+        type: 'neu',
+        title: 'Projekt-Tagebuch & druckfertiger PDF-Report mit Schulsiegel',
+        description: 'Am Ende jeder Stunde halten Schüler ihre Lernerfahrungen im integrierten Projekt-Tagebuch fest. Zum Projektabschluss generiert die App einen repräsentativen DIN-A4-Ausdruck mit Unterschriftenfeld und Schulsiegel.',
+        badge: 'Dokumentation'
+      },
+      {
+        id: 'cl-25-5',
+        type: 'verbessert',
+        title: 'Klarer Unterschied zum kompakten Projektkompass',
+        description: 'Der bisherige Projektkompass bleibt als „Projektkompass (Kompakt)“ für schnelle, rein browserlokale Offline-Aufgaben ohne Cloud-Anbindung weiterhin verfügbar. Beide Werkzeuge sind in der Übersicht klar voneinander abgegrenzt beschrieben.',
+        badge: 'App-Portal'
+      }
+    ]
+  },
+  {
     version: '2.4.0',
     title: 'Echtzeit-Synchronisation für Kahoot, Menti & Oncoo (Smartboard ↔ Schüler-Handys)',
     date: '26. September 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Drahtlose Live-Verbindung zwischen Klassen-Smartboard und Schüler-Smartphones: Schüler scannen den QR-Code, wählen optional einen Nickname und erscheinen sofort in der Kahoot-Lobby. Auch Antworten, Punkte, Ranglisten sowie Menti-Abstimmungen und Oncoo-Karten übertragen sich jetzt sekundenschnell über die Schul-Cloud.',
     items: [
       {

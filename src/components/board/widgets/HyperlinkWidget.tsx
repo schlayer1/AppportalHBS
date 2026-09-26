@@ -85,7 +85,15 @@ const PRESET_LINKS: PresetLink[] = [
     recommendedMode: 'live'
   },
   {
-    name: 'Projektkompass',
+    name: 'Projektkompass 2.0',
+    url: 'https://projektkompass-20.vercel.app',
+    category: 'schule',
+    icon: Compass,
+    color: 'bg-teal-500/10 text-teal-800 hover:bg-teal-500/20 border-teal-200',
+    recommendedMode: 'live'
+  },
+  {
+    name: 'Projektkompass (Kompakt)',
     url: 'https://schlayer1.github.io/Projektkompass/',
     category: 'schule',
     icon: Compass,
