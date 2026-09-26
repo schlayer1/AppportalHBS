@@ -491,19 +491,24 @@ export const syncTeachersFromVertretungsstatistik = async (): Promise<{ added: n
  * Syncs the active Kahoot live session to Firestore.
  * Writes to dedicated document and mirrors to schools/HBS_portal and portal_data.
  */
-export const syncKahootLiveSession = async (session: KahootLiveSession): Promise<void> => {
+export const syncKahootLiveSession = async (
+  session: Partial<KahootLiveSession> & { sessionCode: string }
+): Promise<void> => {
   if (!db || !session.sessionCode) return;
   try {
     const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${session.sessionCode}`);
-    await setDoc(sessionDocRef, { ...session, updatedAt: Date.now() }, { merge: true });
+    const dataToWrite: any = { ...session, updatedAt: Date.now() };
+
+    // If caller did not provide participants explicitly, do NOT overwrite participants in Firestore
+    if (!session.participants) {
+      delete dataToWrite.participants;
+    }
+
+    await setDoc(sessionDocRef, dataToWrite, { merge: true });
 
     // Mirror to schools/HBS_portal with setDoc (never crashes if doc is missing)
     const schoolDocRef = doc(db, 'schools', 'HBS_portal');
-    await setDoc(schoolDocRef, { activeKahootSession: session }, { merge: true }).catch(() => {});
-
-    // Mirror to portal_data
-    const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
-    await setDoc(portalDocRef, { activeKahootSession: session }, { merge: true }).catch(() => {});
+    await setDoc(schoolDocRef, { activeKahootSession: dataToWrite }, { merge: true }).catch(() => {});
   } catch (err) {
     console.warn("Kahoot sync to cloud warning:", err);
   }
@@ -584,32 +589,55 @@ export const joinKahootSessionInCloud = async (
 export const submitKahootAnswerInCloud = async (
   sessionCode: string,
   studentId: string,
-  optionId: string
+  optionId: string,
+  studentInfo?: { nickname?: string; avatar?: string }
 ): Promise<void> => {
   if (!db || !sessionCode) return;
   try {
     const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${sessionCode}`);
     const snap = await getDoc(sessionDocRef);
+    let participants: KahootParticipant[] = [];
     if (snap.exists()) {
       const data = snap.data() as KahootLiveSession;
-      const participants = Array.isArray(data.participants) ? data.participants : [];
-      const updated = participants.map(p => {
-        if (p.id === studentId) {
-          return { ...p, lastAnswerId: optionId, lastAnswerTime: Date.now() };
-        }
-        return p;
-      });
-      await setDoc(sessionDocRef, {
-        participants: updated,
-        updatedAt: Date.now()
-      }, { merge: true });
-
-      // Mirror to schools/HBS_portal
-      const schoolDocRef = doc(db, 'schools', 'HBS_portal');
-      await setDoc(schoolDocRef, {
-        'activeKahootSession.participants': updated
-      }, { merge: true }).catch(() => {});
+      participants = Array.isArray(data.participants) ? data.participants : [];
     }
+
+    let found = false;
+    const updated = participants.map(p => {
+      if (p.id === studentId) {
+        found = true;
+        return { ...p, lastAnswerId: optionId, lastAnswerTime: Date.now() };
+      }
+      return p;
+    });
+
+    // If student was not yet in participants list, upsert them immediately
+    if (!found) {
+      updated.push({
+        id: studentId,
+        nickname: studentInfo?.nickname || 'Schüler',
+        avatar: studentInfo?.avatar || '🦊',
+        score: 0,
+        streak: 0,
+        lastAnswerId: optionId,
+        lastAnswerTime: Date.now()
+      });
+    }
+
+    const answersReceived = updated.filter(p => p.lastAnswerId).length;
+
+    await setDoc(sessionDocRef, {
+      participants: updated,
+      answersReceived,
+      updatedAt: Date.now()
+    }, { merge: true });
+
+    // Mirror to schools/HBS_portal
+    const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+    await setDoc(schoolDocRef, {
+      'activeKahootSession.participants': updated,
+      'activeKahootSession.answersReceived': answersReceived
+    }, { merge: true }).catch(() => {});
   } catch (err) {
     console.warn("Error submitting Kahoot answer in cloud:", err);
   }
@@ -684,37 +712,50 @@ export const submitMentiVoteInCloud = async (
     if (snap.exists()) {
       const data = snap.data() as MentiLiveSession;
       const responses = data.responses || {};
-      const slideResp = responses[slideId] || { counts: {}, words: [], textAnswers: [], ratings: {}, rankings: [], quizScores: {} };
+      let slideResp = responses[slideId];
 
       if (payload.optionId) {
-        slideResp.counts = slideResp.counts || {};
-        slideResp.counts[payload.optionId] = (slideResp.counts[payload.optionId] || 0) + 1;
-      }
-      if (payload.word) {
-        slideResp.words = slideResp.words || [];
-        slideResp.words.push(payload.word);
-      }
-      if (payload.text) {
-        slideResp.textAnswers = slideResp.textAnswers || [];
-        slideResp.textAnswers.push(payload.text);
-      }
-      if (payload.ratings) {
-        slideResp.ratings = slideResp.ratings || {};
-        Object.entries(payload.ratings).forEach(([scaleId, val]) => {
-          if (!slideResp.ratings[scaleId]) slideResp.ratings[scaleId] = [];
-          slideResp.ratings[scaleId].push(Number(val));
+        // Choice or Quiz
+        const obj = (typeof slideResp === 'object' && !Array.isArray(slideResp) && slideResp !== null) ? slideResp : {};
+        obj[payload.optionId] = (obj[payload.optionId] || 0) + 1;
+        responses[slideId] = obj;
+      } else if (payload.word) {
+        // Wordcloud
+        const obj = (typeof slideResp === 'object' && !Array.isArray(slideResp) && slideResp !== null) ? slideResp : {};
+        obj[payload.word] = (obj[payload.word] || 0) + 1;
+        responses[slideId] = obj;
+      } else if (payload.text) {
+        // Open-ended thoughts
+        const arr = Array.isArray(slideResp) ? slideResp : [];
+        arr.push({
+          id: `resp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          text: payload.text,
+          timestamp: Date.now()
         });
-      }
-      if (payload.rankingOrder) {
-        slideResp.rankings = slideResp.rankings || [];
-        slideResp.rankings.push(payload.rankingOrder);
-      }
-      if (payload.matrixCoords) {
-        slideResp.matrixPoints = slideResp.matrixPoints || [];
-        slideResp.matrixPoints.push(payload.matrixCoords);
+        responses[slideId] = arr;
+      } else if (payload.ratings) {
+        // Scales
+        const obj = (typeof slideResp === 'object' && !Array.isArray(slideResp) && slideResp !== null) ? slideResp : {};
+        Object.entries(payload.ratings).forEach(([scaleId, val]) => {
+          const current = obj[scaleId] || { sum: 0, count: 0 };
+          obj[scaleId] = {
+            sum: current.sum + Number(val),
+            count: current.count + 1
+          };
+        });
+        responses[slideId] = obj;
+      } else if (payload.rankingOrder) {
+        // Ranking
+        const arr = Array.isArray(slideResp) ? slideResp : [];
+        arr.push(payload.rankingOrder);
+        responses[slideId] = arr;
+      } else if (payload.matrixCoords) {
+        // 2x2 Matrix
+        const arr = Array.isArray(slideResp) ? slideResp : [];
+        arr.push(payload.matrixCoords);
+        responses[slideId] = arr;
       }
 
-      responses[slideId] = slideResp;
       const newCount = (data.participantsCount || 0) + 1;
 
       await setDoc(sessionDocRef, {

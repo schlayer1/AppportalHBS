@@ -6,13 +6,13 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
     title: 'Echtzeit-Synchronisation für Kahoot, Menti & Oncoo (Smartboard ↔ Schüler-Handys)',
     date: '26. September 2026',
     isLatest: true,
-    highlight: 'Drahtlose Live-Verbindung zwischen Klassen-Smartboard und Schüler-Smartphones: Schüler scannen den QR-Code, wählen optional einen Nickname und erscheinen sofort in der Kahoot-Lobby. Auch Menti-Abstimmungen und Oncoo-Karten übertragen sich jetzt sekundenschnell über die Schul-Cloud.',
+    highlight: 'Drahtlose Live-Verbindung zwischen Klassen-Smartboard und Schüler-Smartphones: Schüler scannen den QR-Code, wählen optional einen Nickname und erscheinen sofort in der Kahoot-Lobby. Auch Antworten, Punkte, Ranglisten sowie Menti-Abstimmungen und Oncoo-Karten übertragen sich jetzt sekundenschnell über die Schul-Cloud.',
     items: [
       {
         id: 'cl-24-1',
         type: 'behoben',
-        title: 'Kahoot: QR-Code-Scan & Lobby-Eintritt am Schüler-Handy',
-        description: 'Bisher funktionierte der Abgleich zwischen verschiedenen Geräten (Smartboard der Lehrkraft ↔ Schüler-Smartphones) nicht zuverlässig. Nun werden alle Spiel-Sitzungen direkt über unsere Cloud synchronisiert: Sobald ein Schüler den QR-Code mit der Handy-Kamera scannt, erscheint sein Name und Avatar sofort auf dem Smartboard in der Lobby. Zudem kann die Lehrkraft das Quiz jederzeit auch im Test- oder Demonstrationsmodus starten.',
+        title: 'Kahoot: Zuverlässige Lobby, Antwort-Zähler & korrekte Punkte-Rangliste',
+        description: 'Behebung des Fehlers bei der Live-Synchronisation: Schüler, die den QR-Code scannen, erscheinen ab sofort verlässlich in der Lobby auf dem Smartboard. Antworten von Schüler-Smartphones erhöhen direkt den Live-Zähler („X / Y geantwortet“) an der Tafel. Richtige Antworten werden auf dem Smartphone garantiert als richtig mit Punktegutschrift angezeigt und alle Schüler fließen mit ihren gesammelten Punkten und Siegesserien (Streaks) in die Rangliste und das Siegerpodest ein.',
         badge: 'HBS Kahoot'
       },
       {
@@ -26,14 +26,14 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
         id: 'cl-24-3',
         type: 'behoben',
         title: 'Menti: Live-Abstimmungen, Wortwolken & Sofort-Reaktionen',
-        description: 'Alle Folienabfragen (Mehrfachauswahl, Wortwolken, Skalen, offene Fragen und fliegende Herz-/Daumen-Reaktionen ❤️ 👍 💡) werden jetzt in Echtzeit von den Smartphones der Schüler auf die Tafel übertragen – ohne Verzögerung und ohne dass Schüler ein Benutzerkonto anlegen müssen.',
+        description: 'Alle Folienabfragen (Mehrfachauswahl, Wortwolken, Skalen, offene Fragen und fliegende Herz-/Daumen-Reaktionen ❤️ 👍 💡) werden jetzt im exakten Format in Echtzeit von den Smartphones der Schüler auf die Tafel übertragen – ohne Verzögerung und ohne dass Schüler ein Benutzerkonto anlegen müssen.',
         badge: 'HBS Menti'
       },
       {
         id: 'cl-24-4',
         type: 'behoben',
         title: 'Oncoo: Interaktive Kartenabfrage, Zielscheibe & Lerntempoduett',
-        description: 'Die vier kooperativen Oncoo-Methoden (Kartenabfrage, Zielscheiben-Reflexion, Tandem-Partnerfindung im Lerntempoduett und Placemat) übertragen eingereichte Schülerkarten und Selbsteinschätzungen jetzt direkt über die Schul-Cloud an die Lehrkraft-Tafel.',
+        description: 'Die vier kooperativen Oncoo-Methoden (Kartenabfrage, Zielscheiben-Reflexion, Tandem-Partnerfindung im Lerntempoduett und Placemat) übertragen eingereichte Schülerkarten und Selbsteinschätzungen jetzt mit stabiler Dauerverbindung direkt über die Schul-Cloud an die Lehrkraft-Tafel.',
         badge: 'HBS Oncoo'
       },
       {

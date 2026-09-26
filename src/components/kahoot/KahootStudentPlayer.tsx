@@ -122,18 +122,23 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
     return () => unsubscribe();
   }, [pinCode]);
 
-  // When question changes, reset selected answer and start team consultation countdown
+  // When question changes or stage resets to get_ready, reset selected answer and start team consultation countdown
   useEffect(() => {
-    if (session && session.currentQuestionIndex !== lastQuestionIndex) {
-      setLastQuestionIndex(session.currentQuestionIndex);
-      setSelectedOptionId(null);
-      if (session.gameMode === 'team') {
-        setTeamConsultationLeft(5);
-      } else {
-        setTeamConsultationLeft(0);
+    if (session) {
+      if (session.stage === 'get_ready') {
+        setSelectedOptionId(null);
+      }
+      if (session.currentQuestionIndex !== lastQuestionIndex) {
+        setLastQuestionIndex(session.currentQuestionIndex);
+        setSelectedOptionId(null);
+        if (session.gameMode === 'team') {
+          setTeamConsultationLeft(5);
+        } else {
+          setTeamConsultationLeft(0);
+        }
       }
     }
-  }, [session?.currentQuestionIndex, lastQuestionIndex, session?.gameMode]);
+  }, [session?.currentQuestionIndex, session?.stage, lastQuestionIndex, session?.gameMode]);
 
   // Team consultation 5s countdown
   useEffect(() => {
@@ -223,7 +228,10 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
 
     // Cloud submit across all devices
     if (pinCode) {
-      submitKahootAnswerInCloud(pinCode, studentId, optionId);
+      submitKahootAnswerInCloud(pinCode, studentId, optionId, {
+        nickname: nickname.trim() || 'Schüler',
+        avatar: selectedAvatar
+      });
     }
   };
 
@@ -494,43 +502,53 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
       )}
 
       {/* VIEW 6: REVEAL / SCOREBOARD FEEDBACK */}
-      {hasJoinedLobby && (session?.stage === 'reveal' || session?.stage === 'scoreboard') && (
-        <main className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4 max-w-sm mx-auto">
-          {myParticipant?.lastAnswerCorrect ? (
-            <div className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center text-5xl shadow-2xl animate-bounceIn">
-              🎉
-            </div>
-          ) : (
-            <div className="w-24 h-24 rounded-full bg-red-500/80 flex items-center justify-center text-5xl shadow-2xl">
-              😢
-            </div>
-          )}
+      {hasJoinedLobby && (session?.stage === 'reveal' || session?.stage === 'scoreboard') && (() => {
+        const correctOpt = session?.activeQuestion?.options.find(o => o.isCorrect);
+        const isCorrect = (myParticipant && myParticipant.lastAnswerCorrect !== undefined)
+          ? myParticipant.lastAnswerCorrect
+          : (selectedOptionId !== null && correctOpt && selectedOptionId === correctOpt.id);
+        const pointsEarned = myParticipant?.lastPointsEarned !== undefined
+          ? myParticipant.lastPointsEarned
+          : (isCorrect ? Math.round((session?.activeQuestion?.points || 1000) / 2) : 0);
 
-          <h2 className="text-2xl font-black">
-            {myParticipant?.lastAnswerCorrect ? 'Richtig!' : 'Leider falsch!'}
-          </h2>
+        return (
+          <main className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4 max-w-sm mx-auto">
+            {isCorrect ? (
+              <div className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center text-5xl shadow-2xl animate-bounceIn">
+                🎉
+              </div>
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-red-500/80 flex items-center justify-center text-5xl shadow-2xl">
+                😢
+              </div>
+            )}
 
-          {myParticipant?.lastAnswerCorrect && (
-            <div className="text-lg font-mono font-black text-amber-300">
-              +{myParticipant.lastPointsEarned || 0} Punkte!
+            <h2 className="text-2xl font-black">
+              {isCorrect ? 'Richtig!' : 'Leider falsch!'}
+            </h2>
+
+            {isCorrect && (
+              <div className="text-lg font-mono font-black text-amber-300">
+                +{pointsEarned} Punkte!
+              </div>
+            )}
+
+            {myParticipant?.streak && myParticipant.streak >= 2 && (
+              <div className="px-3 py-1 rounded-xl bg-orange-500/30 border border-orange-400 text-orange-300 text-xs font-black flex items-center gap-1.5">
+                <Flame className="w-4 h-4 fill-orange-400 text-orange-400" />
+                <span>{myParticipant.streak}er Serie! 🔥</span>
+              </div>
+            )}
+
+            <div className="p-3 bg-white/10 rounded-2xl border border-white/20 w-full text-center">
+              <span className="text-xs text-purple-200 block">Gesamtpunktzahl:</span>
+              <span className="text-2xl font-mono font-black text-white">
+                {myParticipant?.score || 0} Pkt
+              </span>
             </div>
-          )}
-
-          {myParticipant?.streak && myParticipant.streak >= 2 && (
-            <div className="px-3 py-1 rounded-xl bg-orange-500/30 border border-orange-400 text-orange-300 text-xs font-black flex items-center gap-1.5">
-              <Flame className="w-4 h-4 fill-orange-400 text-orange-400" />
-              <span>{myParticipant.streak}er Serie! 🔥</span>
-            </div>
-          )}
-
-          <div className="p-3 bg-white/10 rounded-2xl border border-white/20 w-full text-center">
-            <span className="text-xs text-purple-200 block">Gesamtpunktzahl:</span>
-            <span className="text-2xl font-mono font-black text-white">
-              {myParticipant?.score || 0} Pkt
-            </span>
-          </div>
-        </main>
-      )}
+          </main>
+        );
+      })()}
 
       {/* VIEW 7: PODIUM FINALE */}
       {hasJoinedLobby && session?.stage === 'podium' && (

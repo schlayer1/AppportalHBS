@@ -103,11 +103,14 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
     ? `${window.location.origin}${window.location.pathname}?oncoo=${session.pinCode}`
     : `https://appportalhbs.vercel.app?oncoo=${session.pinCode}`;
 
+  const lastLocalSyncRef = useRef<number>(session.updatedAt || 0);
+
   // Broadcast & Sync Session
   useEffect(() => {
     // Set as active session for cloud & local storage
     updateActiveOncooSession(session);
     saveOncooSession(session);
+    lastLocalSyncRef.current = session.updatedAt || Date.now();
     syncOncooLiveSession(session);
   }, [session, updateActiveOncooSession, saveOncooSession]);
 
@@ -138,12 +141,13 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
   useEffect(() => {
     if (!session.pinCode) return;
     const unsubscribe = subscribeToOncooSession(session.pinCode, (updatedSess) => {
-      if (updatedSess && updatedSess.updatedAt && (!session.updatedAt || updatedSess.updatedAt > session.updatedAt)) {
+      if (updatedSess && (!updatedSess.updatedAt || updatedSess.updatedAt >= lastLocalSyncRef.current)) {
+        lastLocalSyncRef.current = updatedSess.updatedAt || Date.now();
         setSession(updatedSess);
       }
     });
     return () => unsubscribe();
-  }, [session.pinCode, session.updatedAt]);
+  }, [session.pinCode]);
 
   // Global Escape key listener to close modals
   useEffect(() => {
