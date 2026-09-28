@@ -171,6 +171,28 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
+    id: "promptbaukasten",
+    title: "KI-Unterrichts-Baukasten & Lernspiel-Werkstatt",
+    shortTitle: "Unterrichts-Baukasten",
+    subtitle: "Differenzierte Arbeitsblätter, HTML5-Lernspiele & Erwartungshorizonte",
+    description: "Didaktisch geschärfter Baukasten für Thüringer Regelschulen (ThILLM & KMK AFB I–III). Generiert druckfertige DIN-A4-Arbeitsblätter, 100% autarke HTML5-Lernspiele mit Sound & Vorlesefunktion sowie transparente Bewertungsraster.",
+    url: "https://promptbaukasten.vercel.app/",
+    category: "unterricht",
+    badge: "ThILLM & HTML5",
+    badgeColor: "blue",
+    icon: "Sparkles",
+    tags: ["Unterricht", "Differenzierung", "HTML5-Lernspiel", "AFB I-III", "Thüringen", "Inklusion", "DaZ", "Moodle-GIFT"],
+    isFeaturedStudentQr: true,
+    offlineReady: true,
+    privacyBadge: "DSGVO-konform",
+    pedagogicalValue: "Ermöglicht passgenaue Differenzierung nach Thüringer Operatoren und erzeugt sofort spielbare Tablet-Lernspiele ohne Registrierung.",
+    quickGuide: [
+      "Fach, Klassenstufe (5–10) und ThILLM-Lehrplanthema auswählen.",
+      "Operatoren-Gewichtung nach AFB I–III einstellen und bei Bedarf Fördermodus (DaZ) aktivieren.",
+      "Entweder 'Nur Prompt generieren' oder direkt per KI erstellen und das Lernspiel per QR-Code oder HTML-Download an Schüler verteilen."
+    ]
+  },
+  {
     id: "lehrer-translator",
     title: "Übersetzer Lehrer",
     shortTitle: "Übersetzer Lehrer",
