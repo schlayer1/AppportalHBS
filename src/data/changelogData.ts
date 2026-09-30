@@ -2,10 +2,33 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '2.7.1',
+    title: 'Harmonisierung der Bento-App-Karten: Einheitliche Höhe, Ausrichtung & Symmetrie',
+    date: '30. September 2026',
+    isLatest: true,
+    highlight: 'Optimierung des Bento-Grids für ein absolut einheitliches, ruhiges und harmonisches Gesamtbild: Sämtliche App-Karten besitzen nun eine einheitliche Höhe über alle Zeilen und Spalten hinweg, mit vertikal perfekt ausgerichteten Symbolen, zweizeiligen Titelblöcken, standardisierten 3-Zeilen-Beschreibungen und deckungsgleichen Aktionsleisten.',
+    items: [
+      {
+        id: 'cl-271-1',
+        type: 'verbessert',
+        title: 'Einheitliche Kartenhöhe & lückenloses Raster',
+        description: 'Beseitigung ungleicher Kartenlängen durch vollständige Höhenvererbung (h-full) über die 3D-Container-Hierarchie. Alle Kacheln schließen in jeder Zeile und Bildschirmauflösung exakt bündig ab.',
+        badge: 'Bento-Grid'
+      },
+      {
+        id: 'cl-271-2',
+        type: 'verbessert',
+        title: 'Pixelgenaue Ausrichtung von Icons, Texten & Tags',
+        description: 'Titel (line-clamp-2 mit fester 56px-Höhe), Untertitel (1 Zeile) und Beschreibungen (line-clamp-3) sind nun typografisch normiert. Die Tag-Leiste ist auf einheitliche zwei Zeilen mit intelligentem „+X“-Zähler standardisiert, wodurch die Buttonleiste unten immer auf derselben Horizontale liegt.',
+        badge: 'Typografie & Layout'
+      }
+    ]
+  },
+  {
     version: '2.7.0',
     title: 'HBS Promptbibliothek: KI-Zentrale mit Schülerhände-Ready A4-Druck, Live-Testarea & DSGVO-Scanner',
     date: '30. September 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Offizieller Start der HBS Promptbibliothek (https://promptbibliothek.vercel.app/): Didaktisch geschärfte Prompt-Zentrale mit über 200 praxiserprobten Schul-Prompts, interaktiven Variablen-Formularen ([Fach], [Thema]), integrierter Live-Testarea mit Google Gemini Kaskade, Schülerhände-Ready Rendering für alle 7 pädagogischen Formate mit A4-PDF-Druckexport und automatischem DSGVO-Schülerdaten-Scanner.',
     items: [
       {

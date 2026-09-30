@@ -81,19 +81,21 @@ export const AppCard: React.FC<AppCardProps> = ({
   }[app.badgeColor];
 
   return (
-    <div className="relative [perspective:1200px] w-full">
+    <div className="relative [perspective:1200px] w-full h-full">
       {/* 3D Flip Container */}
       <div 
-        className={`w-full duration-500 [transform-style:preserve-3d] transition-transform ${
+        className={`w-full h-full duration-500 [transform-style:preserve-3d] transition-transform ${
           isFlipped ? '[transform:rotateY(180deg)]' : ''
         }`}
       >
         
         {/* ================= FRONT SIDE ================= */}
-        <div className="w-full [backface-visibility:hidden]">
-          <CardTilt disabled={isFlipped || isSmartboardMode} className="w-full">
+        <div className="w-full h-full [backface-visibility:hidden]">
+          <CardTilt disabled={isFlipped || isSmartboardMode} className="w-full h-full">
             <div 
-              className={`relative rounded-3xl p-6 sm:p-7 border-2 ${theme.border} ${theme.softBg} shadow-[0_12px_30px_-8px_rgba(9,29,46,0.1),0_4px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_45px_-10px_rgba(9,29,46,0.18)] transition-all duration-300 flex flex-col justify-between overflow-hidden group`}
+              className={`relative rounded-3xl p-6 sm:p-7 border-2 ${theme.border} ${theme.softBg} shadow-[0_12px_30px_-8px_rgba(9,29,46,0.1),0_4px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_45px_-10px_rgba(9,29,46,0.18)] transition-all duration-300 flex flex-col justify-between overflow-hidden group h-full ${
+                app.isFeaturedStudentQr ? 'pt-8 sm:pt-9' : ''
+              }`}
             >
               
               {/* Subtle top ambient glow */}
@@ -104,16 +106,16 @@ export const AppCard: React.FC<AppCardProps> = ({
 
               {/* Featured banner for student app */}
               {app.isFeaturedStudentQr && (
-                <div className="absolute top-0 right-0 left-0 bg-gradient-to-r from-[#F39200] to-amber-600 py-1.5 px-4 text-center text-white text-[11px] font-black tracking-wider uppercase flex items-center justify-center gap-1.5 shadow-xs">
+                <div className="absolute top-0 right-0 left-0 bg-gradient-to-r from-[#F39200] to-amber-600 py-1.5 px-4 text-center text-white text-[11px] font-black tracking-wider uppercase flex items-center justify-center gap-1.5 shadow-xs z-10">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Direkt im Unterricht • QR-Schnellscan</span>
                 </div>
               )}
 
-              <div className={app.isFeaturedStudentQr ? 'mt-4' : ''}>
+              <div className="flex-1 flex flex-col">
                 
                 {/* Header row: Vibrant 3D Squircle Icon + Badges & Buttons */}
-                <div className="flex items-start justify-between gap-3 mb-5">
+                <div className="flex items-start justify-between gap-3 mb-4">
                   
                   {/* Rich Gradient Squircle App Icon */}
                   <div 
@@ -188,53 +190,60 @@ export const AppCard: React.FC<AppCardProps> = ({
                 </div>
 
                 {/* Badge Category Row */}
-                <div className="flex flex-wrap items-center gap-2 mb-2.5">
-                  <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border shadow-xs ${theme.badge}`}>
+                <div className="flex items-center gap-2 mb-2.5 h-7">
+                  <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border shadow-xs whitespace-nowrap ${theme.badge}`}>
                     {app.badge}
                   </span>
                   {app.privacyBadge && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-white/80 px-2 py-0.5 rounded-md border border-slate-200 shadow-xs">
-                      <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                      {app.privacyBadge}
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-white/80 px-2 py-0.5 rounded-md border border-slate-200 shadow-xs whitespace-nowrap truncate max-w-[200px]">
+                      <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+                      <span className="truncate">{app.privacyBadge}</span>
                     </span>
                   )}
                 </div>
 
                 {/* Titles */}
-                <div className="mb-2.5">
+                <div className="mb-2">
                   <h3 
-                    className="text-xl sm:text-2xl font-black text-[#091D2E] tracking-tight leading-snug group-hover:text-hbs-blue transition-colors"
+                    className="text-lg sm:text-xl font-black text-[#091D2E] tracking-tight leading-snug group-hover:text-hbs-blue transition-colors line-clamp-2 h-14 flex items-center"
+                    title={app.title}
                   >
                     {app.title}
                   </h3>
-                  <p className="text-xs sm:text-sm font-bold text-hbs-blue mt-0.5">
+                  <p 
+                    className="text-xs sm:text-sm font-bold text-hbs-blue mt-0.5 line-clamp-1 truncate h-5"
+                    title={app.subtitle}
+                  >
                     {app.subtitle}
                   </p>
                 </div>
 
                 {/* Description */}
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-5">
+                <p 
+                  className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4 line-clamp-3 h-[4.25rem] overflow-hidden"
+                  title={app.description}
+                >
                   {app.description}
                 </p>
 
                 {/* SMARTBOARD MODE EXTRA: Directly Visible Large QR Code */}
                 {isSmartboardMode && (
-                  <div className="p-4 bg-white rounded-2xl border-2 border-hbs-blue/30 shadow-md my-4 flex flex-col items-center justify-center animate-fadeIn">
+                  <div className="p-4 bg-white rounded-2xl border-2 border-hbs-blue/30 shadow-md my-auto flex flex-col items-center justify-center animate-fadeIn">
                     <QRCodeSVG
                       value={app.url}
-                      size={150}
+                      size={140}
                       level="H"
                       includeMargin={true}
                       imageSettings={{
                         src: "/Siegel_bunt.png",
                         x: undefined,
                         y: undefined,
-                        height: 30,
-                        width: 30,
+                        height: 28,
+                        width: 28,
                         excavate: true,
                       }}
                     />
-                    <span className="text-xs font-black text-hbs-blue-deep mt-2.5">
+                    <span className="text-xs font-black text-hbs-blue-deep mt-2">
                       📱 Jetzt mit iPad / Handy scannen
                     </span>
                   </div>
@@ -242,18 +251,23 @@ export const AppCard: React.FC<AppCardProps> = ({
 
                 {/* Tags */}
                 {!isSmartboardMode && (
-                  <div className="flex flex-wrap gap-1.5 mb-6">
-                    {app.tags.map((tag, idx) => (
+                  <div className="flex flex-wrap gap-1.5 mb-5 h-[3.25rem] overflow-hidden content-start">
+                    {app.tags.slice(0, 4).map((tag, idx) => (
                       <span 
                         key={idx} 
-                        className="text-[11px] font-semibold text-slate-600 bg-white/90 px-2.5 py-1 rounded-lg border border-slate-200/80 shadow-xs"
+                        className="text-[11px] font-semibold text-slate-600 bg-white/90 px-2.5 py-1 rounded-lg border border-slate-200/80 shadow-xs whitespace-nowrap"
                       >
                         {tag}
                       </span>
                     ))}
+                    {app.tags.length > 4 && (
+                      <span className="text-[11px] font-bold text-slate-400 bg-slate-100/80 px-2 py-1 rounded-lg border border-slate-200/50 shadow-2xs whitespace-nowrap">
+                        +{app.tags.length - 4}
+                      </span>
+                    )}
                     {app.offlineReady && (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 shadow-xs">
-                        <CheckCircle2 className="w-3 h-3" /> PWA-fähig
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 shadow-xs whitespace-nowrap">
+                        <CheckCircle2 className="w-3 h-3 shrink-0" /> PWA-fähig
                       </span>
                     )}
                   </div>
@@ -261,7 +275,7 @@ export const AppCard: React.FC<AppCardProps> = ({
               </div>
 
               {/* Bottom Action Footer with Rich Tactile Buttons */}
-              <div className="pt-4 border-t border-slate-200/60 flex items-center gap-2.5">
+              <div className="pt-4 border-t border-slate-200/60 flex items-center gap-2.5 mt-auto">
                 <a
                   href={app.url}
                   target={app.url.startsWith('#') ? undefined : "_blank"}
@@ -287,8 +301,8 @@ export const AppCard: React.FC<AppCardProps> = ({
         </div>
 
         {/* ================= BACK SIDE (FLIP) ================= */}
-        <div className="w-full absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
-          <div className="w-full h-full rounded-3xl bg-white border-2 border-hbs-blue/40 p-6 sm:p-7 shadow-2xl shadow-hbs-blue/15 flex flex-col justify-between">
+        <div className="w-full h-full absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <div className="w-full h-full rounded-3xl bg-white border-2 border-hbs-blue/40 p-6 sm:p-7 shadow-2xl shadow-hbs-blue/15 flex flex-col justify-between overflow-y-auto">
             
             <div>
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
