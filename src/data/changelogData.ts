@@ -2,10 +2,54 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '2.7.0',
+    title: 'HBS Promptbibliothek: KI-Zentrale für Lehrkräfte mit Live-Testarea, DSGVO-Scanner & Manuel-Flick-Katalog',
+    date: '30. September 2026',
+    isLatest: true,
+    highlight: 'Offizieller Start der HBS Promptbibliothek (https://promptbibliothek.vercel.app/): Didaktisch geschärfte Prompt-Zentrale mit über 200 praxiserprobten Schul-Prompts, interaktiven Variablen-Formularen ([Fach], [Thema]), integrierter Live-Testarea mit Google Gemini Kaskade, 1-Klick-Start für ChatGPT/Claude/Copilot und automatischem DSGVO-Schülerdaten-Scanner.',
+    items: [
+      {
+        id: 'cl-270-1',
+        type: 'neu',
+        title: 'HBS Promptbibliothek im Portal integriert',
+        description: 'Vollwertige Web-App zur Unterrichtsvorbereitung und Arbeitsentlastung. Enthält eine gemeinsame Kollegiums-Bibliothek, einen PIN-geschützten persönlichen Arbeitsbereich und einen nahtlosen 1-Klick-Freigabe-Workflow.',
+        badge: 'Promptbibliothek'
+      },
+      {
+        id: 'cl-270-2',
+        type: 'neu',
+        title: 'Interaktive Variablen-Formulare (Mad-Libs)',
+        description: 'Platzhalter wie [Fach], [Klassenstufe] oder [Thema] werden beim Öffnen automatisch zu praktischen Auswahlfeldern. Der fertige Prompt setzt sich live vor den Augen der Lehrkraft zusammen.',
+        badge: 'Formular-Ausfüller'
+      },
+      {
+        id: 'cl-270-3',
+        type: 'neu',
+        title: 'Integrierte Live-Testarea mit Schul-Gemini-API',
+        description: 'Prompts können vorab direkt im Browser risikofrei mit der schuleigenen Gemini-Flash-Kaskade getestet werden – ohne Vorab-Setup oder mit eigenem API-Key.',
+        badge: 'Live-Testarea'
+      },
+      {
+        id: 'cl-270-4',
+        type: 'neu',
+        title: 'DSGVO- & Schülerdaten-Scanner (Privacy Guard)',
+        description: 'Schützt vor unabsichtlichen Datenschutzfehlern: Warnt vor Schülernamen, Noten oder Diagnosen im Prompt und schlägt sofort neutrale Pseudonyme vor.',
+        badge: 'DSGVO-Schutz'
+      },
+      {
+        id: 'cl-270-5',
+        type: 'neu',
+        title: 'Kuratierter Manuel Flick Starter-Katalog & Notion-Importer',
+        description: 'Über 200 Vorlagen aus dem bekannten ChatGPT-Guide für Lehrkräfte strukturiert nach Unterrichtsentwürfen, Differenzierung nach AFB I-III, Elternbriefen, Leichter Sprache und Zeugnisphrasen. Beliebige Notizen können per Notion-Importer eingespielt werden.',
+        badge: 'Notion & Flick'
+      }
+    ]
+  },
+  {
     version: '2.6.0',
     title: 'KI-Unterrichts-Baukasten & Lernspiel-Werkstatt: Digitale Lernstationen, HBS-Notenschlüssel & A4-Druck',
     date: '30. September 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Vollständiger Launch des neuen KI-Unterrichts-Baukastens: Generierung dreigleisiger Unterrichtsmaterialien (Offline-HTML5-Lernspiele oder interaktive 5-Minuten-Lernstationen, differenzierte A4-Arbeitsblätter und Thüringer Bewertungsraster mit offiziellem HBS-Notenschlüssel), cloudbasierter Kollegiums-Fundus mit PIN-Schutz und saubere Druck-Optimierung.',
     items: [
       {

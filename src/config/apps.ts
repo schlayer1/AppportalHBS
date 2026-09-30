@@ -193,6 +193,28 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
+    id: "promptbibliothek",
+    title: "HBS Promptbibliothek (KI-Zentrale)",
+    shortTitle: "Promptbibliothek",
+    subtitle: "200+ kuratierte Schul-Prompts, Live-Testarea & Formular-Ausfüller",
+    description: "Pädagogische KI-Prompt-Zentrale für das Kollegium: Über 200 praxisnahe Prompts (inkl. Manuel Flick Guide) für Unterricht, Differenzierung und Elternarbeit. Mit interaktiven Variablen-Formularen ([Fach], [Thema]), integrierter Live-Testarea (Google Gemini Kaskade), Multi-KI-Launcher (ChatGPT, Claude, Copilot) und automatischem DSGVO-Schülerdaten-Scanner.",
+    url: "https://promptbibliothek.vercel.app/",
+    category: "kollegium",
+    badge: "Neu: 200+ Prompts",
+    badgeColor: "teal",
+    icon: "BookOpen",
+    tags: ["Kollegium", "Promptbibliothek", "Live-Testarea", "ChatGPT", "Gemini", "DSGVO-Scanner", "Manuel Flick Guide", "Formulare"],
+    isFeaturedStudentQr: false,
+    offlineReady: true,
+    privacyBadge: "100% DSGVO-konform",
+    pedagogicalValue: "Strukturierte, erprobte Prompts sparen wertvolle Vorbereitungszeit, verfeinern Unterrichtsideen und verhindern Datenschutzverstöße durch automatische Klarnamen-Prüfung.",
+    quickGuide: [
+      "In der Schulbibliothek oder im eigenen Bereich den passenden Prompt auswählen.",
+      "Variablen wie [Fach], [Klassenstufe] und [Thema] im Formular anpassen – der Prompt setzt sich live zusammen.",
+      "Entweder direkt in der integrierten Testarea mit der Schul-KI testen oder mit 1 Klick in ChatGPT, Claude oder Copilot öffnen."
+    ]
+  },
+  {
     id: "lehrer-translator",
     title: "Übersetzer Lehrer",
     shortTitle: "Übersetzer Lehrer",
