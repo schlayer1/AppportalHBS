@@ -44,6 +44,7 @@ export const AppCard: React.FC<AppCardProps> = ({
   onDeleteCustom
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isCardHovered, setIsCardHovered] = useState(false);
 
   // Vibrant, rich Google Stitch theme definitions
   const theme = {
@@ -94,6 +95,8 @@ export const AppCard: React.FC<AppCardProps> = ({
         <div className="w-full h-full [backface-visibility:hidden]">
           <CardTilt disabled={isFlipped || isSmartboardMode} className="w-full h-full">
             <div 
+              onMouseEnter={() => setIsCardHovered(true)}
+              onMouseLeave={() => setIsCardHovered(false)}
               className={`relative rounded-3xl p-6 sm:p-7 border-2 ${theme.border} ${theme.softBg} shadow-[0_12px_30px_-8px_rgba(9,29,46,0.1),0_4px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_45px_-10px_rgba(9,29,46,0.18)] transition-all duration-300 flex flex-col justify-between overflow-hidden group h-full ${
                 app.isFeaturedStudentQr ? 'pt-8 sm:pt-9' : ''
               }`}
@@ -219,9 +222,10 @@ export const AppCard: React.FC<AppCardProps> = ({
                   </p>
                 </div>
 
-                {/* Description with Smooth Auto-Scroll on Overflow */}
+                {/* Description with Smooth Auto-Scroll on Hover */}
                 <AutoScrollDescription
                   text={app.description}
+                  isCardHovered={isCardHovered}
                   className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4"
                 />
 
