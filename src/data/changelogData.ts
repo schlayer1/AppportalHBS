@@ -3,10 +3,10 @@ import { ChangelogRelease } from '../types/requestTypes';
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
     version: '2.7.0',
-    title: 'HBS Promptbibliothek: KI-Zentrale für Lehrkräfte mit Live-Testarea, DSGVO-Scanner & Manuel-Flick-Katalog',
+    title: 'HBS Promptbibliothek: KI-Zentrale mit Schülerhände-Ready A4-Druck, Live-Testarea & DSGVO-Scanner',
     date: '30. September 2026',
     isLatest: true,
-    highlight: 'Offizieller Start der HBS Promptbibliothek (https://promptbibliothek.vercel.app/): Didaktisch geschärfte Prompt-Zentrale mit über 200 praxiserprobten Schul-Prompts, interaktiven Variablen-Formularen ([Fach], [Thema]), integrierter Live-Testarea mit Google Gemini Kaskade, 1-Klick-Start für ChatGPT/Claude/Copilot und automatischem DSGVO-Schülerdaten-Scanner.',
+    highlight: 'Offizieller Start der HBS Promptbibliothek (https://promptbibliothek.vercel.app/): Didaktisch geschärfte Prompt-Zentrale mit über 200 praxiserprobten Schul-Prompts, interaktiven Variablen-Formularen ([Fach], [Thema]), integrierter Live-Testarea mit Google Gemini Kaskade, Schülerhände-Ready Rendering für alle 7 pädagogischen Formate mit A4-PDF-Druckexport und automatischem DSGVO-Schülerdaten-Scanner.',
     items: [
       {
         id: 'cl-270-1',
@@ -18,26 +18,40 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
       {
         id: 'cl-270-2',
         type: 'neu',
+        title: 'Schülerhände-Ready Rendering für 7 pädagogische Formate',
+        description: 'KI-Ausgaben werden nicht als unformatierter Fließtext ausgegeben, sondern automatisch in unterrichtsfertige Layouts gerendert: Stationenlernen mit Tischaufstellern & Laufzettel, gestufte 4-Farb-Hilfekarten (🟢 🟡 🟠 🎯), 3-Stufen-Differenzierung (AFB I-III), Bewertungsrubriken mit HBS-Noten, formelle Elternbriefe mit Abtrenn-Streifen (✂️), 45-Min-Stundenverlaufspläne und Arbeitsblätter mit echten Schreiblinien & Checkboxen.',
+        badge: 'Schülerhände-Ready'
+      },
+      {
+        id: 'cl-270-3',
+        type: 'neu',
+        title: 'A4-PDF Druckexport & Rich-Word-Zwischenablage',
+        description: 'Druckt saubere DIN-A4-Handouts direkt aus der Testarea via window.print() mit vollständiger Ausblendung der Web-UI und Seitentrennungsschutz. Inklusive Schnittlinien-Umschalter für die Papierschneidemaschine, Schüler- vs. Lehrerlösungsmodus und 1-Klick formatiertem Kopieren für Microsoft Word & LibreOffice.',
+        badge: 'A4-Druck & Word'
+      },
+      {
+        id: 'cl-270-4',
+        type: 'neu',
         title: 'Interaktive Variablen-Formulare (Mad-Libs)',
         description: 'Platzhalter wie [Fach], [Klassenstufe] oder [Thema] werden beim Öffnen automatisch zu praktischen Auswahlfeldern. Der fertige Prompt setzt sich live vor den Augen der Lehrkraft zusammen.',
         badge: 'Formular-Ausfüller'
       },
       {
-        id: 'cl-270-3',
+        id: 'cl-270-5',
         type: 'neu',
         title: 'Integrierte Live-Testarea mit Schul-Gemini-API',
         description: 'Prompts können vorab direkt im Browser risikofrei mit der schuleigenen Gemini-Flash-Kaskade getestet werden – ohne Vorab-Setup oder mit eigenem API-Key.',
         badge: 'Live-Testarea'
       },
       {
-        id: 'cl-270-4',
+        id: 'cl-270-6',
         type: 'neu',
         title: 'DSGVO- & Schülerdaten-Scanner (Privacy Guard)',
         description: 'Schützt vor unabsichtlichen Datenschutzfehlern: Warnt vor Schülernamen, Noten oder Diagnosen im Prompt und schlägt sofort neutrale Pseudonyme vor.',
         badge: 'DSGVO-Schutz'
       },
       {
-        id: 'cl-270-5',
+        id: 'cl-270-7',
         type: 'neu',
         title: 'Kuratierter Manuel Flick Starter-Katalog & Notion-Importer',
         description: 'Über 200 Vorlagen aus dem bekannten ChatGPT-Guide für Lehrkräfte strukturiert nach Unterrichtsentwürfen, Differenzierung nach AFB I-III, Elternbriefen, Leichter Sprache und Zeugnisphrasen. Beliebige Notizen können per Notion-Importer eingespielt werden.',
