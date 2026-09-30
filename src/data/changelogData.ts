@@ -2,10 +2,47 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '2.6.0',
+    title: 'KI-Unterrichts-Baukasten & Lernspiel-Werkstatt: Digitale Lernstationen, HBS-Notenschlüssel & A4-Druck',
+    date: '30. September 2026',
+    isLatest: true,
+    highlight: 'Vollständiger Launch des neuen KI-Unterrichts-Baukastens: Generierung dreigleisiger Unterrichtsmaterialien (Offline-HTML5-Lernspiele oder interaktive 5-Minuten-Lernstationen, differenzierte A4-Arbeitsblätter und Thüringer Bewertungsraster mit offiziellem HBS-Notenschlüssel), cloudbasierter Kollegiums-Fundus mit PIN-Schutz und saubere Druck-Optimierung.',
+    items: [
+      {
+        id: 'cl-260-1',
+        type: 'neu',
+        title: 'Digitale Lernstationen (Webseite) mit anpassbaren Modulen',
+        description: 'Umfassendes Single-Page-Format mit 3D-Lernkarten, interaktivem Lückentext (optional mit Wortspeicher), Anti-A-Bias-Quiz, AFB I-III differenzierten Lernstationen, kuratierten YouTube-Recherchelinks und druckbarem Merkkasten.',
+        badge: 'Lernstation'
+      },
+      {
+        id: 'cl-260-2',
+        type: 'neu',
+        title: 'Offizieller Notenschlüssel der Heimbürgeschule Kahla',
+        description: 'Exakte mathematische Abbildung der HBS-Notentabelle (95%, 80%, 65%, 45%, 25%) mit frei wählbarer Maximalpunktzahl, Live-Schüler-Notenrechner und direkt editierbarem Kriterienraster.',
+        badge: 'Notenschlüssel'
+      },
+      {
+        id: 'cl-260-3',
+        type: 'verbessert',
+        title: 'Isolierter DIN-A4-Arbeitsblatt- & Rasterdruck',
+        description: 'Browser-Druckbefehle drucken nun ausschließlich das formatierte Arbeitsblatt oder das Bewertungsraster ohne störende App-Menüs, Sidebar oder Tabs.',
+        badge: 'A4-Print'
+      },
+      {
+        id: 'cl-260-4',
+        type: 'neu',
+        title: 'Cloud-Materialfundus & PIN-Authentifizierung',
+        description: 'Direktes Speichern, Durchsuchen und Laden von generierten Unterrichtseinheiten in der Firebase Cloud für das gesamte Kollegium mit Lehrer-PIN-Schutz (3841).',
+        badge: 'Cloud-Fundus'
+      }
+    ]
+  },
+  {
     version: '2.5.3',
     title: 'Kahoot: Lobby-Echtzeit-Synchronisation & Firestore-Undefined-Fix',
     date: '26. September 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Behebung des Übertragungsfehlers beim Beitreten der Kahoot-Lobby: Durch eine globale Firestore-Sanitierungs-Pipeline werden optionale Felder wie teamMembers und ungesetzte Antwort-Keys vor dem Senden bereinigt, wodurch beigetretene Spieler sofort und ohne Verzögerung im Spielleiter-Smartboard erscheinen.',
     items: [
       {
