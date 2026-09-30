@@ -2,10 +2,33 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '2.7.2',
+    title: 'Sanfter Autoscroll-Effekt für App-Beschreibungen & Optimierte Bereichs-Zuordnungen',
+    date: '30. September 2026',
+    isLatest: true,
+    highlight: 'Intelligente Autoscroll-Animation für längere Beschreibungstexte bei 100% einheitlicher Kachelhöhe sowie flexible Mehrfachzuordnung von didaktischen Werkzeugen (z. B. Promptbaukasten, Promptbibliothek) in den Bereichen Kollegium und Unterricht.',
+    items: [
+      {
+        id: 'cl-272-1',
+        type: 'neu',
+        title: 'GPU-beschleunigter Autoscroll-Effekt für App-Beschreibungen',
+        description: 'Um die absolut einheitliche Kachelhöhe im Bento-Grid beizubehalten, scrollen Texte, die länger als 3 Zeilen sind, nach einer 3-sekündigen Lesepause automatisch und butterweich nach unten durch. Am Textende wird für 2,5 Sekunden pausiert, bevor die Ansicht geschmeidig an den Anfang zurückkehrt. Der Effekt pausiert bei Mausberührung (Hover) und erlaubt freies Scrollen per Mausrad oder Touch.',
+        badge: 'UI & Animation'
+      },
+      {
+        id: 'cl-272-2',
+        type: 'verbessert',
+        title: 'Erweiterte Bereichs-Zuordnung für Unterricht & Kollegium',
+        description: 'Didaktische Doppelnutzungs-Apps wie der KI-Unterrichts-Baukasten (Unterrichtsvorbereitung für Lehrkräfte & Lernspiele für Schüler), die Promptbibliothek, Tag in der Praxis (Schüler-Reflexion & Lehrer-Cockpit) und Projektkompass 2.0 erscheinen nun intuitiv sowohl unter „Lehrerzimmer & Kollegium“ als auch unter „Unterricht & Schüler“. Der Beamer-/Smartboard-Modus bleibt dabei weiterhin geschützt und zeigt ausschließlich schülergerechte Tools.',
+        badge: 'Kategorien & Navigation'
+      }
+    ]
+  },
+  {
     version: '2.7.1',
     title: 'Harmonisierung der Bento-App-Karten: Einheitliche Höhe, Ausrichtung & Symmetrie',
     date: '30. September 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Optimierung des Bento-Grids für ein absolut einheitliches, ruhiges und harmonisches Gesamtbild: Sämtliche App-Karten besitzen nun eine einheitliche Höhe über alle Zeilen und Spalten hinweg, mit vertikal perfekt ausgerichteten Symbolen, zweizeiligen Titelblöcken, standardisierten 3-Zeilen-Beschreibungen und deckungsgleichen Aktionsleisten.',
     items: [
       {

@@ -6,6 +6,7 @@ export interface SchoolApp {
   description: string;
   url: string;
   category: 'kollegium' | 'unterricht' | 'verwaltung';
+  categories?: ('kollegium' | 'unterricht' | 'verwaltung')[];
   badge: string;
   badgeColor: 'blue' | 'amber' | 'teal' | 'slate';
   icon: string; // Lucide icon name
@@ -178,6 +179,7 @@ export const SCHOOL_APPS: SchoolApp[] = [
     description: "Didaktisch geschärfter Baukasten für Thüringer Regelschulen (ThILLM & KMK AFB I–III). Generiert druckfertige DIN-A4-Arbeitsblätter, 100% autarke HTML5-Lernspiele mit Sound & Vorlesefunktion sowie transparente Bewertungsraster.",
     url: "https://promptbaukasten.vercel.app/",
     category: "unterricht",
+    categories: ["unterricht", "kollegium"],
     badge: "ThILLM & HTML5",
     badgeColor: "blue",
     icon: "Sparkles",
@@ -200,6 +202,7 @@ export const SCHOOL_APPS: SchoolApp[] = [
     description: "Pädagogische KI-Prompt-Zentrale für das Kollegium: Über 200 praxisnahe Prompts (inkl. Manuel Flick Guide) für Unterricht, Differenzierung und Elternarbeit. Mit interaktiven Variablen-Formularen ([Fach], [Thema]), integrierter Live-Testarea (Google Gemini Kaskade), Schülerhände-Ready Renderer (Stationenlernen, Hilfekarten, AFB I-III, Elternbriefe) mit A4-PDF Druckexport und automatischem DSGVO-Schülerdaten-Scanner.",
     url: "https://promptbibliothek.vercel.app/",
     category: "kollegium",
+    categories: ["kollegium", "unterricht"],
     badge: "Neu: 200+ Prompts & Druck",
     badgeColor: "teal",
     icon: "BookOpen",
@@ -285,6 +288,7 @@ export const SCHOOL_APPS: SchoolApp[] = [
     description: "Begleit-App für den Praxistag der Regelschüler: Tagesreflexion, Kompetenzerfassung, Masterprompts und Auswertungs-Dashboard für Lehrkräfte.",
     url: "https://tag-in-der-praxis.vercel.app/",
     category: "unterricht",
+    categories: ["unterricht", "kollegium"],
     badge: "Praxistag & BO",
     badgeColor: "teal",
     icon: "Briefcase",
@@ -306,6 +310,7 @@ export const SCHOOL_APPS: SchoolApp[] = [
     description: "Die nächste Generation für anspruchsvolle Gruppen- und Langzeitprojekte: Im Unterschied zur Basis-Version mit Echtzeit-Lehrer-Cockpit (Klassenradar & Live-Hilfe-Ampel), geräteübergreifender Cloud-Synchronisation per Gruppen-Code, didaktischem KI-Projektcoach bei Blockaden, digitalem Projekt-Tagebuch, Meilenstein-Zeitstrahl und fertigem PDF-Druckbericht.",
     url: "https://projektkompass-20.vercel.app",
     category: "unterricht",
+    categories: ["unterricht", "kollegium"],
     badge: "Neu: KI & Cockpit",
     badgeColor: "teal",
     icon: "Compass",
@@ -351,6 +356,7 @@ export const SCHOOL_APPS: SchoolApp[] = [
     description: "Digitales Mitmach- und Talentnetzwerk der Heimbürgeschule: Eltern erfassen Berufsfelder, Hobbys und Hilfsangebote für Schulprojekte, AGs und Feste. Inklusive geschütztem Admin-Cockpit.",
     url: "https://schlayer1.github.io/Mitmachbogen/",
     category: "verwaltung",
+    categories: ["kollegium", "verwaltung"],
     badge: "Eltern & Netzwerk",
     badgeColor: "teal",
     icon: "HeartHandshake",

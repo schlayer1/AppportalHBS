@@ -330,11 +330,15 @@ export default function App() {
         return false;
       }
 
-      // Category filter
+      // Category filter (supports multi-category assignments)
+      const appCategories: string[] = app.categories && app.categories.length > 0
+        ? app.categories
+        : [app.category];
+
       const matchesCategory =
         selectedCategory === 'all' ||
-        app.category === selectedCategory ||
-        (selectedCategory === 'kollegium' && app.category === 'verwaltung');
+        appCategories.includes(selectedCategory) ||
+        (selectedCategory === 'kollegium' && appCategories.includes('verwaltung'));
 
       // Search filter
       const q = searchQuery.toLowerCase().trim();

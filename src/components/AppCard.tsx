@@ -17,6 +17,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { SchoolApp } from '../config/apps';
 import { CardTilt } from './ui/card-tilt';
 import { AnimatedAppIcon } from './AnimatedAppIcon';
+import { AutoScrollDescription } from './ui/AutoScrollDescription';
 
 interface AppCardProps {
   app: SchoolApp;
@@ -218,13 +219,11 @@ export const AppCard: React.FC<AppCardProps> = ({
                   </p>
                 </div>
 
-                {/* Description */}
-                <p 
-                  className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4 line-clamp-3 h-[4.25rem] overflow-hidden"
-                  title={app.description}
-                >
-                  {app.description}
-                </p>
+                {/* Description with Smooth Auto-Scroll on Overflow */}
+                <AutoScrollDescription
+                  text={app.description}
+                  className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4"
+                />
 
                 {/* SMARTBOARD MODE EXTRA: Directly Visible Large QR Code */}
                 {isSmartboardMode && (
