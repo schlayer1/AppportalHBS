@@ -2,10 +2,47 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '2.8.0',
+    title: 'Zentraler Admin-Passwort-Tresor & Neue App-Integrationen',
+    date: '15. Oktober 2026',
+    isLatest: true,
+    highlight: 'Neuer zentraler, verschlüsselter Admin-Passwort-Tresor im Admin-Panel mit 1-Klick-Kopierfunktion sowie Aufnahme von Helfer des Pharaos, Elternassistent und TIP Matching in das App-Portal.',
+    items: [
+      {
+        id: 'cl-280-1',
+        type: 'neu',
+        title: 'Zentraler Admin- & Lehrerpasswort-Tresor',
+        description: 'Alle Adminpasswörter, Schulleitungs-PINs und Lehrer-Zugangscodes der integrierten Schulapps (z. B. TIP 2.0, TIP Matching, Vertretungsstatistik, Getränkefundus, Mitmachbogen) sind nun gebündelt und geschützt im Admin-Panel abrufbar. Inklusive Ein-/Ausblenden-Umschalter (••••••), 1-Klick-Kopieren und Direktverlinkung zur jeweiligen App.',
+        badge: 'Admin-Tresor'
+      },
+      {
+        id: 'cl-280-2',
+        type: 'neu',
+        title: 'Integration: Helfer des Pharaos (Gamification-Geschichtsspiel)',
+        description: 'Das interaktive 20-Runden Ägypten-Abenteuerspiel im Oregon-Trail-Stil für den Geschichtsunterricht (Klasse 5/6) wurde nahtlos mit animiertem Kronen-Icon, QR-Sofortscan und Beamer-Freigabe integriert.',
+        badge: 'Unterricht'
+      },
+      {
+        id: 'cl-280-3',
+        type: 'neu',
+        title: 'Integration: Digitaler Eltern- & Schulassistent',
+        description: 'Der mehrsprachige Elternassistent mit Bildungswege-Kompass, Schultakt und KI-Sprechstunden-Leitfaden ist nun in den Bereichen Verwaltung und Kollegium verfügbar.',
+        badge: 'Eltern & Kollegium'
+      },
+      {
+        id: 'cl-280-4',
+        type: 'neu',
+        title: 'Integration: TIP Matching (TipSwitch)',
+        description: 'Die Betriebe-Matching-Plattform für den Tag in der Praxis steht Schülern und Betreuungslehrkräften nun direkt als Web-App im Portal zur Verfügung.',
+        badge: 'Berufsorientierung'
+      }
+    ]
+  },
+  {
     version: '2.7.2',
     title: 'Sanfter Autoscroll-Effekt für App-Beschreibungen & Optimierte Bereichs-Zuordnungen',
     date: '30. September 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Intelligente Autoscroll-Animation für längere Beschreibungstexte bei 100% einheitlicher Kachelhöhe sowie flexible Mehrfachzuordnung von didaktischen Werkzeugen (z. B. Promptbaukasten, Promptbibliothek) in den Bereichen Kollegium und Unterricht.',
     items: [
       {

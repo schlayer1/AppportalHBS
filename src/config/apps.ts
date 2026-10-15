@@ -369,6 +369,74 @@ export const SCHOOL_APPS: SchoolApp[] = [
       "Erhalten einen persönlichen Bearbeitungscode zur jederzeitigen Aktualisierung.",
       "Kollegium und Schulleitung finden im geschützten Admin-Bereich zielgenau Unterstützung."
     ]
+  },
+  {
+    id: "helfer-des-pharaos",
+    title: "Helfer des Pharaos",
+    shortTitle: "Pharao-Abenteuer",
+    subtitle: "20-Runden Ägypten-Geschichts-Abenteuerspiel",
+    description: "Interaktives 20-Runden Geschichts-Abenteuer im Oregon-Trail-Stil für den Geschichtsunterricht: Das didaktische 4-Säulen-Machtmodell (Götter, Priester, Adel, Volk), differenzierte Sprachadaption, A/B-Entscheidungen, Pixel-Art und Auswertung mit historischem Krönungstitel.",
+    url: "https://gamificationstudio.vercel.app/",
+    category: "unterricht",
+    badge: "Neu: Gamification",
+    badgeColor: "amber",
+    icon: "Crown",
+    tags: ["Geschichte", "Klasse 5/6", "Altes Ägypten", "Gamification", "Oregon Trail", "Interaktiv"],
+    isFeaturedStudentQr: true,
+    offlineReady: true,
+    privacyBadge: "DSGVO-konform & Ohne Login",
+    pedagogicalValue: "Macht historische Herrschafts- und Gesellschaftsmechanismen im Alten Ägypten durch spielerische Entscheidungsfindung und Konsequenzen lebendig begreifbar.",
+    quickGuide: [
+      "Schwierigkeitsgrad & Klassenstufe wählen (Unter- oder Mittelstufe).",
+      "20 Runden lang das Gleichgewicht zwischen Göttern, Priestern, Adel und Volk wahren.",
+      "Am Ende den verdienten Titel und die historische Beurteilung des Pharaos erhalten."
+    ]
+  },
+  {
+    id: "elternassistent",
+    title: "Digitaler Eltern- & Schulassistent",
+    shortTitle: "Elternassistent",
+    subtitle: "Sprechstunden, Bildungswege & KI-Leitfaden",
+    description: "Der smarte digitale Begleiter für Eltern und Kollegium: Zero-Login, interaktiver Thüringer Abschluss- & Bildungswege-Kompass, animierter Schultakt, KI-gestützte Beantwortung häufiger Fragen mit Sprachausgabe und Unterstützung in 5 Sprachen.",
+    url: "https://elternassistent.vercel.app/",
+    category: "verwaltung",
+    categories: ["kollegium", "verwaltung"],
+    badge: "Mehrsprachig & KI",
+    badgeColor: "teal",
+    icon: "Users",
+    tags: ["Elternarbeit", "Bildungswege", "Mehrsprachig", "Vorlesefunktion", "Schultakt", "DSGVO-konform"],
+    isFeaturedStudentQr: false,
+    offlineReady: true,
+    privacyBadge: "100% DSGVO-konform",
+    pedagogicalValue: "Entlastet Lehrkräfte bei standardisierten Elternfragen, baut Sprachbarrieren ab und informiert transparent über Schullaufbahnen und Abschlüsse.",
+    quickGuide: [
+      "Sprache auswählen (Deutsch, Englisch, Ukrainisch, Russisch, Arabisch).",
+      "Themengebiet wählen oder Frage per Tastatur bzw. Mikrofon stellen.",
+      "Checklisten nutzen oder Bildungswege für Thüringer Regelschulen erkunden."
+    ]
+  },
+  {
+    id: "tip-matching",
+    title: "TIP Matching (TipSwitch)",
+    shortTitle: "TIP Matching",
+    subtitle: "Matchingplattform Schüler ↔ Praxisbetriebe",
+    description: "Tinder-Style Matchingplattform für den 'Tag in der Praxis' (TiP) an der Heimbürgeschule: Schüler wischen durch regionale Praxisbetriebe und Berufsfelder, während Betreuungslehrer im Cockpit Zuweisungen und Plätze organisieren.",
+    url: "https://tipswitch.vercel.app/",
+    category: "unterricht",
+    categories: ["unterricht", "kollegium"],
+    badge: "Praxistag & Matching",
+    badgeColor: "teal",
+    icon: "Sparkles",
+    tags: ["Berufsorientierung", "Matching", "Betriebe", "Praxistag", "Lehrer-Cockpit"],
+    isFeaturedStudentQr: true,
+    offlineReady: true,
+    privacyBadge: "Cloud-Sync & DSGVO",
+    pedagogicalValue: "Erhöht die Eigeninitiative der Schüler bei der Betriebswahl durch intuitive Matching-Mechanik und erleichtert die Koordination für Lehrkräfte.",
+    quickGuide: [
+      "Schüler wählen ihre Interessen und bewerten Betriebe mit Swipe-Gesten.",
+      "Lehrkräfte loggen sich mit dem Lehrercode ein und sehen die Wunschlisten.",
+      "Automatische Vorschläge erleichtern die finale Platzvergabe."
+    ]
   }
 ];
 

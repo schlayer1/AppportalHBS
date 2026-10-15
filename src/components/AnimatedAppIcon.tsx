@@ -19,7 +19,9 @@ import {
   Calculator,
   BookOpen,
   Presentation,
-  Sparkles
+  Sparkles,
+  Crown,
+  Users
 } from 'lucide-react';
 
 interface AnimatedAppIconProps {
@@ -179,6 +181,22 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
     return (
       <div className="relative flex items-center justify-center group/icon">
         <Presentation className={`${className} transition-transform duration-300 group-hover/icon:scale-110 text-emerald-600`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Crown') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Crown className={`${className} transition-transform duration-300 group-hover/icon:scale-115 group-hover/icon:rotate-6 text-amber-500`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Users') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Users className={`${className} transition-transform duration-300 group-hover/icon:scale-110 text-teal-600`} size={size} />
       </div>
     );
   }

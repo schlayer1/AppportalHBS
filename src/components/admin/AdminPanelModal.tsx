@@ -15,8 +15,14 @@ import {
   Edit2,
   ThumbsUp,
   MessageSquarePlus,
-  MessageSquare
+  MessageSquare,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
+import { ADMIN_CREDENTIALS } from '../../data/adminPasswords';
 import { useAuth } from '../../context/AuthContext';
 import { PortalUser } from '../../types/user';
 import { 
@@ -45,11 +51,28 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
     deleteBoardTemplate 
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'templates' | 'requests' | 'sync'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'templates' | 'requests' | 'sync' | 'passwords'>('users');
   const [searchUser, setSearchUser] = useState<string>('');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncResult, setSyncResult] = useState<{ added: number; updated: number; total: number } | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Passwords Tab State
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [searchPasswordApp, setSearchPasswordApp] = useState<string>('');
+
+  const togglePasswordVisibility = (key: string) => {
+    setVisiblePasswords(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleCopyPassword = (key: string, value: string) => {
+    navigator.clipboard.writeText(value);
+    setCopiedKey(key);
+    setTimeout(() => {
+      setCopiedKey(null);
+    }, 2000);
+  };
 
   // Close modal on Escape key
   useEffect(() => {
@@ -318,6 +341,18 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
           >
             <CloudDownload className="w-4 h-4" />
             <span>Vertretungsstatistik-Sync & Cloud</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('passwords')}
+            className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'passwords'
+                ? 'border-emerald-600 text-emerald-600'
+                : 'border-transparent text-hbs-slate-muted hover:text-hbs-slate-dark'
+            }`}
+          >
+            <KeyRound className="w-4 h-4" />
+            <span>App-Passwörter ({ADMIN_CREDENTIALS.length})</span>
           </button>
         </div>
 
@@ -971,6 +1006,161 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                   <div>Auth-Domain: <span className="text-hbs-slate-dark">{DEFAULT_FIREBASE_CONFIG.authDomain}</span></div>
                   <div>Speicherort: <span className="text-hbs-slate-dark font-bold">Cloud Firestore</span></div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: APP PASSWÖRTER */}
+          {activeTab === 'passwords' && (
+            <div className="space-y-5 animate-fadeIn">
+              {/* Header Box */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+                    <KeyRound className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800">
+                      Zentraler Admin- & Lehrerpasswort-Tresor
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Alle Passwörter, PINs & Schulleitungscodes zentral einsehen & per Klick kopieren
+                    </p>
+                  </div>
+                </div>
+
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="App suchen..."
+                    value={searchPasswordApp}
+                    onChange={(e) => setSearchPasswordApp(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Password Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {ADMIN_CREDENTIALS
+                  .filter(c => 
+                    c.appName.toLowerCase().includes(searchPasswordApp.toLowerCase()) ||
+                    c.shortTitle.toLowerCase().includes(searchPasswordApp.toLowerCase()) ||
+                    c.roles.some(r => r.roleName.toLowerCase().includes(searchPasswordApp.toLowerCase()))
+                  )
+                  .map(cred => (
+                    <div 
+                      key={cred.id} 
+                      className="bg-white rounded-2xl border border-slate-200/80 p-4 hover:shadow-md transition-all flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Title & Link */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 mb-1 inline-block">
+                              {cred.category}
+                            </span>
+                            <h4 className="text-sm font-black text-slate-800">
+                              {cred.appName}
+                            </h4>
+                          </div>
+
+                          {cred.url && cred.url !== '#' && (
+                            <a
+                              href={cred.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg bg-slate-50 hover:bg-emerald-50 text-slate-400 hover:text-emerald-700 transition-colors"
+                              title="App öffnen"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
+
+                        {cred.description && (
+                          <p className="text-xs text-slate-500 mb-3 line-clamp-2">
+                            {cred.description}
+                          </p>
+                        )}
+
+                        {/* Roles & Passwords */}
+                        <div className="space-y-2 mt-2">
+                          {cred.roles.map((r, idx) => {
+                            const fieldKey = `${cred.id}-${idx}`;
+                            const isRevealed = !!visiblePasswords[fieldKey];
+                            const isCopied = copiedKey === fieldKey;
+
+                            return (
+                              <div 
+                                key={idx}
+                                className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex flex-col gap-1.5"
+                              >
+                                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700">
+                                  <span>{r.roleName}</span>
+                                  <span className="text-[10px] font-mono text-slate-400 uppercase">
+                                    {r.type}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center justify-between gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200">
+                                  <span className="font-mono text-xs font-bold text-slate-800 tracking-wider select-all">
+                                    {isRevealed ? r.value : '••••••••••••'}
+                                  </span>
+
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => togglePasswordVisibility(fieldKey)}
+                                      className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                                      title={isRevealed ? "Verbergen" : "Anzeigen"}
+                                    >
+                                      {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyPassword(fieldKey, r.value)}
+                                      className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 ${
+                                        isCopied 
+                                          ? 'bg-emerald-600 text-white' 
+                                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                      }`}
+                                      title="In Zwischenablage kopieren"
+                                    >
+                                      {isCopied ? (
+                                        <>
+                                          <Check className="w-3 h-3" />
+                                          <span>Kopiert</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Copy className="w-3 h-3" />
+                                          <span>Kopieren</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {r.note && (
+                                  <p className="text-[10px] text-slate-400 italic">
+                                    💡 {r.note}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                        <span>Stand: {cred.lastUpdated}</span>
+                        <span className="text-emerald-600 font-semibold">Aktualisierbar via Code</span>
+                      </div>
+                    </div>
+                  ))}
               </div>
             </div>
           )}
