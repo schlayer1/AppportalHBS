@@ -2,10 +2,47 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '2.8.1',
+    title: 'Zentraler PIN-Sync & Multi-User-Studio für Helfer des Pharaos (Gameportal)',
+    date: '15. Oktober 2026',
+    isLatest: true,
+    highlight: 'Nahtlose Integration der zentralen Lehrer-PINs aus der Vertretungsstatistik in das Geschichts-Gamification-Studio: Duales Zugangs-Gate, persönliche Entwürfe und schulweites Kollegiums-Archiv mit Google-Drive-Sync.',
+    items: [
+      {
+        id: 'cl-281-1',
+        type: 'neu',
+        title: 'Zentraler Lehrer-PIN-Sync für das Geschichts-Gamificationportal',
+        description: 'Lehrkräfte der Heimbürgeschule können sich im Studio von „Helfer des Pharaos“ ab sofort direkt mit ihrer gewohnten persönlichen 4-stelligen PIN aus der zentralen Vertretungsstatistik anmelden. Berechtigungen und Profile synchronisieren sich in Echtzeit über Firebase Firestore mit vollwertigem Offline-Ausfallschutz.',
+        badge: 'Authentifizierung'
+      },
+      {
+        id: 'cl-281-2',
+        type: 'neu',
+        title: 'Getrenntes Zugangs-Gate (Schüler vs. Lehrkraft)',
+        description: 'Duales Einstiegsportal: Schüler gelangen ohne Login per Freigabecode (z. B. ROM01, EGY01) direkt in ihr Spiel, während Lehrkräfte über ihre 4-stellige PIN sofort erkannt werden (z. B. „Willkommen, Frau Keller!“) und eine dauerhafte Sitzung auf ihrem Gerät erhalten.',
+        badge: 'UI & UX'
+      },
+      {
+        id: 'cl-281-3',
+        type: 'neu',
+        title: 'Persönliche Spiele, Entwürfe & Kollegiums-Archiv',
+        description: 'Das Teacher-Studio trennt nun sauber zwischen privaten Unterrichtsentwürfen, offiziellen Meisterspielen und dem schulweiten Kollegiums-Archiv. Lehrkräfte können Kollegenspiele mit 1 Klick als eigene Vorlage duplizieren, bearbeiten und für die eigene Klasse freigeben.',
+        badge: 'Gamification-Studio'
+      },
+      {
+        id: 'cl-281-4',
+        type: 'verbessert',
+        title: 'Google-Drive-Cloud-Synchronisation mit Autor-Metadaten',
+        description: 'Freigegebene Spiele werden mitsamt Autor-Metadaten im zentralen Google-Drive-Ordner der Schule abgelegt, sodass Schüler-Codes schulweit und geräteübergreifend abrufbar bleiben.',
+        badge: 'Cloud-Sync'
+      }
+    ]
+  },
+  {
     version: '2.8.0',
     title: 'Zentraler Admin-Passwort-Tresor & Neue App-Integrationen',
     date: '15. Oktober 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Neuer zentraler, verschlüsselter Admin-Passwort-Tresor im Admin-Panel mit 1-Klick-Kopierfunktion sowie Aufnahme von Helfer des Pharaos, Elternassistent und TIP Matching in das App-Portal.',
     items: [
       {
