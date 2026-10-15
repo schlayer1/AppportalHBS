@@ -372,24 +372,25 @@ export const SCHOOL_APPS: SchoolApp[] = [
   },
   {
     id: "helfer-des-pharaos",
-    title: "Helfer des Pharaos",
-    shortTitle: "Pharao-Abenteuer",
-    subtitle: "20-Runden Ägypten-Geschichts-Abenteuerspiel",
-    description: "Interaktives 20-Runden Geschichts-Abenteuer im Oregon-Trail-Stil für den Geschichtsunterricht: Das didaktische 4-Säulen-Machtmodell (Götter, Priester, Adel, Volk), differenzierte Sprachadaption, A/B-Entscheidungen, Pixel-Art und Auswertung mit historischem Krönungstitel.",
+    title: "Gamificationstudio-Geschichte",
+    shortTitle: "Gamificationstudio",
+    subtitle: "20-Runden Geschichts-Abenteuerspiele & Studio",
+    description: "Interaktive 20-Runden Geschichts-Expeditionen im Oregon-Trail-Stil für den Geschichtsunterricht: Didaktisches 4-Säulen-Machtmodell, differenzierte Sprachadaption, A/B-Entscheidungen, Pixel-Art und integriertes Lehrer-Studio mit PIN-Zugang, Kollegiums-Archiv und Google-Drive-Sync.",
     url: "https://gamificationstudio.vercel.app/",
     category: "unterricht",
+    categories: ["unterricht", "kollegium"],
     badge: "Neu: Gamification",
     badgeColor: "amber",
     icon: "Crown",
-    tags: ["Geschichte", "Klasse 5/6", "Altes Ägypten", "Gamification", "Oregon Trail", "Interaktiv"],
+    tags: ["Geschichte", "Gamification", "Altes Ägypten", "Antikes Rom", "Steinzeit", "1. Weltkrieg", "Lehrkraft-Studio"],
     isFeaturedStudentQr: true,
     offlineReady: true,
     privacyBadge: "DSGVO-konform & Ohne Login",
-    pedagogicalValue: "Macht historische Herrschafts- und Gesellschaftsmechanismen im Alten Ägypten durch spielerische Entscheidungsfindung und Konsequenzen lebendig begreifbar.",
+    pedagogicalValue: "Macht historische Herrschafts-, Gesellschafts- und Krisenmechanismen durch spielerische Entscheidungsfindung begreifbar und erlaubt Lehrkräften das Erstellen eigener Einheiten.",
     quickGuide: [
-      "Schwierigkeitsgrad & Klassenstufe wählen (Unter- oder Mittelstufe).",
-      "20 Runden lang das Gleichgewicht zwischen Göttern, Priestern, Adel und Volk wahren.",
-      "Am Ende den verdienten Titel und die historische Beurteilung des Pharaos erhalten."
+      "Schüler: Freigabecode von der Tafel eingeben oder offizielles Meisterspiel direkt starten.",
+      "20 Runden lang das Gleichgewicht der Mächte wahren und historische Dilemmata meistern.",
+      "Lehrkräfte: Mit persönlicher 4-stelliger PIN anmelden, eigene Spiele entwerfen oder Kollegiums-Vorlagen nutzen."
     ]
   },
   {

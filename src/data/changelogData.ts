@@ -3,16 +3,16 @@ import { ChangelogRelease } from '../types/requestTypes';
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
     version: '2.8.1',
-    title: 'Zentraler PIN-Sync & Multi-User-Studio für Helfer des Pharaos (Gameportal)',
+    title: 'Zentraler PIN-Sync & Multi-User-Studio für Gamificationstudio-Geschichte',
     date: '15. Oktober 2026',
     isLatest: true,
-    highlight: 'Nahtlose Integration der zentralen Lehrer-PINs aus der Vertretungsstatistik in das Geschichts-Gamification-Studio: Duales Zugangs-Gate, persönliche Entwürfe und schulweites Kollegiums-Archiv mit Google-Drive-Sync.',
+    highlight: 'Nahtlose Integration der zentralen Lehrer-PINs aus der Vertretungsstatistik in das Gamificationstudio-Geschichte: Duales Zugangs-Gate, persönliche Entwürfe und schulweites Kollegiums-Archiv mit Google-Drive-Sync.',
     items: [
       {
         id: 'cl-281-1',
         type: 'neu',
-        title: 'Zentraler Lehrer-PIN-Sync für das Geschichts-Gamificationportal',
-        description: 'Lehrkräfte der Heimbürgeschule können sich im Studio von „Helfer des Pharaos“ ab sofort direkt mit ihrer gewohnten persönlichen 4-stelligen PIN aus der zentralen Vertretungsstatistik anmelden. Berechtigungen und Profile synchronisieren sich in Echtzeit über Firebase Firestore mit vollwertigem Offline-Ausfallschutz.',
+        title: 'Zentraler Lehrer-PIN-Sync für das Gamificationstudio-Geschichte',
+        description: 'Lehrkräfte der Heimbürgeschule können sich im Studio von „Gamificationstudio-Geschichte“ (Helfer des Pharaos) ab sofort direkt mit ihrer gewohnten persönlichen 4-stelligen PIN aus der zentralen Vertretungsstatistik anmelden. Berechtigungen und Profile synchronisieren sich in Echtzeit über Firebase Firestore mit vollwertigem Offline-Ausfallschutz.',
         badge: 'Authentifizierung'
       },
       {
