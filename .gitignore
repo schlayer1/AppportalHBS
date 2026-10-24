@@ -1,5 +1,29 @@
-node_modules
-dist
-dist-ssr
+# Dependencies
+node_modules/
+
+# Production Build Output
+dist/
+dist-ssr/
+
+# Local Environment & Logs
 *.local
+.env*.local
 .DS_Store
+*.log
+
+# Scratch, Testing & Browser Audits
+scratch/
+verify_output/
+*.bak
+
+# Loose test images in project root
+/*.png
+/*.jpg
+
+# Raw & Heavy Asset Archives (Lokal belassen, niemals in Git)
+Assets/
+raw_assets/
+*.rar
+*.zip
+*.7z
+*.tar.gz

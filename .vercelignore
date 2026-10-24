@@ -1,0 +1,28 @@
+# Dependencies & Caches
+node_modules
+.npm
+.cache
+
+# Documentation & Manuals (docs are rendered locally, not part of deployed app)
+docs/
+*.pdf
+!public/**/*.pdf
+
+# Raw Assets, Archives & Heavy Binaries
+Assets/
+raw_assets/
+*.rar
+*.zip
+
+# Dev & Scratch
+scratch/
+verify_output/
+/*.png
+/*.jpg
+!public/**
+
+# Git & System
+.git
+.github
+.DS_Store
+*.log
