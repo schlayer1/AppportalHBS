@@ -40,29 +40,6 @@ export const PORTAL_CONFIG = {
 
 export const SCHOOL_APPS: SchoolApp[] = [
   {
-    id: "hbs-schulalmanach",
-    title: "HBS Schulalmanach (Recht & RISU)",
-    shortTitle: "Schulalmanach",
-    subtitle: "Thüringer Schulrecht, VVOrg, LAA & RISU",
-    description: "Digitaler Schulalmanach mit KI-Recherche und verifizierten Fundstellen: Thüringer Schulgesetz, Schulordnung, VVOrg, Ausbildungsverordnungen (LAA, NQ, Seiteneinsteiger, Duales Studium), Wandertage und RISU der UKT.",
-    url: "https://hbs-almanach.vercel.app",
-    category: "kollegium",
-    categories: ["kollegium", "verwaltung"],
-    badge: "Thür. Schulrecht & RISU",
-    badgeColor: "blue",
-    icon: "Scale",
-    tags: ["Schulrecht", "ThürSchulG", "ThürSchulO", "VVOrg", "RISU", "LAA", "Klassenfahrten", "PWA"],
-    isFeaturedStudentQr: false,
-    offlineReady: true,
-    privacyBadge: "100% DSGVO-konform (Lokal)",
-    pedagogicalValue: "Liefert Kolleginnen und Kollegen sofortige Handlungssicherheit bei rechtlichen Alltagsfragen (Ordnungsmaßnahmen § 51, Wandertage, Chemiesicherheit, Notengebung) mit direkten Paragraphenzitaten.",
-    quickGuide: [
-      "Frage in natürlicher Sprache in die Suchleiste tippen oder Schnellstarter-Kachel wählen.",
-      "3-Stufen-Praxisantwort (Schnellfazit, Praxisschritte, verifizierte Fundstellen) lesen.",
-      "Auf Fundstellen-Chips tippen, um den Gesetzestext im In-App-Reader zu verifizieren oder als Aktennotiz zu drucken."
-    ]
-  },
-  {
     id: "kollegiums-handbuch",
     title: "Kollegiums-Handbuch & Guide",
     shortTitle: "Handbuch & Guide",

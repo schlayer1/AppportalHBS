@@ -3,10 +3,10 @@ import { ChangelogRelease } from '../types/requestTypes';
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
     version: '2.9.0',
-    title: 'Vollintegration der TIP Matchingplattform (TipSwitch) & HBS Schulalmanach',
+    title: 'Vollintegration der TIP Matchingplattform (TipSwitch) & TinyWow-Tools',
     date: '4. November 2026',
     isLatest: true,
-    highlight: 'Vollintegration der interaktiven Tinder-Style Matchingplattform „TipSwitch“ für den Tag in der Praxis (TIP) an der Heimbürgeschule Kahla: 53 regionale Kooperationsbetriebe, 4-stelliges Kürzel-Login, Live-Firestore-Sync, Turnus-Plätze-Cockpit für Lehrkräfte, PWA mit offiziellem HBS-Schulsiegel sowie Aufnahme des HBS Schulalmanachs (Thüringer Schulrecht & RISU).',
+    highlight: 'Vollintegration der interaktiven Tinder-Style Matchingplattform „TipSwitch“ für den Tag in der Praxis (TIP) an der Heimbürgeschule Kahla: 53 regionale Kooperationsbetriebe, 4-stelliges Kürzel-Login, Live-Firestore-Sync, Turnus-Plätze-Cockpit für Lehrkräfte, PWA mit offiziellem HBS-Schulsiegel sowie Aufnahme der TinyWow-Werkzeugsuite.',
     items: [
       {
         id: 'cl-290-1',
@@ -53,9 +53,9 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
       {
         id: 'cl-290-7',
         type: 'neu',
-        title: 'HBS Schulalmanach (Thüringer Schulrecht, VVOrg, LAA & RISU) & TinyWow-Tools',
-        description: 'Zwei weitere Werkzeuge im Portal: Der digitale Rechts- und Organisationsalmanach (https://hbs-almanach.vercel.app) beantwortet Alltagsfragen zu Ordnungsmaßnahmen (§ 51), Wandertagen, Lehramtsausbildung und Gefahrstoffregeln mit konkreten Paragraphenstellen; TinyWow stellt über 200 kostenlose Online-Tools zur Dateibearbeitung bereit.',
-        badge: 'Portal-Erweiterung'
+        title: 'Integration: TinyWow (Über 200 kostenlose Online-Werkzeuge)',
+        description: 'Das Schweizer Taschenmesser für Dateien im Schulalltag (https://tinywow.com/): Über 200 kostenlose Online-Tools zum Konvertieren, Bearbeiten und Komprimieren von PDFs, Bildern, Videos und Office-Dokumenten – direkt im Browser nutzbar, 100% kostenlos und ohne Anmeldung.',
+        badge: 'Werkzeugsuite'
       }
     ]
   },

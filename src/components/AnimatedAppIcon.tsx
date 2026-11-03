@@ -22,8 +22,7 @@ import {
   Sparkles,
   Crown,
   Users,
-  Wrench,
-  Scale
+  Wrench
 } from 'lucide-react';
 
 interface AnimatedAppIconProps {
@@ -215,14 +214,6 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
     return (
       <div className="relative flex items-center justify-center group/icon">
         <Wrench className={`${className} transition-transform duration-300 group-hover/icon:rotate-45 group-hover/icon:scale-110`} size={size} />
-      </div>
-    );
-  }
-
-  if (iconName === 'Scale') {
-    return (
-      <div className="relative flex items-center justify-center group/icon">
-        <Scale className={`${className} transition-transform duration-300 group-hover/icon:scale-115 text-sky-600`} size={size} />
       </div>
     );
   }
