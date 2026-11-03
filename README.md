@@ -22,7 +22,7 @@ Das **HBS App-Portal** ist die zentrale, datenschutzkonforme Einstiegs- und Arbe
    - [Übersetzer Schüler & Übersetzer Lehrer](#übersetzer-schüler--übersetzer-lehrer)
    - [Getränkefundus HBS](#getränkefundus-hbs)
    - [Vertretungsstatistik & AZV](#vertretungsstatistik--azv)
-   - [Tag in der Praxis (Berufsorientierung)](#tag-in-der-praxis-berufsorientierung)
+   - [Tag in der Praxis & TIP Matching (TipSwitch)](#tag-in-der-praxis--tip-matching-tipswitch)
    - [Projektkompass (Agile Gruppenarbeit)](#projektkompass-agile-gruppenarbeit)
    - [Eltern-Mitmachbogen](#eltern-mitmachbogen)
    - [Landesportale (EduPage, TSP, TSC)](#landesportale-edupage-tsp-tsc)
@@ -164,8 +164,10 @@ Ermöglicht das unkomplizierte Buchen von Kaffee, Erfrischungsgetränken und Sna
 *Transparenz bei Ausfall- und Vertretungsstunden.*
 Dezentrales Lehrerzimmer-Terminal im Kiosk-Modus. Kolleginnen und Kollegen erfassen geleistete Mehrarbeit und Abwesenheiten; die Schulleitung behält den Überblick über Arbeitszeitkonten.
 
-### Tag in der Praxis (Berufsorientierung)
-Digitale Begleitung für Praxistage der Regelschüler mit Reflexionsbögen, Kompetenzerfassung und Lehrer-Auswertungsdashboard.
+### Tag in der Praxis & TIP Matching (TipSwitch)
+*Berufsorientierung und gamifiziertes Praxis-Matching.*
+* **TIP Matching (TipSwitch):** Intuitive Tinder-Style Web-App für Schülerinnen und Schüler der Klassen 8 und 9 zur Erkundung aller 53 regionalen Kooperationsbetriebe (Swipen, Merken, ⭐ Super-Like), inklusive schülergerechter Kürzel-Anmeldung, feingranularer Turnus-Platzverwaltung für Lehrkräfte und Live-Cloud-Sync.
+* **Tag in der Praxis (Begleit-App):** Digitale Begleitung für Praxistage der Regelschüler mit Reflexionsbögen, Kompetenzerfassung und Lehrer-Auswertungsdashboard.
 
 ### Projektkompass (Agile Gruppenarbeit)
 Ein schülergerechtes Kanban-Board (*Zu erledigen*, *In Arbeit*, *Fertig*). Ein Aufgaben-Zauberstab hilft Schülern, große Referate in kleine Schritte zu zerlegen. Der fertige Statusbericht kann mit einem Klick für EduPage kopiert werden.

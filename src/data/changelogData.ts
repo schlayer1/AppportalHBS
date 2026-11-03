@@ -2,10 +2,68 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '2.9.0',
+    title: 'Vollintegration der TIP Matchingplattform (TipSwitch) & HBS Schulalmanach',
+    date: '4. November 2026',
+    isLatest: true,
+    highlight: 'Vollintegration der interaktiven Tinder-Style Matchingplattform „TipSwitch“ für den Tag in der Praxis (TIP) an der Heimbürgeschule Kahla: 53 regionale Kooperationsbetriebe, 4-stelliges Kürzel-Login, Live-Firestore-Sync, Turnus-Plätze-Cockpit für Lehrkräfte, PWA mit offiziellem HBS-Schulsiegel sowie Aufnahme des HBS Schulalmanachs (Thüringer Schulrecht & RISU).',
+    items: [
+      {
+        id: 'cl-290-1',
+        type: 'neu',
+        title: 'Vollintegration: TIP Matchingplattform (TipSwitch)',
+        description: 'Die offizielle Betriebe-Matchingplattform (https://tipswitch.vercel.app/) für den Tag in der Praxis (TIP) der Klassenstufen 8 und 9 ist ab sofort nahtlos im Portal unter „Unterricht & Schüler“ sowie „Lehrerzimmer & Kollegium“ eingebunden – inklusive Smartboard-QR-Code, Direktstarter und Eintrag im Admin-Passwort-Tresor.',
+        badge: 'Berufsorientierung'
+      },
+      {
+        id: 'cl-290-2',
+        type: 'neu',
+        title: 'Tinder-Style Matching für Schüler (53 regionale Partnerbetriebe)',
+        description: 'Schülerinnen und Schüler erkunden spielerisch alle 53 regionalen Kooperationsbetriebe der Heimbürgeschule: Wischen nach links (Weiter), Wischen nach rechts (Interesse/Merken) und Wischen nach oben (⭐ Traumberuf / Super-Like mit Konfetti-Animation). Inklusive Branchenfiltern, verlinkten EduPage-PDF-Steckbriefen und Direktverbindung zu den Ausbildungsberufen.',
+        badge: 'Swipe-Matching'
+      },
+      {
+        id: 'cl-290-3',
+        type: 'neu',
+        title: 'Sanfter AutoScrollText & PWA mit offiziellem HBS-Schulsiegel',
+        description: 'Für Smartphones und Tablets optimiert: Längere Betriebsbeschreibungen gleiten nach kurzer Lesepause per GPU-beschleunigtem Sanftlauf automatisch durch und stoppen bei Berührung. Volle Unterstützung von iOS Safe-Areas (Notch, Dynamic Island & Home-Bar) und Standalone-PWA mit offiziellem Heimbürgeschule-Schulsiegel im App-Icon.',
+        badge: 'Mobile & UX'
+      },
+      {
+        id: 'cl-290-4',
+        type: 'neu',
+        title: 'Niedrigschwelliger Schüler-Zugang (4-Buchstaben-Kürzel & Klassen 8a–9c)',
+        description: 'Einstieg ohne Hürden: Gemäß dem Schulstandard school-student-auth loggen sich Schüler einfach mit ihrem 4-stelligen Kürzel (z. B. LMUE aus Vor- und Nachname) ein – komplett ohne E-Mail-Adresse oder Passwort. Vollständige Klassenstufen-Matrix für 8a, 8b, 8c, 9a, 9b und 9c.',
+        badge: 'Schüler-Login'
+      },
+      {
+        id: 'cl-290-5',
+        type: 'neu',
+        title: 'Lehrkraft-Souveränität & Turnus-Verwaltung (Cockpit)',
+        description: 'Geschütztes Lehrer-Cockpit mit Schulleitungspasswort: Echtzeit-Übersicht aller Schülerwünsche und Top-Favoriten, 1-Klick-Kopierfunktion für Login-Kürzel und Filter nach Klassenstufen. Erstmals können Lehrkräfte die TIP-Praktikumsplätze je Betrieb für alle vier Durchgänge (Turnus 1–4) manuell und feingranular konfigurieren sowie alle 53 Betriebe per Knopfdruck in die Cloud synchronisieren.',
+        badge: 'Lehrer-Cockpit'
+      },
+      {
+        id: 'cl-290-6',
+        type: 'verbessert',
+        title: 'Firebase Firestore Cloud-Synchronisation mit Ausfallschutz',
+        description: 'Zwei-Wege-Synchronisation mit der Schul-Datenbank (tag-in-der-praxis-kahla): Schülerpräferenzen und Turnus-Plätze werden sofort in der Cloud gesichert. Bei instabilem Schul-WLAN sichert der intelligente Offline-Cache im lokalen Gerätespeicher (localStorage) die unterbrechungsfreie Nutzung.',
+        badge: 'Cloud & Offline'
+      },
+      {
+        id: 'cl-290-7',
+        type: 'neu',
+        title: 'HBS Schulalmanach (Thüringer Schulrecht, VVOrg, LAA & RISU) & TinyWow-Tools',
+        description: 'Zwei weitere Werkzeuge im Portal: Der digitale Rechts- und Organisationsalmanach (https://hbs-almanach.vercel.app) beantwortet Alltagsfragen zu Ordnungsmaßnahmen (§ 51), Wandertagen, Lehramtsausbildung und Gefahrstoffregeln mit konkreten Paragraphenstellen; TinyWow stellt über 200 kostenlose Online-Tools zur Dateibearbeitung bereit.',
+        badge: 'Portal-Erweiterung'
+      }
+    ]
+  },
+  {
     version: '2.8.1',
     title: 'Zentraler PIN-Sync & Multi-User-Studio für Gamificationstudio-Geschichte',
     date: '15. Oktober 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Nahtlose Integration der zentralen Lehrer-PINs aus der Vertretungsstatistik in das Gamificationstudio-Geschichte: Duales Zugangs-Gate, persönliche Entwürfe und schulweites Kollegiums-Archiv mit Google-Drive-Sync.',
     items: [
       {
