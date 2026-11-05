@@ -117,14 +117,28 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
     if (!pinCode) return;
     const unsubscribe = subscribeToKahootSession(pinCode, (sess) => {
       if (sess) {
-        setSession(sess);
+        setSession(prev => {
+          if (!prev) return sess;
+          // Monotoner Schutz: Ältere Snapshots dürfen neuere Stände niemals überschreiben
+          if (sess.updatedAt && prev.updatedAt && sess.updatedAt < prev.updatedAt) {
+            return prev;
+          }
+          return sess;
+        });
       }
     });
 
     const heartbeat = setInterval(async () => {
       const live = await getKahootLiveSessionFromCloud(pinCode);
       if (live) {
-        setSession(live);
+        setSession(prev => {
+          if (!prev) return live;
+          // Monotoner Schutz gegen veraltete HTTP-Antworten
+          if (live.updatedAt && prev.updatedAt && live.updatedAt < prev.updatedAt) {
+            return prev;
+          }
+          return live;
+        });
       }
     }, 2000);
 
@@ -489,32 +503,45 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
                   </div>
                 )}
 
-                {/* Gamepad Buttons */}
+                {/* Gamepad Buttons mit ausfallsicherem 4-Farben-Fallback */}
                 <div className="flex-1 grid grid-cols-2 gap-3 h-full max-h-[85vh]">
-                  {session?.activeQuestion?.options.map((opt, idx) => {
-                    const shapeMeta = SHAPE_CONFIG[opt.shape] || SHAPE_CONFIG.triangle;
-                    const isLockedByConsultation = session?.gameMode === 'team' && teamConsultationLeft > 0;
+                  {(() => {
+                    const fallbackOptions = [
+                      { id: 'opt-0', shape: 'triangle' as KahootShape, color: 'red' as const },
+                      { id: 'opt-1', shape: 'diamond' as KahootShape, color: 'blue' as const },
+                      { id: 'opt-2', shape: 'circle' as KahootShape, color: 'yellow' as const },
+                      { id: 'opt-3', shape: 'square' as KahootShape, color: 'green' as const }
+                    ];
+                    const activeOpts = (session?.activeQuestion?.options && session.activeQuestion.options.length > 0)
+                      ? session.activeQuestion.options
+                      : fallbackOptions;
 
-                    return (
-                      <button
-                        key={opt.id || idx}
-                        onClick={() => !isLockedByConsultation && handleSelectOption(opt.id)}
-                        disabled={isLockedByConsultation}
-                        className={`min-h-[140px] sm:min-h-[180px] rounded-3xl flex items-center justify-center text-6xl sm:text-7xl shadow-2xl transition-all active:scale-90 select-none touch-manipulation cursor-pointer ${
-                          isLockedByConsultation ? 'opacity-40 cursor-not-allowed' : ''
-                        } ${
-                          opt.color === 'red' ? 'bg-red-600 active:bg-red-700' :
-                          opt.color === 'blue' ? 'bg-blue-600 active:bg-blue-700' :
-                          opt.color === 'yellow' ? 'bg-amber-500 active:bg-amber-600' :
-                          'bg-emerald-600 active:bg-emerald-700'
-                        }`}
-                      >
-                        <span className="drop-shadow-lg pointer-events-none">
-                          {shapeMeta.icon}
-                        </span>
-                      </button>
-                    );
-                  })}
+                    return activeOpts.map((opt, idx) => {
+                      const shapeMeta = SHAPE_CONFIG[opt.shape] || SHAPE_CONFIG.triangle;
+                      const isLockedByConsultation = session?.gameMode === 'team' && teamConsultationLeft > 0;
+                      const targetOptionId = opt.id || `opt-${idx}`;
+
+                      return (
+                        <button
+                          key={targetOptionId}
+                          onClick={() => !isLockedByConsultation && handleSelectOption(targetOptionId)}
+                          disabled={isLockedByConsultation}
+                          className={`min-h-[140px] sm:min-h-[180px] rounded-3xl flex items-center justify-center text-6xl sm:text-7xl shadow-2xl transition-all active:scale-90 select-none touch-manipulation cursor-pointer ${
+                            isLockedByConsultation ? 'opacity-40 cursor-not-allowed' : ''
+                          } ${
+                            opt.color === 'red' ? 'bg-red-600 active:bg-red-700' :
+                            opt.color === 'blue' ? 'bg-blue-600 active:bg-blue-700' :
+                            opt.color === 'yellow' ? 'bg-amber-500 active:bg-amber-600' :
+                            'bg-emerald-600 active:bg-emerald-700'
+                          }`}
+                        >
+                          <span className="drop-shadow-lg pointer-events-none">
+                            {shapeMeta.icon}
+                          </span>
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             )}

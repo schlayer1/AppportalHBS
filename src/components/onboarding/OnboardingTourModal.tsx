@@ -10,7 +10,8 @@ import {
   BarChart2, 
   QrCode, 
   ShieldCheck, 
-  GraduationCap
+  GraduationCap,
+  FolderOpen
 } from 'lucide-react';
 
 interface OnboardingTourModalProps {
@@ -33,7 +34,7 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     stepNumber: 1,
-    badge: 'Schritt 1 von 6 • Willkommen',
+    badge: 'Schritt 1 von 7 • Willkommen',
     title: 'Willkommen im HBS App-Portal',
     subtitle: 'Die digitale Schaltzentrale für Kollegium und Unterricht an der Heimbürgeschule Kahla.',
     image: '/screenshots/01_login_gate.png',
@@ -56,7 +57,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     stepNumber: 2,
-    badge: 'Schritt 2 von 6 • Orientierung',
+    badge: 'Schritt 2 von 7 • Orientierung',
     title: 'Bento-Grid, Kompakt-Modus & Schnelle Suche',
     subtitle: 'Wählen Sie für jede Unterrichtssituation die passende Portal-Ansicht.',
     image: '/screenshots/02_portal_overview.png',
@@ -79,7 +80,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     stepNumber: 3,
-    badge: 'Schritt 3 von 6 • Smartboard',
+    badge: 'Schritt 3 von 7 • Smartboard',
     title: 'Die Digitale Schultafel',
     subtitle: '26 frei bewegliche Widgets für Struktur, Zeitmanagement und Aufmerksamkeit.',
     image: '/screenshots/03_digitale_tafel.png',
@@ -102,7 +103,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     stepNumber: 4,
-    badge: 'Schritt 4 von 6 • Schüleraktivierung',
+    badge: 'Schritt 4 von 7 • Schüleraktivierung',
     title: 'Live-Interaktion: Menti, Kahoot & Oncoo',
     subtitle: 'Wortwolken, KI-Quizze und kooperative Lernformen in Sekundenschnelle starten.',
     image: '/screenshots/04_menti_dashboard.png',
@@ -125,7 +126,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     stepNumber: 5,
-    badge: 'Schritt 5 von 6 • Unterrichts-Helfer',
+    badge: 'Schritt 5 von 7 • Unterrichts-Helfer',
     title: 'Tischaufsteller & Quick-Tools',
     subtitle: 'Praktische Helfer für die Unterrichtsstunde und Faltprismen für Gruppentische.',
     image: '/screenshots/07_tischaufsteller_generator.png',
@@ -148,7 +149,30 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     stepNumber: 6,
-    badge: 'Schritt 6 von 6 • Startklar',
+    badge: 'Schritt 6 von 7 • Dateiablage & Materialpool',
+    title: 'Cloudflare R2 Speicher & KI-Weiternutzung',
+    subtitle: '10 GB freier Schulspeicher, Ordnersystem und direkte Verknüpfung mit Kahoot und Baukasten.',
+    image: '/screenshots/02_portal_overview.png',
+    imageCaption: 'Persönlicher Speicher und Fachschafts-Austausch mit 1-Klick-KI-Verknüpfung',
+    icon: FolderOpen,
+    highlights: [
+      {
+        title: 'Mein Speicher & Kollegiums-Austausch',
+        text: 'Eigener geschützter Bereich für Entwürfe und gemeinsame Fachschaftsordner für alle.'
+      },
+      {
+        title: '0 € Transferkosten & Drag & Drop',
+        text: 'Dateien bis 30 MB einfach hineinziehen – Cloudflare R2 speichert alles ohne Bandbreitenkosten.'
+      },
+      {
+        title: '⚡ 1-Klick Kahoot-Quiz & Baukasten',
+        text: 'Aus Arbeitsblättern per Knopfdruck automatisierte Quizfragen und Thüringer Prompts erstellen.'
+      }
+    ]
+  },
+  {
+    stepNumber: 7,
+    badge: 'Schritt 7 von 7 • Startklar',
     title: 'Sie sind bereit für den Unterricht!',
     subtitle: 'Das Handbuch und diese Tour stehen Ihnen jederzeit zur Verfügung.',
     image: '/screenshots/02_portal_overview.png',

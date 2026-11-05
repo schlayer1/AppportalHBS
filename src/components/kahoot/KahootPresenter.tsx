@@ -85,12 +85,14 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
   participantsRef.current = participants;
   const timeLeftRef = useRef(timeLeft);
   timeLeftRef.current = timeLeft;
+  const currentQuestionIndexRef = useRef(currentQuestionIndex);
+  currentQuestionIndexRef.current = currentQuestionIndex;
 
   // Sync to Firestore, localStorage & BroadcastChannel
   const syncSessionToCloud = (partial?: Partial<KahootLiveSession>) => {
     const currentParts = partial?.participants !== undefined ? partial.participants : participantsRef.current;
-    const targetQIdx = partial?.currentQuestionIndex !== undefined ? partial.currentQuestionIndex : currentQuestionIndex;
-    const targetQ = game.questions[targetQIdx] || game.questions[0];
+    const targetQIdx = partial?.currentQuestionIndex !== undefined ? partial.currentQuestionIndex : currentQuestionIndexRef.current;
+    const targetQ = partial?.activeQuestion !== undefined ? partial.activeQuestion : (game.questions[targetQIdx] || game.questions[0]);
     const targetAnswersReceived = currentParts.filter(p => p.answeredQuestionIndex === targetQIdx && Boolean(p.lastAnswerId)).length;
 
     const sessionState: KahootLiveSession = {
@@ -264,6 +266,8 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
           setParticipants(cleared);
           syncSessionToCloud({
             stage: 'question',
+            currentQuestionIndex: currentQuestionIndexRef.current,
+            activeQuestion: game.questions[currentQuestionIndexRef.current] || currentQ,
             timeLeft: initialTime,
             isAnswerOpen: true,
             participants: cleared
@@ -333,6 +337,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
 
     // Calculate points and streaks for participants
     const correctOpt = currentQ.options.find(o => o.isCorrect);
+    const correctOptIndex = currentQ.options.findIndex(o => o.isCorrect);
     const updatedParticipants = participantsRef.current.map(p => {
       const answeredThisQ = p.answeredQuestionIndex === currentQuestionIndex && Boolean(p.lastAnswerId);
       if (!answeredThisQ) {
@@ -342,7 +347,9 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
           lastPointsEarned: 0
         };
       }
-      const isCorrect = p.lastAnswerId === correctOpt?.id;
+      const isCorrect = p.lastAnswerId === correctOpt?.id ||
+                        p.lastAnswerId === `opt-${correctOptIndex}` ||
+                        (correctOpt && p.lastAnswerId === correctOpt.shape);
       let earned = 0;
       let streak = isCorrect ? (p.streak || 0) + 1 : 0;
 
@@ -385,12 +392,14 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
   const handleNextFromScoreboard = () => {
     if (currentQuestionIndex < game.questions.length - 1) {
       const nextIndex = currentQuestionIndex + 1;
+      currentQuestionIndexRef.current = nextIndex;
       setCurrentQuestionIndex(nextIndex);
       setStage('get_ready');
       setGetReadyCount(3);
       syncSessionToCloud({
         stage: 'get_ready',
-        currentQuestionIndex: nextIndex
+        currentQuestionIndex: nextIndex,
+        activeQuestion: game.questions[nextIndex]
       });
     } else {
       setStage('podium');

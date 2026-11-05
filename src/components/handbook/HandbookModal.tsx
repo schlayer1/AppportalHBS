@@ -16,7 +16,8 @@ import {
   GraduationCap, 
   CheckCircle2, 
   ChevronRight,
-  Layers
+  Layers,
+  FolderOpen
 } from 'lucide-react';
 
 interface HandbookModalProps {
@@ -25,7 +26,7 @@ interface HandbookModalProps {
   onStartTour?: () => void;
 }
 
-type ChapterId = 'intro' | 'views' | 'tafel' | 'menti' | 'kahoot' | 'oncoo' | 'tools' | 'didactics' | 'tech';
+type ChapterId = 'intro' | 'views' | 'tafel' | 'menti' | 'kahoot' | 'oncoo' | 'tools' | 'storage' | 'didactics' | 'tech';
 
 interface Chapter {
   id: ChapterId;
@@ -43,8 +44,9 @@ const CHAPTERS: Chapter[] = [
   { id: 'kahoot', title: '5. HBS Kahoot! & KI-Generator', shortTitle: 'HBS Kahoot!', icon: Flame, badge: 'Gemini KI' },
   { id: 'oncoo', title: '6. HBS Oncoo (Kooperatives Lernen)', shortTitle: 'HBS Oncoo', icon: Target, badge: '5 Methoden' },
   { id: 'tools', title: '7. Quick-Tools & Tischaufsteller', shortTitle: 'Tischaufsteller', icon: QrCode, badge: 'DIN A4 Prisma' },
-  { id: 'didactics', title: '8. Didaktische Einsatzszenarien', shortTitle: 'Unterrichts-Tipps', icon: GraduationCap, badge: 'Praxis-Guide' },
-  { id: 'tech', title: '9. Technik unter der Haube', shortTitle: 'Architektur & P2P', icon: Cpu, badge: 'Offline & Sync' },
+  { id: 'storage', title: '8. Dateiablage & Materialpool (Cloudflare R2)', shortTitle: 'Dateiablage & R2', icon: FolderOpen, badge: '10 GB & KI' },
+  { id: 'didactics', title: '9. Didaktische Einsatzszenarien', shortTitle: 'Unterrichts-Tipps', icon: GraduationCap, badge: 'Praxis-Guide' },
+  { id: 'tech', title: '10. Technik unter der Haube', shortTitle: 'Architektur & P2P', icon: Cpu, badge: 'Offline & Sync' },
 ];
 
 export const HandbookModal: React.FC<HandbookModalProps> = ({
@@ -537,11 +539,64 @@ export const HandbookModal: React.FC<HandbookModalProps> = ({
               </div>
             )}
 
-            {/* CHAPTER 8: DIDAKTISCHE EINSATZSZENARIEN */}
+            {/* CHAPTER 8: DATEIABLAGE & MATERIALPOOL (CLOUDFLARE R2) */}
+            {activeChapter === 'storage' && (
+              <div className="space-y-6 animate-fadeIn">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider text-blue-600">Kapitel 8</span>
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
+                    Dateiablage & Materialpool (Cloudflare R2)
+                  </h3>
+                  <p className="text-sm text-slate-600 mt-1 font-medium">
+                    10 GB freier Schulspeicher, Ordnersystem und direkte 1-Klick-Weiterverwendung mit Google Gemini KI.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 text-xs text-blue-950 space-y-2">
+                  <strong className="font-black text-blue-900 block text-sm">📁 Das 2-Bereiche-Konzept:</strong>
+                  <ul className="list-disc pl-5 space-y-1 text-blue-900">
+                    <li><strong>👤 Mein Speicher:</strong> Streng persönlicher, geschützter Bereich für Ihre eigenen Entwürfe, Arbeitsblätter und Klassenarbeiten. Nur für Sie sichtbar.</li>
+                    <li><strong>👥 Kollegiums-Austausch:</strong> Gemeinsame Tauschbörse für alle Kolleginnen und Kollegen mit vorgefertigten Fachschaftsordnern (Mathematik, Deutsch, Englisch, Biologie etc.).</li>
+                  </ul>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+                  <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 text-purple-950">
+                    <strong className="font-black text-purple-900 block mb-1">⚡ 1-Klick Kahoot-Quiz:</strong>
+                    Klicken Sie bei einer hinterlegten PDF oder Textdatei auf das Blitzsymbol <strong>⚡</strong>. Das Kahoot-Quiz-Studio öffnet sich sofort und Google Gemini Flash formuliert automatisch Multiple-Choice-Fragen passend zu Ihrem Material!
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-teal-950">
+                    <strong className="font-black text-teal-900 block mb-1">📋 Baukasten & Smartboard:</strong>
+                    Über das Teilen-Symbol öffnen Sie Materialien direkt im Thüringer KI-Unterrichtsbaukasten oder werfen Arbeitsblätter mit einem Klick auf die Digitale Tafel.
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
+                  <strong className="font-black text-slate-900 block">💡 Technische Schematisierung (Wie es funktioniert):</strong>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-medium">
+                    <div className="p-2.5 rounded-xl bg-white border border-slate-200">
+                      <span className="font-black text-slate-900 block mb-0.5">1. Visitenkarte</span>
+                      Dateiname, Fach und Ersteller liegen in Firebase Firestore für sofortige Synchronisation.
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white border border-slate-200">
+                      <span className="font-black text-slate-900 block mb-0.5">2. R2-Objektspeicher</span>
+                      Die Rohdatei liegt in Cloudflare R2. Der Download läuft über sichere Einmal-Links mit 0 € Transferkosten.
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white border border-slate-200">
+                      <span className="font-black text-slate-900 block mb-0.5">3. Gemini KI-Prompt</span>
+                      Das Dokument wird als didaktische Textgrundlage direkt in den Quiz-Prompt übergeben.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CHAPTER 9: DIDAKTISCHE EINSATZSZENARIEN */}
             {activeChapter === 'didactics' && (
               <div className="space-y-6 animate-fadeIn">
                 <div>
-                  <span className="text-xs font-black uppercase tracking-wider text-hbs-blue">Kapitel 8</span>
+                  <span className="text-xs font-black uppercase tracking-wider text-hbs-blue">Kapitel 9</span>
                   <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
                     Didaktische Einsatzszenarien
                   </h3>
@@ -575,11 +630,11 @@ export const HandbookModal: React.FC<HandbookModalProps> = ({
               </div>
             )}
 
-            {/* CHAPTER 9: TECHNIK UNTER DER HAUBE */}
+            {/* CHAPTER 10: TECHNIK UNTER DER HAUBE */}
             {activeChapter === 'tech' && (
               <div className="space-y-6 animate-fadeIn">
                 <div>
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-500">Kapitel 9</span>
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-500">Kapitel 10</span>
                   <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
                     Technik unter der Haube
                   </h3>
@@ -589,6 +644,11 @@ export const HandbookModal: React.FC<HandbookModalProps> = ({
                 </div>
 
                 <div className="space-y-3 text-xs">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <strong className="font-black text-slate-900 block mb-1">☁️ Cloudflare R2 & Presigned S3 URLs:</strong>
+                    S3-kompatibler Objektspeicher ohne Egress-/Bandbreitengebühren. Dateiuploads streamen direkt vom Browser zu Cloudflare und umgehen Vercel-Payload-Limits.
+                  </div>
+
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
                     <strong className="font-black text-slate-900 block mb-1">⚡ React 18 & Vite:</strong>
                     Modernste Frontend-Technologie für sofortige Ladezeiten unter 100 ms ohne spürbare Ladeverzögerungen auf Smartboards.

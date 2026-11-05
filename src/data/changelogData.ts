@@ -2,10 +2,54 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '3.0.0',
+    title: 'Cloudflare R2 Dateiablage, KI-Materialpool & HBS Kahoot Live-Sync Stabilisierung',
+    date: '5. November 2026',
+    isLatest: true,
+    highlight: 'Einführung des schuleigenen Datei- und Ordnersystems auf Cloudflare R2 Basis (10 GB kostenloser Speicher, 0 € Egress-Kosten, Trennung von persönlichem Bereich und Kollegiums-Austausch) mit direkter KI-Weiternutzung im Kahoot-Generator und Unterrichtsbaukasten sowie Behebung des Antwortoptions-Syncfehlers auf Schülergeräten.',
+    items: [
+      {
+        id: 'cl-300-1',
+        type: 'neu',
+        title: 'Dateiablage & Ordnersystem (Cloudflare R2 + Firestore)',
+        description: 'Zentrale, unbegrenzte Dateiablage für das Kollegium: Streng isolierter persönlicher Speicher („Mein Speicher“) für eigene Entwürfe und gemeinsamer „Kollegiums-Austausch“ mit vorkonfigurierten Fachschaftsordnern (Mathematik, Deutsch, Englisch, Biologie etc.). Drag & Drop Upload bis 30 MB, Breadcrumb-Navigation, Echtzeit-Synchronisation via Firestore und 10-GB-Quota-Monitor.',
+        badge: 'Cloudflare R2'
+      },
+      {
+        id: 'cl-300-2',
+        type: 'neu',
+        title: 'Direkte KI-Weiterverwendung im Kahoot-Nachbau (⚡ 1-Klick-Quiz)',
+        description: 'Aus jedem hinterlegten Arbeitsblatt oder Textauszug per Klick auf das Blitzsymbol ⚡ sekundenschnell ein spielbares Kahoot-Quiz generieren lassen. Google Gemini Flash liest den Dokumentenkontext ein und formuliert passgenaue Multiple-Choice-Fragen inklusive Erklärungen. Alternativ kann jedes Material direkt im Kahoot-Generator über „📁 Aus Dateiablage wählen“ geladen werden.',
+        badge: 'Gemini KI & Kahoot'
+      },
+      {
+        id: 'cl-300-3',
+        type: 'neu',
+        title: 'Verknüpfung mit Unterrichtsbaukasten & Digitaler Tafel',
+        description: 'Materialien lassen sich mit einem Klick per signiertem Deep-Link im Thüringer KI-Unterrichtsbaukasten öffnen oder als PDF- und Bild-Widget im Vollbild auf die Digitale Smartboard-Tafel projizieren.',
+        badge: 'Interoperabilität'
+      },
+      {
+        id: 'cl-300-4',
+        type: 'neu',
+        title: 'Integrierte Dokumentenvorschau (PDF, Bild, Audio)',
+        description: 'Eingebauter Viewer für PDFs, Bilddateien und Audios direkt im Portal ohne Downloadzwang – inklusive schneller Download-Links über zeitlich signierte Presigned URLs (S3).',
+        badge: 'Dokumenten-Viewer'
+      },
+      {
+        id: 'cl-300-5',
+        type: 'verbessert',
+        title: 'Bugfix & Härtung: HBS Kahoot Live-Player Antwortsynchronisation',
+        description: 'Behebung des Aussetzers von Antworttasten auf Schüler-Smartphones bei Zwischenfragen: Durch einen monotonen Zeitstempel-Schutz (updatedAt-Guard) wird verhindert, dass verzögerte Hintergrund-Heartbeats einen neueren Fragenstatus überschreiben. Zusätzlich garantiert ein ausfallsicherer 4-Farben-Gamepad-Fallback die lückenlose Anzeige aller Tasten, selbst wenn Fragepakete im instabilen Mobilfunknetzwerk verzögert eintreffen.',
+        badge: 'Live-Sync Bugfix'
+      }
+    ]
+  },
+  {
     version: '2.9.0',
     title: 'Vollintegration der TIP Matchingplattform (TipSwitch) & TinyWow-Tools',
     date: '4. November 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Vollintegration der interaktiven Tinder-Style Matchingplattform „TipSwitch“ für den Tag in der Praxis (TIP) an der Heimbürgeschule Kahla: 53 regionale Kooperationsbetriebe, 4-stelliges Kürzel-Login, Live-Firestore-Sync, Turnus-Plätze-Cockpit für Lehrkräfte, PWA mit offiziellem HBS-Schulsiegel sowie Aufnahme der TinyWow-Werkzeugsuite.',
     items: [
       {
