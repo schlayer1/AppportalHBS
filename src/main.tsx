@@ -2,7 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
+import { initCloudflareWebAnalytics } from './services/cloudflareAnalytics';
 import './index.css';
+
+// Initialisiere Cloudflare Web Analytics (falls Token vorhanden)
+initCloudflareWebAnalytics();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

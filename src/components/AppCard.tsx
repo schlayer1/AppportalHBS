@@ -18,6 +18,7 @@ import { SchoolApp } from '../config/apps';
 import { CardTilt } from './ui/card-tilt';
 import { AnimatedAppIcon } from './AnimatedAppIcon';
 import { AutoScrollDescription } from './ui/AutoScrollDescription';
+import { recordAppLaunch } from '../services/cloudflareAnalytics';
 
 interface AppCardProps {
   app: SchoolApp;
@@ -281,6 +282,7 @@ export const AppCard: React.FC<AppCardProps> = ({
               <div className="pt-4 border-t border-slate-200/60 flex items-center gap-2.5 mt-auto">
                 <a
                   href={app.url}
+                  onClick={() => recordAppLaunch(app.id)}
                   target={app.url.startsWith('#') ? undefined : "_blank"}
                   rel={app.url.startsWith('#') ? undefined : "noopener noreferrer"}
                   className={`flex-1 min-h-[46px] px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all active:scale-95 select-none shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.35)] ${theme.btnGradient}`}
@@ -365,6 +367,7 @@ export const AppCard: React.FC<AppCardProps> = ({
 
               <a
                 href={app.url}
+                onClick={() => recordAppLaunch(app.id)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`flex-1 min-h-[44px] px-4 py-2 rounded-xl font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition-all ${theme.btnGradient}`}

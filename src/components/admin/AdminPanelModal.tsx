@@ -25,7 +25,14 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
-  ArrowUpDown
+  ArrowUpDown,
+  BarChart3,
+  Activity,
+  Wifi,
+  Monitor,
+  Tablet,
+  Smartphone,
+  Sparkles
 } from 'lucide-react';
 import { ADMIN_CREDENTIALS } from '../../data/adminPasswords';
 import { useAuth } from '../../context/AuthContext';
@@ -48,6 +55,15 @@ import {
 } from '../../services/storageFirestoreService';
 import { StorageFile, StorageFolder, TeacherStorageStats } from '../../types/storageTypes';
 import { formatFileSize, TOTAL_STORAGE_QUOTA_BYTES } from '../../utils/fileUtils';
+import {
+  getCloudflareAnalyticsToken,
+  setCloudflareAnalyticsToken,
+  getAppLaunchStats,
+  resetAppLaunchStats,
+  measureEdgeLatency,
+  detectClientEnvironment
+} from '../../services/cloudflareAnalytics';
+import { SCHOOL_APPS } from '../../config/apps';
 
 interface AdminPanelModalProps {
   isOpen: boolean;
@@ -63,11 +79,39 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
     deleteBoardTemplate 
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'templates' | 'requests' | 'sync' | 'passwords'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'templates' | 'requests' | 'sync' | 'passwords' | 'analytics'>('users');
   const [searchUser, setSearchUser] = useState<string>('');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncResult, setSyncResult] = useState<{ added: number; updated: number; total: number } | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Cloudflare Web Analytics & Schul-Statistik State
+  const [cfToken, setCfToken] = useState<string>(() => getCloudflareAnalyticsToken());
+  const [isTokenSaved, setIsTokenSaved] = useState<boolean>(false);
+  const [appStats, setAppStats] = useState(() => getAppLaunchStats());
+  const [edgeLatency, setEdgeLatency] = useState<number | null>(null);
+  const [clientEnv] = useState(() => detectClientEnvironment());
+
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      setAppStats(getAppLaunchStats());
+      measureEdgeLatency().then((ms) => setEdgeLatency(ms));
+    }
+  }, [activeTab]);
+
+  const handleSaveCfToken = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCloudflareAnalyticsToken(cfToken);
+    setIsTokenSaved(true);
+    setTimeout(() => setIsTokenSaved(false), 2500);
+  };
+
+  const handleResetAppMetrics = () => {
+    if (confirm('Möchten Sie die lokale Schul-App-Nutzungsstatistik wirklich zurücksetzen?')) {
+      resetAppLaunchStats();
+      setAppStats({ total: 0, apps: {} });
+    }
+  };
 
   // Passwords Tab State
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
@@ -470,6 +514,21 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
           >
             <KeyRound className="w-4 h-4" />
             <span>App-Passwörter ({ADMIN_CREDENTIALS.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'analytics'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-hbs-slate-muted hover:text-hbs-slate-dark'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Statistik & Analytics</span>
+            {cfToken ? (
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Cloudflare Analytics aktiv" />
+            ) : null}
           </button>
         </div>
 
@@ -1411,6 +1470,266 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                       </div>
                     </div>
                   ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: CLOUDFLARE WEB ANALYTICS & SCHUL-STATISTIK */}
+          {activeTab === 'analytics' && (
+            <div className="space-y-5 animate-fadeIn">
+              {/* Cloudflare Web Analytics Cockpit */}
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white border border-indigo-500/30 shadow-md">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/40 flex items-center justify-center text-indigo-400">
+                      <BarChart3 className="w-5 h-5 text-indigo-300" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-black uppercase tracking-wider text-slate-100">
+                          Cloudflare Web Analytics
+                        </h3>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          0 € Free Tier
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        100 % cookie-freie, datenschutzkonforme Reichweitenanalyse für das Kollegium
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 border ${
+                      cfToken 
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
+                        : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${cfToken ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                      <span>{cfToken ? 'Live aktiv (SPA-Modus)' : 'Token erforderlich'}</span>
+                    </span>
+
+                    <a
+                      href="https://dash.cloudflare.com/7ab07b5ac6f9ece3f23573e18eb2e5a1/analytics/web-analytics"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all flex items-center gap-1.5 border border-white/20 shadow-2xs active:scale-95"
+                    >
+                      <span>Cloudflare Dashboard</span>
+                      <ExternalLink className="w-3 h-3 text-slate-300" />
+                    </a>
+                  </div>
+                </div>
+
+                {/* Token Configuration Form */}
+                <form onSubmit={handleSaveCfToken} className="p-3.5 bg-black/30 rounded-xl border border-white/10 space-y-2.5">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-slate-300">
+                      Cloudflare Analytics Beacon-Token:
+                    </label>
+                    <span className="text-[10px] text-slate-400">
+                      Erkennt automatisch Routenwechsel (#tafel, #kahoot, #menti, #oncoo, #ablage)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={cfToken}
+                      onChange={(e) => setCfToken(e.target.value)}
+                      placeholder="z. B. 1234567890abcdef1234567890abcdef"
+                      className="flex-1 px-3 py-2 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                      type="submit"
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 shrink-0 ${
+                        isTokenSaved
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs'
+                      }`}
+                    >
+                      {isTokenSaved ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Gespeichert!</span>
+                        </>
+                      ) : (
+                        <span>Aktivieren</span>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="text-[11px] text-slate-400 pt-1">
+                    💡 <strong>Einrichtung in 2 Klicks:</strong> Im Cloudflare Dashboard unter <em>Analytics & Logs &gt; Web Analytics</em> die Website anlegen (z. B. <code>schulapps.vercel.app</code>) und den Token kopieren.
+                  </div>
+                </form>
+              </div>
+
+              {/* DSGVO & Datenschutz-Audit Siegel */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-base">🍪</span>
+                    <h4 className="text-xs font-black text-slate-800">100 % Cookie-frei</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    Verwendet keinerlei Cookies, Web-Storage oder geräteübergreifendes Tracking.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <h4 className="text-xs font-black text-slate-800">Kein IP-Logging</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    Schüler- und Lehrer-IPs werden von Cloudflare sofort verworfen und nicht gespeichert.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+                    <h4 className="text-xs font-black text-slate-800">Kein Cookie-Banner</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    Vollständig befreit von Einwilligungspflichten gemäß DSGVO und § 25 TDDDG.
+                  </p>
+                </div>
+              </div>
+
+              {/* Live Client & Schulnetz-Diagnose */}
+              <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-indigo-600" />
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                      Live-Client & Schulnetz-Diagnose (Aktuelle Sitzung)
+                    </h4>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Client-Diagnose aktiv
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase">Gerätetyp</span>
+                    <span className="font-bold text-slate-800 mt-0.5 flex items-center gap-1.5">
+                      {clientEnv.deviceType.includes('Smartboard') ? (
+                        <Monitor className="w-3.5 h-3.5 text-indigo-600" />
+                      ) : clientEnv.deviceType.includes('iPad') ? (
+                        <Tablet className="w-3.5 h-3.5 text-purple-600" />
+                      ) : clientEnv.deviceType.includes('Smartphone') ? (
+                        <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+                      ) : (
+                        <Monitor className="w-3.5 h-3.5 text-slate-600" />
+                      )}
+                      {clientEnv.deviceType}
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase">Bildschirm</span>
+                    <span className="font-bold text-slate-800 font-mono mt-0.5 block">
+                      {clientEnv.resolution}
+                      <span className="text-[10px] text-slate-400 font-normal ml-1">(@{clientEnv.pixelRatio}x)</span>
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase">System & Browser</span>
+                    <span className="font-bold text-slate-800 mt-0.5 block truncate">
+                      {clientEnv.browser} • {clientEnv.os}
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase">Cloudflare Edge-Ping</span>
+                    <span className="font-bold text-emerald-600 font-mono mt-0.5 flex items-center gap-1">
+                      <Wifi className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>{edgeLatency !== null ? `${edgeLatency} ms` : 'Messung...'}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">(Sehr schnell)</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Schulinterne App-Nutzung (Ranking) */}
+              <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <div>
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                        Schul-App Nutzung (Aggregiertes Ranking)
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Häufigkeit der gestarteten Unterrichts- und Verwaltungs-Apps
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-100 text-slate-700">
+                      {appStats.total} {appStats.total === 1 ? 'Start' : 'Starts'} erfasst
+                    </span>
+                    {appStats.total > 0 && (
+                      <button
+                        onClick={handleResetAppMetrics}
+                        className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {appStats.total === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
+                    Noch keine App-Starts erfasst. Sobald Lehrkräfte und Schüler Apps im Portal starten, erscheint hier das Ranking der beliebtesten Werkzeuge!
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {Object.entries(appStats.apps)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([appId, count]) => {
+                        const appObj = SCHOOL_APPS.find((a) => a.id === appId);
+                        const label = 
+                          appId === 'tafel' ? 'Digitale Schultafel' :
+                          appId === 'kahoot' ? 'HBS Kahoot! Quiz-Generator' :
+                          appId === 'menti' ? 'HBS Menti Live-Abfragen' :
+                          appId === 'oncoo' ? 'HBS Oncoo Kooperatives Lernen' :
+                          appId === 'ablage' ? 'Dateiablage & Materialpool (R2)' :
+                          appId === 'tipswitch' ? 'TipSwitch (Praxistag Matching)' :
+                          appObj?.title || appId;
+
+                        const percent = Math.min(100, Math.round((count / appStats.total) * 100));
+
+                        return (
+                          <div key={appId} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="font-bold text-slate-800 flex items-center gap-2">
+                                <span>{label}</span>
+                              </span>
+                              <div className="flex items-center gap-2 font-mono">
+                                <span className="font-bold text-slate-700">{count} ×</span>
+                                <span className="text-[10px] text-slate-400 font-bold w-10 text-right">
+                                  {percent}%
+                                </span>
+                              </div>
+                            </div>
+                            <div className="w-full bg-slate-200/70 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-hbs-blue to-indigo-600 rounded-full transition-all duration-500"
+                                style={{ width: `${percent}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
             </div>
           )}

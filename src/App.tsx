@@ -48,6 +48,7 @@ import { EmptyState } from './components/ui/empty-state';
 import { CardTilt } from './components/ui/card-tilt';
 import { AuroraBackground } from './components/ui/aurora-background';
 import { SCHOOL_APPS, EXTERNAL_LINKS, SchoolApp } from './config/apps';
+import { recordAppLaunch } from './services/cloudflareAnalytics';
 import { useFavorites } from './hooks/useFavorites';
 import { useAuth } from './context/AuthContext';
 import { 
@@ -123,6 +124,13 @@ export default function App() {
       setViewMode('tafel');
     }
   }, [isGuest, viewMode]);
+
+  // Track app usage when dedicated tool view is active (100% cookie-free & anonymized)
+  useEffect(() => {
+    if (viewMode === 'tafel' || viewMode === 'kahoot' || viewMode === 'menti' || viewMode === 'oncoo' || viewMode === 'ablage') {
+      recordAppLaunch(viewMode);
+    }
+  }, [viewMode]);
 
   // Synchronize preferred portal view from user profile if saved in cloud
   useEffect(() => {

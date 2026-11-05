@@ -63,6 +63,13 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
         title: 'Digitale Schultafel: R2-Cloudspeicherung & automatische Miniatur-Vorschauen',
         description: 'Tafelbilder werden ab sofort automatisch in Cloudflare R2 gesichert und mit einem Live-Miniaturbild (Thumbnail) versehen. Dies entlastet die Firestore-Datenbank vollständig vom 1-MB-Dokumentenlimit und ermöglicht im Auswahlmenü „Tafelbilder & Vorlagen“ sowie im Admin-Panel gestochen scharfe Bildvorschauen des tatsächlichen Tafelstands.',
         badge: 'Digitale Tafel & R2'
+      },
+      {
+        id: 'cl-300-9',
+        type: 'neu',
+        title: 'Cloudflare Web Analytics & 100 % DSGVO-konformes Schul-Cockpit',
+        description: 'Vollständige Integration von Cloudflare Web Analytics mit SPA-Routenerkennung (#tafel, #kahoot, #menti, #oncoo, #ablage). Völlig frei von Cookies und IP-Logging (kein Cookie-Banner erforderlich). Der neue Admin-Reiter „Statistik & Analytics“ bietet ein Token-Verwaltungscockpit, einen Direktzugriff auf das Cloudflare-Dashboard, eine Live-Client-Diagnose (Endgeräte, Auflösung, Cloudflare-Latenz) sowie ein aggregiertes Nutzungsranking der beliebtesten Schul-Apps.',
+        badge: 'Analytics & DSGVO'
       }
     ]
   },
