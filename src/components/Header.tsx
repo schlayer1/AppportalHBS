@@ -17,7 +17,8 @@ import {
   Plus,
   Shield,
   ArrowUpDown,
-  MoreVertical,
+  MoreHorizontal,
+  ChevronDown,
   BarChart2,
   Flame,
   Users,
@@ -105,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-white/95 border-b border-hbs-slate-border/70 sticky top-0 z-40 shadow-xs backdrop-blur-md pt-[env(safe-area-inset-top)] w-full max-w-full overflow-visible">
       {/* Top Navbar */}
-      <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-8">
+      <div className="w-full max-w-[2100px] mx-auto px-3 sm:px-6 lg:px-8 xl:px-10">
         <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20 gap-2 relative overflow-visible">
           
           {/* Logo & School Branding */}
@@ -122,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-hbs-blue truncate block">
                   {PORTAL_CONFIG.schoolName}
                 </span>
-                <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-semibold text-hbs-teal bg-hbs-teal-light px-2.5 py-0.5 rounded-full border border-hbs-teal/20">
+                <span className="hidden xl:inline-flex items-center gap-1 text-[11px] font-semibold text-hbs-teal bg-hbs-teal-light px-2.5 py-0.5 rounded-full border border-hbs-teal/20">
                   <Sparkles className="w-3 h-3" /> Kollegiumshub
                 </span>
               </div>
@@ -136,7 +137,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
             {/* DESKTOP (lg:flex): Full Segmented Control */}
-            <div className="hidden lg:flex items-center bg-hbs-bg p-1 rounded-2xl border border-hbs-slate-border/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)]">
+            <div className="hidden lg:flex items-center bg-hbs-bg p-1 rounded-2xl border border-hbs-slate-border/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.8)] shrink-0">
               {VIEW_MODES.map((mode) => {
                 const Icon = mode.icon;
                 const isSelected = viewMode === mode.id;
@@ -154,7 +155,9 @@ export const Header: React.FC<HeaderProps> = ({
                     aria-label={mode.label}
                   >
                     <Icon className={`w-4 h-4 ${isSelected && mode.id !== 'bento' && mode.id !== 'compact' ? 'text-white' : mode.color}`} />
-                    <span className="hidden xl:inline font-black">{mode.shortLabel}</span>
+                    <span className={`font-black ${isSelected ? 'inline' : 'hidden 2xl:inline'}`}>
+                      {mode.shortLabel}
+                    </span>
                   </button>
                 );
               })}
@@ -171,11 +174,11 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden xs:inline">Tools</span>
             </button>
 
-            {/* Custom Link Button (lg:flex) */}
+            {/* Custom Link Button (xl:flex) */}
             {onOpenAddCustomLink && currentUser && (
               <button
                 onClick={onOpenAddCustomLink}
-                className="hidden lg:flex h-9 px-3 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-xs font-bold shadow-xs active:scale-95 transition-all select-none items-center gap-1.5"
+                className="hidden xl:flex h-9 px-3 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-xs font-bold shadow-xs active:scale-95 transition-all select-none items-center gap-1.5 shrink-0"
                 title="Neuen eigenen Link / App ablegen"
               >
                 <Plus className="w-4 h-4 shrink-0" />
@@ -187,7 +190,7 @@ export const Header: React.FC<HeaderProps> = ({
             {isAdmin && onOpenAdminPanel && (
               <button
                 onClick={onOpenAdminPanel}
-                className="h-9 px-2.5 sm:px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 border border-amber-300 text-xs font-bold shadow-xs active:scale-95 transition-all select-none flex items-center gap-1.5"
+                className="h-9 px-2.5 sm:px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 border border-amber-300 text-xs font-bold shadow-xs active:scale-95 transition-all select-none flex items-center gap-1.5 shrink-0"
                 title="Admin-Panel öffnen (Benutzer, Vorlagen & Sync)"
               >
                 <Shield className="w-4 h-4 text-amber-600 shrink-0" />
@@ -201,8 +204,8 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={onToggleReorderMode}
                 className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-bold shadow-xs active:scale-95 transition-all select-none items-center gap-1.5 ${
                   isReorderMode
-                    ? 'flex bg-amber-500 text-white border-amber-600 animate-pulse'
-                    : 'hidden xl:flex bg-white hover:bg-slate-50 text-hbs-slate-dark border-slate-200'
+                    ? 'flex bg-amber-500 text-white border-amber-600 animate-pulse shrink-0'
+                    : 'hidden 2xl:flex bg-white hover:bg-slate-50 text-hbs-slate-dark border-slate-200 shrink-0'
                 }`}
                 title="Apps frei sortieren"
               >
@@ -212,18 +215,18 @@ export const Header: React.FC<HeaderProps> = ({
             )}
 
             {/* Logged in Teacher Badge (lg:flex) */}
-            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-hbs-slate-dark select-none">
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-hbs-slate-dark select-none shrink-0">
               <User className="w-3.5 h-3.5 text-hbs-blue shrink-0" />
-              <span className="truncate max-w-[100px] xl:max-w-[140px]">
+              <span className="truncate max-w-[80px] xl:max-w-[120px]">
                 {currentUser ? currentUser.name : isGuest ? 'Gast' : 'Kollege'}
               </span>
             </div>
 
-            {/* Tour trigger (lg:flex) */}
+            {/* Tour trigger (2xl:flex) */}
             {onOpenTour && (
               <button
                 onClick={onOpenTour}
-                className="hidden lg:flex h-9 p-2 px-3 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-800 border border-teal-300/40 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-800 border border-teal-300/40 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
                 title="Interaktive Portal-Tour starten"
                 aria-label="Portal-Tour"
               >
@@ -232,11 +235,11 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Handbook trigger (lg:flex) */}
+            {/* Handbook trigger (2xl:flex) */}
             {onOpenHandbook && (
               <button
                 onClick={onOpenHandbook}
-                className="hidden lg:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-hbs-blue hover:bg-hbs-blue-soft border border-transparent hover:border-hbs-blue/20 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-hbs-blue hover:bg-hbs-blue-soft border border-transparent hover:border-hbs-blue/20 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
                 title="Bebildertes Kollegiums-Handbuch & Dokumentation öffnen"
                 aria-label="Handbuch öffnen"
               >
@@ -245,11 +248,11 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Gemini KI-Studio trigger (lg:flex) */}
+            {/* Gemini KI-Studio trigger (2xl:flex) */}
             {onOpenGeminiSettings && (
               <button
                 onClick={onOpenGeminiSettings}
-                className="hidden lg:flex h-9 p-2 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-900 border border-purple-300/60 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-900 border border-purple-300/60 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
                 title="Google Gemini KI-Optionen & Modellstatus öffnen"
                 aria-label="KI-Studio"
               >
@@ -258,11 +261,11 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Table Tent Generator modal trigger (xl:flex) */}
+            {/* Table Tent Generator modal trigger (2xl:flex) */}
             {onOpenTableTent && (
               <button
                 onClick={onOpenTableTent}
-                className="hidden xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-teal-700 hover:bg-teal-50 border border-transparent hover:border-teal-200 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-teal-700 hover:bg-teal-50 border border-transparent hover:border-teal-200 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
                 title="QR-Code Tischaufsteller für Schülertische drucken"
                 aria-label="Tischaufsteller öffnen"
               >
@@ -271,11 +274,11 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Feedback / Requests trigger (lg:flex) */}
+            {/* Feedback / Requests trigger (2xl:flex) */}
             {onOpenRequests && (
               <button
                 onClick={onOpenRequests}
-                className="hidden lg:flex h-9 p-2 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-900 border border-purple-300/60 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-900 border border-purple-300/60 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
                 title="Wünsche, App-Ideen & Feedback einreichen"
                 aria-label="Wünsche & Feedback"
               >
@@ -284,11 +287,11 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Changelog trigger (xl:flex) */}
+            {/* Changelog trigger (2xl:flex) */}
             {onOpenChangelog && (
               <button
                 onClick={onOpenChangelog}
-                className="hidden xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
                 title="Was ist neu? (Versions-Changelog)"
                 aria-label="Changelog"
               >
@@ -297,10 +300,10 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Guide modal trigger (xl:flex) */}
+            {/* Guide modal trigger (2xl:flex) */}
             <button
               onClick={onOpenInstallGuide}
-              className="hidden xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-hbs-blue hover:bg-hbs-blue-soft border border-transparent hover:border-hbs-blue/20 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none"
+              className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-hbs-blue hover:bg-hbs-blue-soft border border-transparent hover:border-hbs-blue/20 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
               title="Installationsanleitung & Homescreen-Tipps"
               aria-label="Installationsanleitung öffnen"
             >
@@ -308,16 +311,22 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Guide</span>
             </button>
 
-            {/* Mobile More Menu Button (< lg) */}
-            <div className="relative lg:hidden">
+            {/* More Menu Button (Active on all screens < 2xl) */}
+            <div className="relative 2xl:hidden shrink-0">
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="h-9 w-9 rounded-xl border border-slate-200 bg-white text-hbs-slate-dark hover:bg-slate-50 active:scale-95 transition-all flex items-center justify-center shadow-2xs cursor-pointer touch-manipulation"
-                title="Menü öffnen"
-                aria-label="Menü"
+                className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer touch-manipulation select-none active:scale-95 shrink-0 ${
+                  isMobileMenuOpen
+                    ? 'bg-slate-100 border-slate-300 text-hbs-blue'
+                    : 'bg-white hover:bg-slate-50 border-slate-200 text-hbs-slate-dark hover:border-slate-300'
+                }`}
+                title="Weitere Apps, Hilfen & Einstellungen öffnen"
+                aria-label="Weitere Optionen"
               >
-                <MoreVertical className="w-4 h-4" />
+                <MoreHorizontal className="w-4 h-4 text-slate-600 shrink-0" />
+                <span className="hidden sm:inline">Mehr</span>
+                <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform duration-150 ${isMobileMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isMobileMenuOpen && (
@@ -326,7 +335,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="fixed inset-0 z-40 bg-black/20" 
                     onClick={() => setIsMobileMenuOpen(false)} 
                   />
-                  <div className="absolute right-0 top-11 z-50 w-60 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="absolute right-0 top-11 z-50 w-64 bg-white rounded-2xl border border-slate-200 shadow-2xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-100 max-h-[82vh] overflow-y-auto scrollbar-none">
                     <div className="px-3 py-2 border-b border-slate-100 mb-1">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Angemeldet als</span>
                       <span className="text-xs font-black text-slate-800 truncate block">
@@ -458,14 +467,14 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* Logout button */}
+            {/* Logout button (Always visible on all screen sizes, guaranteed not to be pushed off) */}
             <button
               onClick={onLogout}
-              className="h-9 px-2.5 sm:px-3 rounded-xl text-hbs-slate-muted hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 text-xs font-semibold active:scale-95 transition-all duration-150 flex items-center justify-center gap-1.5 select-none"
+              className="h-9 px-2.5 sm:px-3 rounded-xl bg-red-50 hover:bg-red-100/90 text-red-700 border border-red-200/80 hover:border-red-300 text-xs font-bold active:scale-95 transition-all duration-150 flex items-center justify-center gap-1.5 shrink-0 select-none shadow-2xs cursor-pointer touch-manipulation"
               title="Portal sperren / Abmelden"
               aria-label="Abmelden"
             >
-              <LogOut className="w-4 h-4 shrink-0 text-slate-500 hover:text-red-600" />
+              <LogOut className="w-4 h-4 shrink-0 text-red-600" />
               <span className="hidden sm:inline">Abmelden</span>
             </button>
 

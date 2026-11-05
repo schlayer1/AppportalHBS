@@ -6,7 +6,7 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
     title: 'Cloudflare R2 Dateiablage, Workers AI Sprachdiktat, Web Analytics & HBS Kahoot Live-Sync',
     date: '5. November 2026',
     isLatest: true,
-    highlight: 'Einführung des schuleigenen Datei- und Ordnersystems auf Cloudflare R2 Basis (10 GB kostenloser Speicher, 0 € Egress-Kosten, Trennung von persönlichem Bereich und Kollegiums-Austausch), KI-Sprachdiktat via Cloudflare Workers AI Whisper & Web Speech API, Tafelbild-Cloudspeicherung mit Miniatur-Vorschauen, DSGVO-konforme Web Analytics und Kahoot Live-Player Stabilisierung.',
+    highlight: 'Einführung des schuleigenen Datei- und Ordnersystems auf Cloudflare R2 Basis (10 GB kostenloser Speicher, 0 € Egress-Kosten, Trennung von persönlichem Bereich und Kollegiums-Austausch), KI-Sprachdiktat via Cloudflare Workers AI Whisper & Web Speech API, Tafelbild-Cloudspeicherung mit Miniatur-Vorschauen, DSGVO-konforme Web Analytics, Kahoot Live-Player Stabilisierung sowie responsiver Header-Schutz für Arbeitsplatz-Monitore.',
     items: [
       {
         id: 'cl-300-1',
@@ -77,6 +77,13 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
         title: 'Cloudflare Workers AI (Whisper) & Live-Sprachdiktat für Tafel & Kahoot',
         description: 'Integriertes KI-Sprachdiktat für Lehrkräfte und Schüler: Per Klick auf das Mikrofon-Symbol 🎤 in der Digitalen Schultafel oder im Kahoot-KI-Generator können Texte, Tafelnotizen, Arbeitsanweisungen oder Quiz-Prompts freihändig eingesprochen werden. Ein hybrider Dual-Engine-Ansatz kombiniert latenzfreie Browser-Spracherkennung (Web Speech API) für sofortiges Echtzeit-Feedback mit Cloudflare Workers AI Whisper für hochpräzise Transkription bei komplexen Fachbegriffen – vollkommen kostenlos im Cloudflare Free Tier (bis zu 4 Stunden Spracherkennung pro Tag).',
         badge: 'Workers AI & Audio'
+      },
+      {
+        id: 'cl-300-11',
+        type: 'verbessert',
+        title: 'Responsives Header-Layout & Ausfallsicherer Abmelde-Button',
+        description: 'Optimierung des oberen Navigationsbereichs für kompakte Schulmonitore, Laptops und alternative Bildschirm-Seitenverhältnisse (z. B. 1280×1024, 1366×768, 1440×900 oder Windows 125 % Skalierung): Der Abmelde-Button ist nun rot akzentuiert und fest verankert (shrink-0), sodass er unter keinen Umständen vom rechten Bildschirmrand verdrängt wird. Auf Bildschirmen unter 27 Zoll werden selten genutzte Hilfetools elegant in einem aufklappbaren „Mehr ▾“-Menü gebündelt und die Ansichten-Leiste schrumpft inaktiv auf Symbole, wodurch über 600 px horizontaler Freiraum gewonnen werden.',
+        badge: 'Responsivität & UI'
       }
     ]
   },
