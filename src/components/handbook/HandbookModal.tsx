@@ -589,6 +589,13 @@ export const HandbookModal: React.FC<HandbookModalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-950 space-y-1.5">
+                  <strong className="font-black text-emerald-900 block text-xs">🛡️ Speicher-Pool, Monitoring & Lehrkräfte-Deprovisionierung:</strong>
+                  <p className="text-emerald-900 leading-relaxed">
+                    Die Schule nutzt einen flexiblen <strong>10-GB-Gesamtpool</strong> mit einem Einzeldateilimit von <strong>30 MB</strong>. In der Administrator-Ansicht wird live angezeigt, wie viel Speicher jede Lehrkraft belegt. Scheidet eine Lehrkraft aus dem Dienst aus, können Administratoren mit einem Klick alle privaten Daten restlos löschen und wertvolle Fachschaftsmaterialien im Austauschbereich automatisch für das Kollegium sichern.
+                  </p>
+                </div>
               </div>
             )}
 

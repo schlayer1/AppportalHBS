@@ -118,3 +118,26 @@ export async function deleteFileFromR2(key: string): Promise<void> {
     throw new Error(errorData.error || `Datei konnte nicht aus R2 gelöscht werden (Status ${res.status})`);
   }
 }
+
+/**
+ * Löscht mehrere Objekte auf einmal (Batch) aus Cloudflare R2.
+ */
+export async function deleteFilesFromR2(keys: string[]): Promise<number> {
+  if (!keys || keys.length === 0) return 0;
+
+  const res = await fetch('/api/r2-delete', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ keys })
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || `Dateien konnten nicht aus R2 gelöscht werden (Status ${res.status})`);
+  }
+
+  const data = await res.json();
+  return data.deletedCount || keys.length;
+}

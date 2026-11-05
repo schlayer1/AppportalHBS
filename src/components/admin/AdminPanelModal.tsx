@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, 
   Users, 
@@ -20,7 +20,12 @@ import {
   Eye,
   EyeOff,
   Copy,
-  ExternalLink
+  ExternalLink,
+  HardDrive,
+  AlertTriangle,
+  CheckCircle2,
+  Loader2,
+  ArrowUpDown
 } from 'lucide-react';
 import { ADMIN_CREDENTIALS } from '../../data/adminPasswords';
 import { useAuth } from '../../context/AuthContext';
@@ -36,6 +41,13 @@ import {
   FeatureRequest, 
   RequestStatus 
 } from '../../types/requestTypes';
+import { 
+  subscribeToStorage, 
+  getAllTeachersStorageStats, 
+  deleteTeacherAndCleanupFiles 
+} from '../../services/storageFirestoreService';
+import { StorageFile, StorageFolder, TeacherStorageStats } from '../../types/storageTypes';
+import { formatFileSize, TOTAL_STORAGE_QUOTA_BYTES } from '../../utils/fileUtils';
 
 interface AdminPanelModalProps {
   isOpen: boolean;
@@ -95,6 +107,24 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
   const [editName, setEditName] = useState<string>('');
   const [editPin, setEditPin] = useState<string>('');
   const [editRole, setEditRole] = useState<'teacher' | 'admin'>('teacher');
+
+  // Storage State (Cloudflare R2 Monitoring & 1-Klick-Deprovisionierung)
+  const [storageFiles, setStorageFiles] = useState<StorageFile[]>([]);
+  const [storageFolders, setStorageFolders] = useState<StorageFolder[]>([]);
+  const [sortUsersBy, setSortUsersBy] = useState<'name' | 'storage'>('name');
+  
+  // Deprovisioning Modal State
+  const [deprovisionTarget, setDeprovisionTarget] = useState<{
+    user: PortalUser;
+    stats: TeacherStorageStats;
+  } | null>(null);
+  const [keepSharedMaterials, setKeepSharedMaterials] = useState<boolean>(true);
+  const [isDeprovisioning, setIsDeprovisioning] = useState<boolean>(false);
+  const [deprovisionFeedback, setDeprovisionFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
   // Feature Requests State
   const [requests, setRequests] = useState<FeatureRequest[]>([]);
   const [requestSearch, setRequestSearch] = useState<string>('');
@@ -110,11 +140,49 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
     return () => unsub();
   }, [isOpen]);
 
+  // Subscription für R2 Dateiablage & Ordner
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsubStorage = subscribeToStorage(({ files, folders }) => {
+      setStorageFiles(files);
+      setStorageFolders(folders);
+    });
+    return () => unsubStorage();
+  }, [isOpen]);
+
+  // Berechnete Speicher-Statistiken pro Lehrkraft & Gesamt
+  const teacherStatsMap = useMemo(() => {
+    return getAllTeachersStorageStats(storageFiles, storageFolders);
+  }, [storageFiles, storageFolders]);
+
+  const totalUsedStorageBytes = useMemo(() => {
+    return storageFiles.reduce((acc, f) => acc + (f.fileSize || 0), 0);
+  }, [storageFiles]);
+
+  const storagePercentage = Math.min(
+    100,
+    parseFloat(((totalUsedStorageBytes / TOTAL_STORAGE_QUOTA_BYTES) * 100).toFixed(1))
+  );
+
+  const activeUsersWithFilesCount = useMemo(() => {
+    const ownerIdsWithFiles = new Set(
+      storageFiles.filter((f) => f.ownerId && f.ownerId !== 'system').map((f) => f.ownerId)
+    );
+    return ownerIdsWithFiles.size;
+  }, [storageFiles]);
+
   if (!isOpen) return null;
 
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchUser.toLowerCase().trim())
-  );
+  const filteredUsers = users
+    .filter(u => u.name.toLowerCase().includes(searchUser.toLowerCase().trim()))
+    .sort((a, b) => {
+      if (sortUsersBy === 'storage') {
+        const bytesA = teacherStatsMap[a.id]?.totalBytes || 0;
+        const bytesB = teacherStatsMap[b.id]?.totalBytes || 0;
+        return bytesB - bytesA; // Höchste Belegung zuerst
+      }
+      return a.name.localeCompare(b.name, 'de', { numeric: true });
+    });
 
   const schoolTemplates = boardTemplates.filter(t => t.isSchoolTemplate);
 
@@ -174,11 +242,60 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
     setEditingUserId(null);
   };
 
-  // Delete User
-  const handleDeleteUser = async (id: string) => {
-    if (confirm('Möchten Sie diese Lehrkraft wirklich aus dem Portal entfernen?')) {
-      const updated = users.filter(u => u.id !== id);
+  // 1-Klick-Löschung & Deprovisionierung initiieren
+  const handleInitiateDelete = (user: PortalUser) => {
+    const stats: TeacherStorageStats = teacherStatsMap[user.id] || {
+      teacherId: user.id,
+      totalBytes: 0,
+      privateBytes: 0,
+      sharedBytes: 0,
+      filesCount: 0,
+      privateFilesCount: 0,
+      sharedFilesCount: 0,
+      foldersCount: 0
+    };
+    setKeepSharedMaterials(true);
+    setDeprovisionTarget({ user, stats });
+  };
+
+  // Bestätigte Deprovisionierung ausführen (Dateien in R2 & Firestore löschen + User entfernen)
+  const handleConfirmDeprovision = async () => {
+    if (!deprovisionTarget) return;
+    setIsDeprovisioning(true);
+    setDeprovisionFeedback(null);
+    try {
+      const { user } = deprovisionTarget;
+
+      // 1. Dateien & Ordner der Lehrkraft bereinigen
+      const result = await deleteTeacherAndCleanupFiles(user.id, keepSharedMaterials);
+
+      // 2. Nutzer aus der Portal-Liste entfernen
+      const updated = users.filter((u) => u.id !== user.id);
       await saveUsersList(updated);
+
+      let msg = `Lehrkraft „${user.name}“ wurde erfolgreich entfernt. `;
+      if (result.deletedFilesCount > 0) {
+        msg += `${result.deletedFilesCount} Datei(en) gelöscht (${formatFileSize(result.freedBytes)} Speicherplatz in Cloudflare R2 freigegeben). `;
+      } else {
+        msg += `(Keine Dateien auf dem Server vorhanden). `;
+      }
+      if (result.keptSharedCount > 0) {
+        msg += `${result.keptSharedCount} Fachschaftsmaterial(ien) im Austauschbereich erhalten.`;
+      }
+
+      setDeprovisionFeedback({
+        type: 'success',
+        message: msg
+      });
+      setDeprovisionTarget(null);
+    } catch (err: any) {
+      console.error('Fehler bei der Deprovisionierung:', err);
+      setDeprovisionFeedback({
+        type: 'error',
+        message: `Fehler beim Entfernen der Lehrkraft: ${err?.message || 'Unbekannter Serverfehler'}`
+      });
+    } finally {
+      setIsDeprovisioning(false);
     }
   };
 
@@ -362,6 +479,89 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
           {/* TAB 1: USERS & PINS */}
           {activeTab === 'users' && (
             <div className="space-y-4">
+              {/* R2 Cloudflare Speicher-Übersicht Banner */}
+              <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-4 shadow-sm border border-slate-700/50">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                      <HardDrive className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black tracking-wide uppercase text-slate-200 flex items-center gap-2">
+                        <span>Cloudflare R2 Schulspeicher</span>
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          10 GB Free Tier
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Zentraler Dateiablage- & Materialpool für das gesamte Kollegium
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <span className="text-sm font-mono font-bold text-emerald-400">
+                        {formatFileSize(totalUsedStorageBytes)}
+                      </span>
+                      <span className="text-[11px] text-slate-400 font-medium"> / 10 GB</span>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      {storagePercentage}% belegt
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-slate-700/60 rounded-full h-2.5 overflow-hidden mb-2.5">
+                  <div 
+                    className={`h-full transition-all duration-500 ${
+                      storagePercentage > 85 ? 'bg-rose-500' : storagePercentage > 60 ? 'bg-amber-400' : 'bg-emerald-400'
+                    }`}
+                    style={{ width: `${Math.max(storagePercentage, 1)}%` }}
+                  />
+                </div>
+
+                {/* Quick metrics footer */}
+                <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-300 pt-1.5 border-t border-slate-700/40">
+                  <div className="flex items-center gap-4">
+                    <span>
+                      📁 <strong>{storageFiles.length}</strong> {storageFiles.length === 1 ? 'Datei' : 'Dateien'} im System
+                    </span>
+                    <span>
+                      👥 <strong>{activeUsersWithFilesCount}</strong> von {users.length} Kollegen mit Ablage
+                    </span>
+                  </div>
+                  <div className="text-slate-400 text-[10px]">
+                    0 € Egress/Transferkosten • 30 MB Einzeldateilimit
+                  </div>
+                </div>
+              </div>
+
+              {/* Feedback Alert Banner bei Deprovisionierung */}
+              {deprovisionFeedback && (
+                <div className={`p-3.5 rounded-2xl border text-xs font-medium flex items-center justify-between gap-3 animate-fadeIn ${
+                  deprovisionFeedback.type === 'success' 
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-2xs'
+                    : 'bg-rose-50 border-rose-200 text-rose-900 shadow-2xs'
+                }`}>
+                  <div className="flex items-center gap-2.5">
+                    {deprovisionFeedback.type === 'success' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    )}
+                    <span>{deprovisionFeedback.message}</span>
+                  </div>
+                  <button 
+                    onClick={() => setDeprovisionFeedback(null)}
+                    className="text-slate-400 hover:text-slate-700 font-bold px-1.5 py-0.5 rounded-lg hover:bg-black/5"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               {/* Action Toolbar */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
                 <div className="relative w-full sm:w-72">
@@ -376,6 +576,22 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  {/* Sortier-Umschalter */}
+                  <button
+                    onClick={() => setSortUsersBy((prev) => (prev === 'name' ? 'storage' : 'name'))}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 ${
+                      sortUsersBy === 'storage'
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                        : 'bg-white hover:bg-slate-100 text-hbs-slate-dark border-slate-200'
+                    }`}
+                    title="Umschalten: Sortierung nach Name oder nach Speicherverbrauch"
+                  >
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                    <span>
+                      {sortUsersBy === 'storage' ? 'Nach Speicher sortiert' : 'Nach Name sortiert'}
+                    </span>
+                  </button>
+
                   <button
                     onClick={handlePrintPinList}
                     className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-hbs-slate-dark border border-slate-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all active:scale-95"
@@ -453,19 +669,30 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                       <th className="p-3">Name</th>
                       <th className="p-3 text-center">Rolle</th>
                       <th className="p-3 text-center">PIN</th>
+                      <th className="p-3 text-center">
+                        <button
+                          onClick={() => setSortUsersBy((prev) => (prev === 'storage' ? 'name' : 'storage'))}
+                          className="inline-flex items-center gap-1 hover:text-hbs-blue transition-colors cursor-pointer"
+                          title="Klicken zum Sortieren nach Speicherbelegung"
+                        >
+                          <span>Speicher (R2)</span>
+                          <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                        </button>
+                      </th>
                       <th className="p-3 text-right">Aktionen</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
                     {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="p-6 text-center text-hbs-slate-muted">
+                        <td colSpan={5} className="p-6 text-center text-hbs-slate-muted">
                           Keine Lehrkräfte gefunden
                         </td>
                       </tr>
                     ) : (
                       filteredUsers.map((user) => {
                         const isEditing = editingUserId === user.id;
+                        const userStats = teacherStatsMap[user.id];
 
                         if (isEditing) {
                           return (
@@ -496,6 +723,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                                   onChange={(e) => setEditPin(e.target.value)}
                                   className="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold text-xs text-center w-16"
                                 />
+                              </td>
+                              <td className="p-2 text-center text-slate-400 text-xs">
+                                —
                               </td>
                               <td className="p-2 text-right space-x-1">
                                 <button
@@ -534,6 +764,21 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                             <td className="p-3 text-center font-mono font-bold text-hbs-teal-deep tracking-wider">
                               {user.pin}
                             </td>
+                            <td className="p-3 text-center">
+                              {userStats && userStats.filesCount > 0 ? (
+                                <div className="inline-flex flex-col items-center">
+                                  <span className="font-bold text-slate-800 font-mono text-xs">
+                                    {formatFileSize(userStats.totalBytes)}
+                                  </span>
+                                  <span className="text-[10px] text-hbs-slate-muted">
+                                    {userStats.filesCount} {userStats.filesCount === 1 ? 'Datei' : 'Dateien'}
+                                    {userStats.sharedFilesCount > 0 && ` (${userStats.sharedFilesCount} geteilt)`}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-[11px] text-slate-300 font-medium">—</span>
+                              )}
+                            </td>
                             <td className="p-3 text-right space-x-1">
                               <button
                                 onClick={() => handleStartEdit(user)}
@@ -543,9 +788,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => handleDeleteUser(user.id)}
-                                className="p-1.5 rounded-lg hover:bg-red-50 text-hbs-slate-muted hover:text-red-600"
-                                title="Löschen"
+                                onClick={() => handleInitiateDelete(user)}
+                                className="p-1.5 rounded-lg hover:bg-red-50 text-hbs-slate-muted hover:text-red-600 transition-colors"
+                                title="Lehrkraft entfernen & R2-Speicher bereinigen"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1168,6 +1413,154 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
         </div>
 
       </div>
+
+      {/* 1-KLICK-DEPROVISIONIERUNG & SPEICHERBEREINIGUNG MODAL */}
+      {deprovisionTarget && (
+        <div className="fixed inset-0 z-[130] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-scaleUp">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    Lehrkraft entfernen & Speicher bereinigen
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Sicherheitsabfrage zur 1-Klick-Deprovisionierung
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => !isDeprovisioning && setDeprovisionTarget(null)}
+                disabled={isDeprovisioning}
+                className="p-1 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Benutzer-Info */}
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">
+                  Zu entfernende Lehrkraft
+                </span>
+                <span className="text-sm font-black text-slate-800">
+                  {deprovisionTarget.user.name}
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-slate-200 text-slate-700">
+                  {deprovisionTarget.user.role === 'admin' ? 'Administrator' : 'Lehrkraft'}
+                </span>
+                <span className="text-xs font-mono font-bold text-slate-500 block mt-0.5">
+                  PIN: {deprovisionTarget.user.pin}
+                </span>
+              </div>
+            </div>
+
+            {/* Speicher-Analyse */}
+            {deprovisionTarget.stats.filesCount > 0 ? (
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+                      <HardDrive className="w-4 h-4 text-amber-600" />
+                      Belegter Speicherplatz in Cloudflare R2
+                    </span>
+                    <span className="text-xs font-mono font-black text-amber-800 px-2 py-0.5 rounded-md bg-amber-200/60">
+                      {formatFileSize(deprovisionTarget.stats.totalBytes)}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-amber-950/80">
+                    <div className="bg-white/80 p-2.5 rounded-xl border border-amber-200/60">
+                      <span className="font-bold block text-slate-700">🔒 Mein Speicher (privat)</span>
+                      <span>{deprovisionTarget.stats.privateFilesCount} Datei(en) in {deprovisionTarget.stats.foldersCount} Ordner(n)</span>
+                      <span className="block font-mono text-[10px] text-rose-600 font-bold mt-0.5">
+                        {formatFileSize(deprovisionTarget.stats.privateBytes)} • wird gelöscht
+                      </span>
+                    </div>
+                    <div className="bg-white/80 p-2.5 rounded-xl border border-amber-200/60">
+                      <span className="font-bold block text-slate-700">🤝 Kollegiums-Austausch</span>
+                      <span>{deprovisionTarget.stats.sharedFilesCount} Datei(en) in Fachschaften</span>
+                      <span className="block font-mono text-[10px] text-emerald-600 font-bold mt-0.5">
+                        {formatFileSize(deprovisionTarget.stats.sharedBytes)} • geteilt
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Option: Austauschmaterialien erhalten */}
+                {deprovisionTarget.stats.sharedFilesCount > 0 && (
+                  <label className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100/70 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={keepSharedMaterials}
+                      onChange={(e) => setKeepSharedMaterials(e.target.checked)}
+                      disabled={isDeprovisioning}
+                      className="mt-1 w-4 h-4 text-hbs-blue rounded border-slate-300 focus:ring-hbs-blue"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">
+                        Fachschafts-Materialien im Austausch erhalten (Empfohlen)
+                      </span>
+                      <span className="text-[11px] text-slate-500 block mt-0.5 leading-snug">
+                        Geteilte Dateien bleiben für das Kollegium nutzbar und werden auf „Fachschaft (Ehemalige Lehrkraft)“ übertragen. Nur private Dateien werden gelöscht.
+                      </span>
+                    </div>
+                  </label>
+                )}
+
+                <div className="p-2.5 rounded-xl bg-rose-50/50 border border-rose-100 flex items-start gap-2 text-[11px] text-rose-700">
+                  <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                  <span>
+                    {keepSharedMaterials && deprovisionTarget.stats.sharedFilesCount > 0
+                      ? `Alle ${deprovisionTarget.stats.privateFilesCount} privaten Dateien (${formatFileSize(deprovisionTarget.stats.privateBytes)}) werden unwiderruflich aus Cloudflare R2 und Firestore gelöscht.`
+                      : `Alle ${deprovisionTarget.stats.filesCount} Dateien (${formatFileSize(deprovisionTarget.stats.totalBytes)}) werden unwiderruflich aus Cloudflare R2 und Firestore gelöscht.`}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                Diese Lehrkraft hat keine Dateien im Cloudflare R2 Speicher abgelegt. Es werden lediglich das Portal-Konto und die 4-stellige PIN entfernt.
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeprovisionTarget(null)}
+                disabled={isDeprovisioning}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeprovision}
+                disabled={isDeprovisioning}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
+              >
+                {isDeprovisioning ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Bereinige Speicher & entferne...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Endgültig entfernen & freigeben</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

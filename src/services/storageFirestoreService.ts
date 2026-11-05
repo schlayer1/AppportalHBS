@@ -4,10 +4,14 @@ import {
   setDoc, 
   deleteDoc, 
   updateDoc, 
-  onSnapshot 
+  onSnapshot,
+  getDocs,
+  query,
+  where
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { StorageFolder, StorageFile } from '../types/storageTypes';
+import { StorageFolder, StorageFile, TeacherStorageStats } from '../types/storageTypes';
+import { deleteFilesFromR2 } from './r2StorageService';
 
 const FOLDERS_COLLECTION = 'hbs_storage_folders';
 const FILES_COLLECTION = 'hbs_storage_files';
@@ -353,4 +357,207 @@ export async function deleteStorageFileRecord(id: string): Promise<void> {
 
   const cached = getCachedFiles().filter((f) => f.id !== id);
   setCachedFiles(cached);
+}
+
+/**
+ * Berechnet Statistiken über die Speicherbelegung einer bestimmten Lehrkraft
+ */
+export function getTeacherStorageStats(
+  teacherId: string,
+  files: StorageFile[],
+  folders: StorageFolder[] = []
+): TeacherStorageStats {
+  const teacherFiles = files.filter((f) => f.ownerId === teacherId);
+  const privateFiles = teacherFiles.filter((f) => !f.isShared);
+  const sharedFiles = teacherFiles.filter((f) => f.isShared);
+  const teacherFolders = folders.filter((f) => f.ownerId === teacherId && !f.isShared);
+
+  const privateBytes = privateFiles.reduce((acc, f) => acc + (f.fileSize || 0), 0);
+  const sharedBytes = sharedFiles.reduce((acc, f) => acc + (f.fileSize || 0), 0);
+
+  return {
+    teacherId,
+    totalBytes: privateBytes + sharedBytes,
+    privateBytes,
+    sharedBytes,
+    filesCount: teacherFiles.length,
+    privateFilesCount: privateFiles.length,
+    sharedFilesCount: sharedFiles.length,
+    foldersCount: teacherFolders.length
+  };
+}
+
+/**
+ * Berechnet die Speicherbelegung für alle Lehrkräfte in einer Map { [teacherId]: TeacherStorageStats }
+ */
+export function getAllTeachersStorageStats(
+  files: StorageFile[],
+  folders: StorageFolder[] = []
+): Record<string, TeacherStorageStats> {
+  const map: Record<string, TeacherStorageStats> = {};
+
+  files.forEach((f) => {
+    if (!f.ownerId) return;
+    if (!map[f.ownerId]) {
+      map[f.ownerId] = {
+        teacherId: f.ownerId,
+        totalBytes: 0,
+        privateBytes: 0,
+        sharedBytes: 0,
+        filesCount: 0,
+        privateFilesCount: 0,
+        sharedFilesCount: 0,
+        foldersCount: 0
+      };
+    }
+    const size = f.fileSize || 0;
+    map[f.ownerId].totalBytes += size;
+    map[f.ownerId].filesCount += 1;
+    if (f.isShared) {
+      map[f.ownerId].sharedBytes += size;
+      map[f.ownerId].sharedFilesCount += 1;
+    } else {
+      map[f.ownerId].privateBytes += size;
+      map[f.ownerId].privateFilesCount += 1;
+    }
+  });
+
+  folders.forEach((folder) => {
+    if (!folder.ownerId || folder.isShared) return;
+    if (!map[folder.ownerId]) {
+      map[folder.ownerId] = {
+        teacherId: folder.ownerId,
+        totalBytes: 0,
+        privateBytes: 0,
+        sharedBytes: 0,
+        filesCount: 0,
+        privateFilesCount: 0,
+        sharedFilesCount: 0,
+        foldersCount: 0
+      };
+    }
+    map[folder.ownerId].foldersCount += 1;
+  });
+
+  return map;
+}
+
+/**
+ * 1-Klick-Löschung & Deprovisionierung einer scheidenden Lehrkraft:
+ * - Löscht alle privaten Dateien aus Cloudflare R2
+ * - Löscht alle privaten Dateieinträge aus Firestore
+ * - Löscht alle privaten Ordner aus Firestore
+ * - Falls keepSharedMaterials === true: Geteilte Dateien im Austauschbereich bleiben der Fachschaft erhalten
+ *   (Besitzer wird auf 'Fachschaft (Ehemalig)' umgeschrieben)
+ * - Falls keepSharedMaterials === false: Auch alle geteilten Dateien werden restlos gelöscht
+ */
+export async function deleteTeacherAndCleanupFiles(
+  teacherId: string,
+  keepSharedMaterials: boolean = true
+): Promise<{ deletedFilesCount: number; keptSharedCount: number; freedBytes: number }> {
+  let teacherFiles: StorageFile[] = [];
+  let teacherFolders: StorageFolder[] = [];
+
+  // 1. Dateien & Ordner der Lehrkraft laden
+  if (db) {
+    try {
+      const qFiles = query(collection(db, FILES_COLLECTION), where('ownerId', '==', teacherId));
+      const snapFiles = await getDocs(qFiles);
+      snapFiles.forEach((d) => {
+        teacherFiles.push({ id: d.id, ...(d.data() as Omit<StorageFile, 'id'>) });
+      });
+
+      const qFolders = query(collection(db, FOLDERS_COLLECTION), where('ownerId', '==', teacherId));
+      const snapFolders = await getDocs(qFolders);
+      snapFolders.forEach((d) => {
+        teacherFolders.push({ id: d.id, ...(d.data() as Omit<StorageFolder, 'id'>) });
+      });
+    } catch (err) {
+      console.warn('Fehler beim Abfragen der Firestore-Dateien der Lehrkraft, nutze Cache-Fallback:', err);
+    }
+  }
+
+  // Fallback auf lokalen Cache falls Firestore leer oder offline
+  if (teacherFiles.length === 0) {
+    teacherFiles = getCachedFiles().filter((f) => f.ownerId === teacherId);
+  }
+  if (teacherFolders.length === 0) {
+    teacherFolders = getCachedFolders().filter((f) => f.ownerId === teacherId);
+  }
+
+  const privateFiles = teacherFiles.filter((f) => !f.isShared);
+  const sharedFiles = teacherFiles.filter((f) => f.isShared);
+
+  const filesToDelete = keepSharedMaterials ? privateFiles : teacherFiles;
+  const filesToKeep = keepSharedMaterials ? sharedFiles : [];
+
+  const freedBytes = filesToDelete.reduce((sum, f) => sum + (f.fileSize || 0), 0);
+  const r2KeysToDelete = filesToDelete.map((f) => f.r2Key).filter((k): k is string => Boolean(k));
+
+  // 2. Cloudflare R2 Batch-Löschung
+  if (r2KeysToDelete.length > 0) {
+    try {
+      await deleteFilesFromR2(r2KeysToDelete);
+    } catch (r2Err) {
+      console.error('Fehler bei der R2-Batch-Löschung für Lehrkraft:', r2Err);
+    }
+  }
+
+  // 3. Firestore: Geteilte Dateien umschreiben (Besitzer wird Fachschaft / Ehemalige Lehrkraft)
+  if (keepSharedMaterials && sharedFiles.length > 0 && db) {
+    for (const sFile of sharedFiles) {
+      try {
+        const docRef = doc(db, FILES_COLLECTION, sFile.id);
+        await updateDoc(docRef, {
+          ownerId: 'system',
+          ownerName: 'Fachschaft (Ehemalige Lehrkraft)',
+          updatedAt: Date.now()
+        });
+      } catch (err) {
+        console.warn('Fehler beim Umschreiben der geteilten Datei:', sFile.id, err);
+      }
+    }
+  }
+
+  // 4. Firestore: Gelöschte Dateien entfernen
+  if (db) {
+    for (const delFile of filesToDelete) {
+      try {
+        await deleteDoc(doc(db, FILES_COLLECTION, delFile.id));
+      } catch (err) {
+        console.warn('Fehler beim Löschen des Firestore-Dateieintrags:', delFile.id, err);
+      }
+    }
+
+    // 5. Firestore: Private Ordner der Lehrkraft löschen
+    const privateFolders = teacherFolders.filter((f) => !f.isShared);
+    for (const folder of privateFolders) {
+      try {
+        await deleteDoc(doc(db, FOLDERS_COLLECTION, folder.id));
+      } catch (err) {
+        console.warn('Fehler beim Löschen des Firestore-Ordners:', folder.id, err);
+      }
+    }
+  }
+
+  // 6. Lokale Caches aktualisieren
+  const deletedFileIds = new Set(filesToDelete.map((f) => f.id));
+  const updatedFiles = getCachedFiles()
+    .filter((f) => !deletedFileIds.has(f.id))
+    .map((f) => {
+      if (keepSharedMaterials && f.ownerId === teacherId && f.isShared) {
+        return { ...f, ownerId: 'system', ownerName: 'Fachschaft (Ehemalige Lehrkraft)', updatedAt: Date.now() };
+      }
+      return f;
+    });
+  setCachedFiles(updatedFiles);
+
+  const updatedFolders = getCachedFolders().filter((f) => !(f.ownerId === teacherId && !f.isShared));
+  setCachedFolders(updatedFolders);
+
+  return {
+    deletedFilesCount: filesToDelete.length,
+    keptSharedCount: filesToKeep.length,
+    freedBytes
+  };
 }

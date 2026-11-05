@@ -42,6 +42,20 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
         title: 'Bugfix & Härtung: HBS Kahoot Live-Player Antwortsynchronisation',
         description: 'Behebung des Aussetzers von Antworttasten auf Schüler-Smartphones bei Zwischenfragen: Durch einen monotonen Zeitstempel-Schutz (updatedAt-Guard) wird verhindert, dass verzögerte Hintergrund-Heartbeats einen neueren Fragenstatus überschreiben. Zusätzlich garantiert ein ausfallsicherer 4-Farben-Gamepad-Fallback die lückenlose Anzeige aller Tasten, selbst wenn Fragepakete im instabilen Mobilfunknetzwerk verzögert eintreffen.',
         badge: 'Live-Sync Bugfix'
+      },
+      {
+        id: 'cl-300-6',
+        type: 'neu',
+        title: 'Admin-Speicherübersicht & Kollegiums-Monitoring',
+        description: 'In der Administrator-Übersicht sehen Schulleitung und IT-Beauftragte nun live die Belegung des Cloudflare R2 Speichers (Gesamtbelegung des 10-GB-Pools, Anzahl aktiver Lehrkräfte und Dateien). In der Kollegiumstabelle wird pro Lehrkraft der exakte Speicherverbrauch mit Datei- und Fachschaftsaufteilung angezeigt. Über einen Klick auf den Spaltenkopf lässt sich das Kollegium absteigend nach Speicherbelegung sortieren.',
+        badge: 'Admin & Speicher'
+      },
+      {
+        id: 'cl-300-7',
+        type: 'neu',
+        title: '1-Klick-Deprovisionierung scheidender Lehrkräfte mit Materialschutz',
+        description: 'Scheidet eine Lehrkraft aus dem Schuldienst aus, kann sie im Admin-Panel mit einem Klick vollständig deprovisioniert werden: Alle privaten Dateien werden restlos aus Cloudflare R2 und Firestore gelöscht. Über eine smarte Option („Fachschafts-Materialien im Austausch erhalten“) bleiben erstellte Fachschaftsmaterialien der Schule erhalten und werden automatisch auf „Fachschaft (Ehemalige Lehrkraft)“ übertragen, sodass keine wertvollen Unterrichtsmaterialien verloren gehen.',
+        badge: 'DSGVO & Deprovisioning'
       }
     ]
   },

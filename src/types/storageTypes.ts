@@ -43,3 +43,14 @@ export interface StorageQuotaInfo {
   fileCount: number;
   maxBytes: number; // 10 GB Free Tier = 10 * 1024 * 1024 * 1024
 }
+
+export interface TeacherStorageStats {
+  teacherId: string;
+  totalBytes: number;
+  privateBytes: number;
+  sharedBytes: number;
+  filesCount: number;
+  privateFilesCount: number;
+  sharedFilesCount: number;
+  foldersCount: number;
+}
