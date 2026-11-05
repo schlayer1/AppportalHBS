@@ -364,8 +364,16 @@ export const HandbookModal: React.FC<HandbookModalProps> = ({
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 leading-relaxed">
-                  💡 <strong>Tafelbild-Export:</strong> Sie können das fertige Tafelbild jederzeit mit einem Klick als druckfertiges DIN A4 Stundenprotokoll exportieren oder als Vorlage für Ihre Fachschaft in der Cloud speichern!
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-xs text-indigo-950">
+                    <strong className="font-black text-indigo-900 block mb-1">🎤 KI-Sprachdiktat (Cloudflare Whisper):</strong>
+                    Nutzen Sie das Mikrofon-Symbol in der oberen Tafel-Leiste, um Notizen, Arbeitsaufträge oder Schülerbeiträge freihändig einzusprechen. Mit „Auf Tafel werfen“ landet der Text sofort als Notiz-Widget auf dem Smartboard!
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950">
+                    <strong className="font-black text-emerald-900 block mb-1">💡 Cloud-Speicherung & Vorschauen:</strong>
+                    Tafelbilder werden in Cloudflare R2 gespeichert – ohne 1-MB-Limitierung. Inklusive automatischer Miniaturbilder, damit Sie den Stand beim Laden sofort visuell wiedererkennen.
+                  </div>
                 </div>
               </div>
             )}
@@ -439,10 +447,15 @@ export const HandbookModal: React.FC<HandbookModalProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                   <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 text-xs text-purple-950">
                     <strong className="font-black text-purple-900 block mb-1">✨ Gemini KI-Quizgenerator:</strong>
-                    Geben Sie Thema, Fach und Klassenstufe ein. Die KI formuliert in Sekunden 5 bis 10 Multiple-Choice-Fragen inklusive plausibler Distraktoren, die Sie direkt bearbeiten und übernehmen können.
+                    Geben Sie Thema, Fach und Klassenstufe ein. Die KI formuliert in Sekunden 5 bis 10 Multiple-Choice-Fragen inklusive plausibler Distraktoren.
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-xs text-indigo-950">
+                    <strong className="font-black text-indigo-900 block mb-1">🎤 Diktat & R2-Material:</strong>
+                    Wählen Sie Unterrichts-PDFs direkt aus der R2-Dateiablage oder sprechen Sie Ihre Quiz-Themen und Anweisungen per Mikrofon-Taste 🎤 freihändig ein.
                   </div>
 
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-800">

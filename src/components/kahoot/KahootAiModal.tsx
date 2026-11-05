@@ -11,8 +11,10 @@ import {
   Settings2,
   ChevronUp,
   ChevronDown,
-  FolderOpen
+  FolderOpen,
+  Mic
 } from 'lucide-react';
+import { VoiceDictationModal } from '../tools/VoiceDictationModal';
 import { 
   AiQuizRequest, 
   generateQuizQuestionsWithAi, 
@@ -80,6 +82,7 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
   const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
   const [availableStorageFiles, setAvailableStorageFiles] = useState<StorageFile[]>([]);
   const [isLoadingFileContent, setIsLoadingFileContent] = useState(false);
+  const [isVoiceDictationOpen, setIsVoiceDictationOpen] = useState(false);
 
   useEffect(() => {
     if (initialTopic) setTopic(initialTopic);
@@ -371,14 +374,25 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
                   <label className="text-xs font-black uppercase tracking-wider text-slate-500 block">
                     Textauszug / Schulbuch-Absatz (optional)
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsFilePickerOpen(true)}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-2 py-0.5 rounded-lg border border-purple-200 transition-all cursor-pointer"
-                  >
-                    <FolderOpen className="w-3 h-3 text-purple-600" />
-                    <span>📁 Aus Dateiablage wählen</span>
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsVoiceDictationOpen(true)}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-lg border border-indigo-200 transition-all cursor-pointer shadow-2xs"
+                      title="Text per Mikrofon einsprechen"
+                    >
+                      <Mic className="w-3 h-3 text-indigo-600" />
+                      <span>🎤 Einsprechen</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsFilePickerOpen(true)}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-2 py-0.5 rounded-lg border border-purple-200 transition-all cursor-pointer"
+                    >
+                      <FolderOpen className="w-3 h-3 text-purple-600" />
+                      <span>📁 Aus Dateiablage wählen</span>
+                    </button>
+                  </div>
                 </div>
                 <textarea
                   rows={3}
@@ -696,6 +710,18 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Sprachdiktat Modal */}
+      <VoiceDictationModal
+        isOpen={isVoiceDictationOpen}
+        onClose={() => setIsVoiceDictationOpen(false)}
+        initialText={contextText}
+        onApplyText={(spokenText) => {
+          setContextText(spokenText);
+          setIsVoiceDictationOpen(false);
+        }}
+        applyButtonLabel="In Quiz-Kontext übernehmen"
+      />
     </div>
   );
 };

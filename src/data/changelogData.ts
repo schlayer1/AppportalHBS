@@ -3,10 +3,10 @@ import { ChangelogRelease } from '../types/requestTypes';
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
     version: '3.0.0',
-    title: 'Cloudflare R2 Dateiablage, KI-Materialpool & HBS Kahoot Live-Sync Stabilisierung',
+    title: 'Cloudflare R2 Dateiablage, Workers AI Sprachdiktat, Web Analytics & HBS Kahoot Live-Sync',
     date: '5. November 2026',
     isLatest: true,
-    highlight: 'Einführung des schuleigenen Datei- und Ordnersystems auf Cloudflare R2 Basis (10 GB kostenloser Speicher, 0 € Egress-Kosten, Trennung von persönlichem Bereich und Kollegiums-Austausch) mit direkter KI-Weiternutzung im Kahoot-Generator und Unterrichtsbaukasten sowie Behebung des Antwortoptions-Syncfehlers auf Schülergeräten.',
+    highlight: 'Einführung des schuleigenen Datei- und Ordnersystems auf Cloudflare R2 Basis (10 GB kostenloser Speicher, 0 € Egress-Kosten, Trennung von persönlichem Bereich und Kollegiums-Austausch), KI-Sprachdiktat via Cloudflare Workers AI Whisper & Web Speech API, Tafelbild-Cloudspeicherung mit Miniatur-Vorschauen, DSGVO-konforme Web Analytics und Kahoot Live-Player Stabilisierung.',
     items: [
       {
         id: 'cl-300-1',
@@ -70,6 +70,13 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
         title: 'Cloudflare Web Analytics & 100 % DSGVO-konformes Schul-Cockpit',
         description: 'Vollständige Integration von Cloudflare Web Analytics mit SPA-Routenerkennung (#tafel, #kahoot, #menti, #oncoo, #ablage). Völlig frei von Cookies und IP-Logging (kein Cookie-Banner erforderlich). Der neue Admin-Reiter „Statistik & Analytics“ bietet ein Token-Verwaltungscockpit, einen Direktzugriff auf das Cloudflare-Dashboard, eine Live-Client-Diagnose (Endgeräte, Auflösung, Cloudflare-Latenz) sowie ein aggregiertes Nutzungsranking der beliebtesten Schul-Apps.',
         badge: 'Analytics & DSGVO'
+      },
+      {
+        id: 'cl-300-10',
+        type: 'neu',
+        title: 'Cloudflare Workers AI (Whisper) & Live-Sprachdiktat für Tafel & Kahoot',
+        description: 'Integriertes KI-Sprachdiktat für Lehrkräfte und Schüler: Per Klick auf das Mikrofon-Symbol 🎤 in der Digitalen Schultafel oder im Kahoot-KI-Generator können Texte, Tafelnotizen, Arbeitsanweisungen oder Quiz-Prompts freihändig eingesprochen werden. Ein hybrider Dual-Engine-Ansatz kombiniert latenzfreie Browser-Spracherkennung (Web Speech API) für sofortiges Echtzeit-Feedback mit Cloudflare Workers AI Whisper für hochpräzise Transkription bei komplexen Fachbegriffen – vollkommen kostenlos im Cloudflare Free Tier (bis zu 4 Stunden Spracherkennung pro Tag).',
+        badge: 'Workers AI & Audio'
       }
     ]
   },

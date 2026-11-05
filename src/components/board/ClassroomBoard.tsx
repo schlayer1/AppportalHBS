@@ -64,11 +64,13 @@ import {
   Compass,
   Palette,
   Save,
-  FolderOpen
+  FolderOpen,
+  Mic
 } from 'lucide-react';
 import { SaveBoardModal } from './SaveBoardModal';
 import { BoardTemplatesDrawer } from './BoardTemplatesDrawer';
 import { ExportBoardModal } from './ExportBoardModal';
+import { VoiceDictationModal } from '../tools/VoiceDictationModal';
 
 interface ClassroomBoardProps {
   onExit: () => void;
@@ -104,6 +106,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isTemplatesDrawerOpen, setIsTemplatesDrawerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isVoiceDictationOpen, setIsVoiceDictationOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const resetScroll = () => {
@@ -264,6 +267,16 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
               <span>Vorlagen</span>
             </button>
           )}
+
+          {/* Voice Dictation (Sprachdiktat) Button */}
+          <button
+            onClick={() => setIsVoiceDictationOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-indigo-700 hover:bg-white text-xs font-black transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer"
+            title="Sprachdiktat (Whisper KI): Text sprechen und als Notiz auf die Tafel werfen"
+          >
+            <Mic className="w-3.5 h-3.5 text-indigo-600" />
+            <span className="hidden sm:inline">Diktat</span>
+          </button>
 
           {/* Export & Share Modal Button */}
           <button
@@ -474,6 +487,29 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         activeScreen={activeScreen}
+      />
+
+      {/* Voice Dictation (Sprachdiktat) Modal */}
+      <VoiceDictationModal
+        isOpen={isVoiceDictationOpen}
+        onClose={() => setIsVoiceDictationOpen(false)}
+        onApplyText={(spokenText) => {
+          addWidget('text', 'Gesprochene Notiz', {
+            mode: 'text',
+            noteText: spokenText,
+            fontSize: 'large'
+          });
+          setIsVoiceDictationOpen(false);
+        }}
+        applyButtonLabel="Als Notiz auf Tafel einfügen"
+        onSendToBoard={(spokenText) => {
+          addWidget('text', 'Gesprochene Notiz', {
+            mode: 'text',
+            noteText: spokenText,
+            fontSize: 'large'
+          });
+          setIsVoiceDictationOpen(false);
+        }}
       />
     </div>
   );
