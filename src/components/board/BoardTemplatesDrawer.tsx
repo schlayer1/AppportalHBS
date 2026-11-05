@@ -8,7 +8,8 @@ import {
   Save,
   Filter,
   UserCheck,
-  Tag
+  Tag,
+  Cloud
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { BoardScreen } from './types';
@@ -237,6 +238,22 @@ export const BoardTemplatesDrawer: React.FC<BoardTemplatesDrawerProps> = ({
                       : 'border-slate-200 hover:border-hbs-teal-deep/50 shadow-2xs'
                   }`}
                 >
+                  {/* Cloudflare R2 Thumbnail-Vorschau */}
+                  {tmpl.thumbnailUrl && (
+                    <div className="w-full h-28 rounded-xl overflow-hidden bg-slate-900 border border-slate-200/80 relative shadow-2xs group-hover:border-hbs-teal-deep/40 transition-all">
+                      <img 
+                        src={tmpl.thumbnailUrl} 
+                        alt={tmpl.title} 
+                        className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                      <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-[9px] font-mono font-bold text-white flex items-center gap-1 shadow-xs">
+                        <Cloud className="w-2.5 h-2.5 text-sky-400" />
+                        <span>Cloud R2</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">

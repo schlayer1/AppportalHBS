@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Check, GraduationCap, BookOpen, AlertCircle } from 'lucide-react';
+import { X, Save, Check, GraduationCap, BookOpen, AlertCircle, Cloud, Image, Sparkles } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import { BoardScreen } from './types';
 import { useAuth } from '../../context/AuthContext';
 
@@ -69,6 +70,56 @@ export const SaveBoardModal: React.FC<SaveBoardModalProps> = ({
   const [substitutionNotes, setSubstitutionNotes] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
+  const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null);
+  const [isCapturingThumb, setIsCapturingThumb] = useState<boolean>(true);
+
+  // Erzeuge automatisches Miniatur-Vorschaubild aus der aktuellen Tafelansicht
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+    setIsCapturingThumb(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const boardCanvasEl = document.getElementById('classroom-board-canvas');
+        if (!boardCanvasEl) {
+          if (isMounted) setIsCapturingThumb(false);
+          return;
+        }
+
+        const canvas = await html2canvas(boardCanvasEl, {
+          scale: 0.35,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+          backgroundColor: null,
+          ignoreElements: (el: Element) => {
+            return (
+              el.classList.contains('no-print') ||
+              el.classList.contains('board-dock') ||
+              el.classList.contains('board-topbar') ||
+              el.classList.contains('fixed') ||
+              el.tagName === 'IFRAME'
+            );
+          }
+        });
+
+        if (isMounted) {
+          const dataUrl = canvas.toDataURL('image/webp', 0.82);
+          setThumbnailDataUrl(dataUrl);
+        }
+      } catch (err) {
+        console.warn('Fehler bei der Thumbnail-Generierung des Tafelbildes:', err);
+      } finally {
+        if (isMounted) setIsCapturingThumb(false);
+      }
+    }, 150);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -89,7 +140,8 @@ export const SaveBoardModal: React.FC<SaveBoardModalProps> = ({
           isSubstitution,
           substitutionClass: isSubstitution ? substitutionClass.trim() : undefined,
           substitutionNotes: isSubstitution ? substitutionNotes.trim() : undefined,
-          targetDate: new Date().toISOString().split('T')[0]
+          targetDate: new Date().toISOString().split('T')[0],
+          thumbnailDataUrl: thumbnailDataUrl || undefined
         }
       );
       onClose();
@@ -136,6 +188,39 @@ export const SaveBoardModal: React.FC<SaveBoardModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 text-slate-800">
+          {/* Miniatur-Vorschau & Cloudflare R2 Info */}
+          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center gap-3">
+            <div className="w-full sm:w-36 h-20 rounded-xl bg-slate-800 border border-slate-700/60 overflow-hidden flex items-center justify-center shrink-0 relative shadow-2xs">
+              {thumbnailDataUrl ? (
+                <img 
+                  src={thumbnailDataUrl} 
+                  alt="Tafelbild-Vorschau" 
+                  className="w-full h-full object-cover"
+                />
+              ) : isCapturingThumb ? (
+                <div className="flex flex-col items-center gap-1 text-[10px] text-slate-400">
+                  <Sparkles className="w-3.5 h-3.5 animate-spin text-teal-400" />
+                  <span>Vorschau wird erstellt...</span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center text-[10px] text-slate-400">
+                  <Image className="w-4 h-4 mb-0.5 text-slate-500" />
+                  <span>Standard-Tafel</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                <Cloud className="w-4 h-4 text-sky-600" />
+                <span>Cloudflare R2 Schulspeicher</span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                Sichert alle {currentScreen.widgets.length} Widgets und Freihand-Zeichnungen als R2-Datei mit Miniaturansicht.
+              </p>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-hbs-slate-muted mb-1.5">
               Bezeichnung des Tafelbildes:

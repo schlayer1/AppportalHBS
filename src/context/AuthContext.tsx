@@ -14,6 +14,9 @@ import { DEFAULT_MENTI_TEMPLATES } from '../data/defaultMentiTemplates';
 import { KahootGame, KahootLiveSession } from '../types/kahootTypes';
 import { DEFAULT_KAHOOT_GAMES } from '../data/defaultKahootTemplates';
 import { OncooSession, DEFAULT_ONCOO_TEMPLATES } from '../types/oncooTypes';
+import { uploadFileToR2, deleteFileFromR2, getR2DownloadUrl } from '../services/r2StorageService';
+import { addStorageFileRecord } from '../services/storageFirestoreService';
+import { sanitizeFileName } from '../utils/fileUtils';
 
 interface AuthContextType {
   currentUser: PortalUser | null;
@@ -55,6 +58,7 @@ interface AuthContextType {
       substitutionClass?: string;
       substitutionNotes?: string;
       targetDate?: string;
+      thumbnailDataUrl?: string;
     }
   ) => Promise<SavedBoardTemplate>;
   deleteBoardTemplate: (id: string) => Promise<void>;
@@ -388,7 +392,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await savePortalDataToCloud(cloudData);
   }, [currentUser, allPreferences]);
 
-  // Save current blackboard state
+  // Save current blackboard state with Cloudflare R2 backup & thumbnail
   const saveBoardTemplate = useCallback(async (
     title: string, 
     screen: BoardScreen, 
@@ -401,13 +405,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       substitutionClass?: string;
       substitutionNotes?: string;
       targetDate?: string;
+      thumbnailDataUrl?: string;
     }
   ): Promise<SavedBoardTemplate> => {
     const authorId = currentUser ? currentUser.id : 'guest';
     const authorName = currentUser ? currentUser.name : 'Gast';
+    const templateId = `board-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    let r2DataKey: string | undefined;
+    let r2ThumbKey: string | undefined;
+    let thumbnailUrl: string | undefined = metadata?.thumbnailDataUrl;
+
+    // 1. Asynchroner Upload der JSON-Tafeldaten zu Cloudflare R2
+    try {
+      const jsonStr = JSON.stringify(screen);
+      const jsonBlob = new Blob([jsonStr], { type: 'application/json' });
+      const targetJsonFile = new File([jsonBlob], `${templateId}.json`, { type: 'application/json' });
+      r2DataKey = `boards/data/${templateId}.json`;
+      await uploadFileToR2(targetJsonFile, r2DataKey);
+
+      // In der allgemeinen Dateiablage als Tafelbild-Datei registrieren
+      addStorageFileRecord({
+        name: `Tafel_${sanitizeFileName(title)}.json`,
+        folderId: null,
+        isShared: isSchoolTemplate,
+        ownerId: authorId,
+        ownerName: authorName,
+        r2Key: r2DataKey,
+        fileSize: jsonBlob.size,
+        mimeType: 'application/json',
+        fileExtension: 'json',
+        subject: metadata?.subject,
+        grade: metadata?.grade,
+        description: metadata?.description || `Digitales Tafelbild: ${title}`,
+        tags: ['Digitale Tafel', isSchoolTemplate ? 'Schulvorlage' : 'Eigenes Tafelbild']
+      }).catch((e) => console.warn('Konnte Tafeldatei nicht in Dateiablage listen:', e));
+    } catch (r2Err) {
+      console.warn('R2-Upload der Tafeldaten fehlgeschlagen, speichere lokal/Firestore Fallback:', r2Err);
+    }
+
+    // 2. Upload des Miniatur-Vorschaubilds zu Cloudflare R2
+    if (metadata?.thumbnailDataUrl) {
+      try {
+        const thumbRes = await fetch(metadata.thumbnailDataUrl);
+        const thumbBlob = await thumbRes.blob();
+        r2ThumbKey = `boards/thumbs/${templateId}.webp`;
+        const thumbFile = new File([thumbBlob], `${templateId}.webp`, { type: 'image/webp' });
+        await uploadFileToR2(thumbFile, r2ThumbKey);
+        
+        // Download-URL beziehen
+        const r2Url = await getR2DownloadUrl(r2ThumbKey).catch(() => null);
+        if (r2Url) {
+          thumbnailUrl = r2Url;
+        }
+      } catch (thumbErr) {
+        console.warn('R2-Upload des Thumbnails fehlgeschlagen:', thumbErr);
+      }
+    }
 
     const newTemplate: SavedBoardTemplate = {
-      id: `board-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: templateId,
       title: title.trim(),
       description: metadata?.description,
       subject: metadata?.subject,
@@ -420,6 +477,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       authorName,
       isSchoolTemplate,
       screen: JSON.parse(JSON.stringify(screen)),
+      thumbnailUrl,
+      r2DataKey,
+      r2ThumbKey,
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -434,9 +494,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return newTemplate;
   }, [currentUser, boardTemplates]);
 
-  // Delete saved board template
+  // Delete saved board template and remove files from Cloudflare R2
   const deleteBoardTemplate = useCallback(async (templateId: string) => {
-    const updatedTemplates = boardTemplates.filter(t => t.id !== templateId);
+    const tmplToDelete = boardTemplates.find((t) => t.id === templateId);
+    if (tmplToDelete) {
+      if (tmplToDelete.r2DataKey) {
+        deleteFileFromR2(tmplToDelete.r2DataKey).catch((e) => console.warn('R2 board data delete error:', e));
+      }
+      if (tmplToDelete.r2ThumbKey) {
+        deleteFileFromR2(tmplToDelete.r2ThumbKey).catch((e) => console.warn('R2 board thumb delete error:', e));
+      }
+    }
+
+    const updatedTemplates = boardTemplates.filter((t) => t.id !== templateId);
     setBoardTemplates(updatedTemplates);
 
     const cloudData = await loadPortalDataFromCloud();

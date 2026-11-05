@@ -56,6 +56,13 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
         title: '1-Klick-Deprovisionierung scheidender Lehrkräfte mit Materialschutz',
         description: 'Scheidet eine Lehrkraft aus dem Schuldienst aus, kann sie im Admin-Panel mit einem Klick vollständig deprovisioniert werden: Alle privaten Dateien werden restlos aus Cloudflare R2 und Firestore gelöscht. Über eine smarte Option („Fachschafts-Materialien im Austausch erhalten“) bleiben erstellte Fachschaftsmaterialien der Schule erhalten und werden automatisch auf „Fachschaft (Ehemalige Lehrkraft)“ übertragen, sodass keine wertvollen Unterrichtsmaterialien verloren gehen.',
         badge: 'DSGVO & Deprovisioning'
+      },
+      {
+        id: 'cl-300-8',
+        type: 'neu',
+        title: 'Digitale Schultafel: R2-Cloudspeicherung & automatische Miniatur-Vorschauen',
+        description: 'Tafelbilder werden ab sofort automatisch in Cloudflare R2 gesichert und mit einem Live-Miniaturbild (Thumbnail) versehen. Dies entlastet die Firestore-Datenbank vollständig vom 1-MB-Dokumentenlimit und ermöglicht im Auswahlmenü „Tafelbilder & Vorlagen“ sowie im Admin-Panel gestochen scharfe Bildvorschauen des tatsächlichen Tafelstands.',
+        badge: 'Digitale Tafel & R2'
       }
     ]
   },

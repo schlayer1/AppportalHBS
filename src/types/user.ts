@@ -35,6 +35,9 @@ export interface SavedBoardTemplate {
   authorName: string;
   isSchoolTemplate: boolean; // true = visible for all teachers
   screen: BoardScreen; // full board state (widgets, contents, positions, sizes, background)
+  thumbnailUrl?: string; // Visual thumbnail of the board state
+  r2DataKey?: string; // Cloudflare R2 object key for full screen JSON (e.g. boards/data/board-123.json)
+  r2ThumbKey?: string; // Cloudflare R2 object key for thumbnail image (e.g. boards/thumbs/board-123.webp)
   createdAt: number;
   updatedAt: number;
 }

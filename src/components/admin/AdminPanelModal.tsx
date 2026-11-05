@@ -832,6 +832,11 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                   {schoolTemplates.map((tmpl) => (
                     <div key={tmpl.id} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
                       <div>
+                        {tmpl.thumbnailUrl && (
+                          <div className="w-full h-24 rounded-xl overflow-hidden bg-slate-900 border border-slate-200/80 mb-2.5 shadow-2xs">
+                            <img src={tmpl.thumbnailUrl} alt={tmpl.title} className="w-full h-full object-cover" />
+                          </div>
+                        )}
                         <div className="flex items-center justify-between gap-2 mb-1.5">
                           <h4 className="text-xs font-black text-hbs-slate-dark truncate">
                             {tmpl.title}
