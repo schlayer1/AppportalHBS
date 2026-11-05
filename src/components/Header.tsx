@@ -25,12 +25,13 @@ import {
   Compass,
   BookOpen,
   MessageSquarePlus,
-  History
+  History,
+  FolderOpen
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
 
-export type ViewMode = 'bento' | 'compact' | 'smartboard' | 'tafel' | 'menti' | 'kahoot' | 'oncoo';
+export type ViewMode = 'bento' | 'compact' | 'smartboard' | 'tafel' | 'menti' | 'kahoot' | 'oncoo' | 'ablage';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -63,6 +64,7 @@ const VIEW_MODES = [
   { id: 'menti' as ViewMode, label: 'HBS Menti', shortLabel: 'Menti', icon: BarChart2, color: 'text-teal-600', bgActive: 'bg-teal-600 text-white shadow-xs' },
   { id: 'kahoot' as ViewMode, label: 'HBS Kahoot!', shortLabel: 'Kahoot', icon: Flame, color: 'text-purple-600', bgActive: 'bg-purple-600 text-white shadow-xs' },
   { id: 'oncoo' as ViewMode, label: 'HBS Oncoo', shortLabel: 'Oncoo', icon: Users, color: 'text-rose-600', bgActive: 'bg-rose-600 text-white shadow-xs' },
+  { id: 'ablage' as ViewMode, label: 'Dateiablage', shortLabel: 'Ablage', icon: FolderOpen, color: 'text-hbs-blue', bgActive: 'bg-hbs-blue text-white shadow-xs' },
 ];
 
 export const Header: React.FC<HeaderProps> = ({

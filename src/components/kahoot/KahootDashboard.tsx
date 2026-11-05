@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Plus, 
   Play, 
@@ -27,6 +27,7 @@ interface KahootDashboardProps {
   onBackToPortal: () => void;
   onEditGame: (game: KahootGame) => void;
   onStartGame: (game: KahootGame) => void;
+  preloadedMaterial?: { topic?: string; contextText?: string } | null;
 }
 
 const SUBJECT_LIST = [
@@ -51,6 +52,7 @@ export const KahootDashboard: React.FC<KahootDashboardProps> = ({
   onBackToPortal,
   onEditGame,
   onStartGame,
+  preloadedMaterial
 }) => {
   const { 
     kahootGames, 
@@ -67,6 +69,13 @@ export const KahootDashboard: React.FC<KahootDashboardProps> = ({
   const [selectedSubject, setSelectedSubject] = useState('Alle Fächer');
   const [selectedFolder, setSelectedFolder] = useState('Alle Ordner');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Auto-open AI Modal if material is preloaded from Storage
+  useEffect(() => {
+    if (preloadedMaterial) {
+      setIsAiModalOpen(true);
+    }
+  }, [preloadedMaterial]);
 
   // Extract distinct folders
   const availableFolders = useMemo(() => {
@@ -587,6 +596,8 @@ export const KahootDashboard: React.FC<KahootDashboardProps> = ({
         onImportQuestions={handleImportAiQuestions}
         defaultSubject={targetGameForAi?.subject || selectedSubject !== 'Alle Fächer' ? selectedSubject : 'Mathematik'}
         defaultGrade={targetGameForAi?.grade || 'Klasse 7'}
+        initialTopic={preloadedMaterial?.topic}
+        initialContextText={preloadedMaterial?.contextText}
         onOpenSettings={() => {
           setIsAiModalOpen(false);
           setIsGeminiSettingsOpen(true);

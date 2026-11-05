@@ -40,6 +40,29 @@ export const PORTAL_CONFIG = {
 
 export const SCHOOL_APPS: SchoolApp[] = [
   {
+    id: "schul-ablage",
+    title: "Dateiablage & Materialpool",
+    shortTitle: "Dateiablage",
+    subtitle: "Cloudflare R2 Speicher, Ordnersystem & Kollegiums-Tauschbörse",
+    description: "Zentrale Schul-Dateiablage für das Kollegium: Eigener Bereich für persönliche Arbeitsblätter und gemeinsamer Austauschbereich für Fachschaften. Mit 1-Klick-Übernahme in den Kahoot-Generator, die Digitale Tafel und den Unterrichtsbaukasten.",
+    url: "#ablage",
+    category: "kollegium",
+    categories: ["kollegium", "unterricht"],
+    badge: "Cloudflare R2 • 10 GB",
+    badgeColor: "blue",
+    icon: "FolderOpen",
+    tags: ["Dateiablage", "Cloudflare", "R2", "Materialpool", "PDF", "Arbeitsblätter", "Tauschbörse", "Kollegium"],
+    isFeaturedStudentQr: false,
+    offlineReady: true,
+    privacyBadge: "DSGVO & 0€ Egress",
+    pedagogicalValue: "Ermöglicht den schnellen, unkomplizierten Austausch von Unterrichtsmaterialien im Kollegium und speist Inhalte direkt in KI-Generatoren ein.",
+    quickGuide: [
+      "Kachel antippen, um zur Dateiablage zu wechseln.",
+      "Zwischen 'Mein Speicher' und 'Kollegiums-Austausch' wählen.",
+      "PDFs per Drag & Drop hochladen und per Klick auf ⚡ direkt als Kahoot-Quiz oder Tafelbild nutzen."
+    ]
+  },
+  {
     id: "kollegiums-handbuch",
     title: "Kollegiums-Handbuch & Guide",
     shortTitle: "Handbuch & Guide",

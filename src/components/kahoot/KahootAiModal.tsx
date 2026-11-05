@@ -10,7 +10,8 @@ import {
   ArrowRight,
   Settings2,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  FolderOpen
 } from 'lucide-react';
 import { 
   AiQuizRequest, 
@@ -21,6 +22,10 @@ import {
 } from '../../services/aiQuizGenerator';
 import { geminiService } from '../../services/geminiService';
 import { AiGeneratedQuestionDraft, KahootQuestion } from '../../types/kahootTypes';
+import { getCachedFiles } from '../../services/storageFirestoreService';
+import { getR2DownloadUrl } from '../../services/r2StorageService';
+import { StorageFile } from '../../types/storageTypes';
+import { formatFileSize } from '../../utils/fileUtils';
 
 interface KahootAiModalProps {
   isOpen: boolean;
@@ -28,6 +33,8 @@ interface KahootAiModalProps {
   onImportQuestions: (questions: KahootQuestion[]) => void;
   defaultSubject?: string;
   defaultGrade?: string;
+  initialTopic?: string;
+  initialContextText?: string;
   onOpenSettings?: () => void;
 }
 
@@ -47,6 +54,8 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
   onImportQuestions,
   defaultSubject = 'Biologie',
   defaultGrade = 'Klasse 7',
+  initialTopic,
+  initialContextText,
   onOpenSettings
 }) => {
   // Close modal on Escape key
@@ -58,13 +67,30 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
   const [step, setStep] = useState<'config' | 'review'>('config');
   const [subject, setSubject] = useState<string>(defaultSubject);
   const [grade, setGrade] = useState<string>(defaultGrade);
-  const [topic, setTopic] = useState<string>('');
+  const [topic, setTopic] = useState<string>(initialTopic || '');
   const [questionCount, setQuestionCount] = useState<number>(5);
   const [difficulty, setDifficulty] = useState<'einfach' | 'mittel' | 'schwer'>('mittel');
-  const [contextText, setContextText] = useState<string>('');
+  const [contextText, setContextText] = useState<string>(initialContextText || '');
+  
+  // Storage File Picker
+  const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
+  const [availableStorageFiles, setAvailableStorageFiles] = useState<StorageFile[]>([]);
+  const [isLoadingFileContent, setIsLoadingFileContent] = useState(false);
+
+  useEffect(() => {
+    if (initialTopic) setTopic(initialTopic);
+    if (initialContextText) setContextText(initialContextText);
+  }, [initialTopic, initialContextText, isOpen]);
+
+  useEffect(() => {
+    if (isFilePickerOpen) {
+      setAvailableStorageFiles(getCachedFiles());
+    }
+  }, [isFilePickerOpen]);
   
   // API Key management
   const [apiKey, setApiKey] = useState<string>(() => getStoredApiKey());
@@ -77,6 +103,32 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
   const [drafts, setDrafts] = useState<AiGeneratedQuestionDraft[]>([]);
 
   if (!isOpen) return null;
+
+  const handleSelectStorageFile = async (file: StorageFile) => {
+    setIsLoadingFileContent(true);
+    try {
+      const url = await getR2DownloadUrl(file.r2Key);
+      let content = `[Unterrichtsmaterial: ${file.name} - Fach: ${file.subject || subject}]\n`;
+      if (['txt', 'md'].includes(file.fileExtension.toLowerCase())) {
+        const res = await fetch(url);
+        if (res.ok) {
+          const text = await res.text();
+          content += text.slice(0, 4000);
+        }
+      } else {
+        content += `Thema & Bezug: ${file.name}\nErstelle bitte didaktisch hochwertige Quizfragen für ${grade} im Fach ${file.subject || subject} basierend auf den Kernkonzepten dieses Themas.`;
+      }
+      setContextText(content);
+      if (!topic.trim()) {
+        setTopic(file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' '));
+      }
+      setIsFilePickerOpen(false);
+    } catch (err: any) {
+      setErrorMsg('Fehler beim Laden der Datei aus R2.');
+    } finally {
+      setIsLoadingFileContent(false);
+    }
+  };
 
   const handleStartGeneration = async () => {
     if (!topic.trim()) {
@@ -315,14 +367,24 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
 
               {/* Optional Text Context */}
               <div>
-                <label className="text-xs font-black uppercase tracking-wider text-slate-500 block mb-1.5">
-                  Textauszug / Schulbuch-Absatz (optional)
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-500 block">
+                    Textauszug / Schulbuch-Absatz (optional)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsFilePickerOpen(true)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-2 py-0.5 rounded-lg border border-purple-200 transition-all cursor-pointer"
+                  >
+                    <FolderOpen className="w-3 h-3 text-purple-600" />
+                    <span>📁 Aus Dateiablage wählen</span>
+                  </button>
+                </div>
                 <textarea
                   rows={3}
                   value={contextText}
                   onChange={(e) => setContextText(e.target.value)}
-                  placeholder="Kopiere hier optional einen Text aus dem Schulbuch oder Arbeitsblatt hinein, aus dem die KI konkrete Fragen formulieren soll..."
+                  placeholder="Kopiere hier optional einen Text aus dem Schulbuch oder Arbeitsblatt hinein oder wähle oben eine Datei aus deiner Ablage..."
                   className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                 />
               </div>
@@ -560,6 +622,80 @@ export const KahootAiModal: React.FC<KahootAiModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* File Picker Overlay from R2 / Firestore */}
+      {isFilePickerOpen && (
+        <div 
+          className="fixed inset-0 z-60 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setIsFilePickerOpen(false)}
+        >
+          <div 
+            className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 flex flex-col max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
+                  <FolderOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-900">
+                    Material aus Dateiablage wählen
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Wähle ein Dokument, um daraus automatisch Quizfragen zu erstellen
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsFilePickerOpen(false)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {isLoadingFileContent ? (
+                <div className="p-8 text-center text-xs font-bold text-slate-500">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-purple-600 mb-2" />
+                  Dateiinhalt wird aus Cloudflare R2 vorbereitet...
+                </div>
+              ) : availableStorageFiles.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-500">
+                  <p className="font-bold">Noch keine Dateien in der Ablage gefunden.</p>
+                  <p className="mt-1">Lade zuerst Arbeitsblätter im Portal unter „Dateiablage“ hoch.</p>
+                </div>
+              ) : (
+                availableStorageFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    onClick={() => handleSelectStorageFile(file)}
+                    className="p-3 rounded-2xl border border-slate-200/80 hover:border-purple-400 hover:bg-purple-50/40 transition-all cursor-pointer flex items-center justify-between gap-3 group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 group-hover:bg-purple-100 text-slate-600 group-hover:text-purple-600 flex items-center justify-center shrink-0 font-bold text-[10px] uppercase">
+                        {file.fileExtension || 'FILE'}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-slate-900 group-hover:text-purple-900 truncate">
+                          {file.name}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          {formatFileSize(file.fileSize)} • {file.isShared ? 'Austauschbereich' : 'Mein Speicher'} ({file.ownerName})
+                        </p>
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-xs font-bold text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                      Auswählen →
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

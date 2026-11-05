@@ -43,6 +43,7 @@ const OnboardingTourModal = lazy(() => import('./components/onboarding/Onboardin
 const GeminiSettingsModal = lazy(() => import('./components/gemini/GeminiSettingsModal').then(m => ({ default: m.GeminiSettingsModal })));
 const ChangelogModal = lazy(() => import('./components/ChangelogModal').then(m => ({ default: m.ChangelogModal })));
 const RequestModal = lazy(() => import('./components/RequestModal').then(m => ({ default: m.RequestModal })));
+const FileStorageDashboard = lazy(() => import('./components/storage/FileStorageDashboard').then(m => ({ default: m.FileStorageDashboard })));
 import { EmptyState } from './components/ui/empty-state';
 import { CardTilt } from './components/ui/card-tilt';
 import { AuroraBackground } from './components/ui/aurora-background';
@@ -107,6 +108,8 @@ export default function App() {
       if (hash === '#menti') return 'menti';
       if (hash === '#kahoot') return 'kahoot';
       if (hash === '#oncoo') return 'oncoo';
+      if (hash === '#tafel') return 'tafel';
+      if (hash === '#ablage' || hash === '#files') return 'ablage';
       if (localStorage.getItem('hbs_guest_portal_mode_v1') === 'true') {
         return 'tafel';
       }
@@ -199,6 +202,7 @@ export default function App() {
   // Kahoot game state
   const [activeKahootGame, setActiveKahootGame] = useState<KahootGame | null>(null);
   const [kahootSubView, setKahootSubView] = useState<'dashboard' | 'editor' | 'presenter'>('dashboard');
+  const [preloadedKahootMaterial, setPreloadedKahootMaterial] = useState<{ topic?: string; contextText?: string } | null>(null);
 
   // Oncoo session state
   const [activeOncooPresentationSession, setActiveOncooPresentationSession] = useState<OncooSession | null>(null);
@@ -241,6 +245,8 @@ export default function App() {
         setViewMode('oncoo');
       } else if (hash === '#tafel') {
         setViewMode('tafel');
+      } else if (hash === '#ablage' || hash === '#files') {
+        setViewMode('ablage');
       } else if (hash === '#handbuch') {
         setIsHandbookOpen(true);
         try {
@@ -271,7 +277,7 @@ export default function App() {
         }
       } else if (!hash) {
         setViewMode((prev) => {
-          if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo' || prev === 'tafel') {
+          if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo' || prev === 'tafel' || prev === 'ablage') {
             return preferredPortalView;
           }
           return prev;
@@ -585,6 +591,7 @@ export default function App() {
       <Suspense fallback={<LoadingSpinner message="Kahoot Studio wird geladen..." />}>
         <KahootDashboard
           onBackToPortal={handleExitToPortal}
+          preloadedMaterial={preloadedKahootMaterial}
           onEditGame={(game) => {
             setActiveKahootGame(game);
             setKahootSubView('editor');
@@ -618,6 +625,27 @@ export default function App() {
           onStartSession={(session) => {
             setActiveOncooPresentationSession(session);
             setOncooSubView('presenter');
+          }}
+        />
+      </Suspense>
+    );
+  }
+
+  // Fullscreen / Dedicated File Storage & Material Pool (Cloudflare R2 + Firestore)
+  if (viewMode === 'ablage') {
+    return (
+      <Suspense fallback={<LoadingSpinner message="Dateiablage & Materialpool wird geladen..." />}>
+        <FileStorageDashboard
+          onBackToPortal={handleExitToPortal}
+          onOpenInKahoot={(file) => {
+            const topic = file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
+            const contextText = `[Material: ${file.name} (Fach: ${file.subject || 'Allgemein'})]\nBitte erstelle passende Fragen zum Thema dieses Dokuments.`;
+            setPreloadedKahootMaterial({ topic, contextText });
+            setViewMode('kahoot');
+            setKahootSubView('dashboard');
+          }}
+          onOpenInBoard={() => {
+            setViewMode('tafel');
           }}
         />
       </Suspense>
