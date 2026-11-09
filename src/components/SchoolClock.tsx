@@ -43,7 +43,7 @@ export const SchoolClock: React.FC = () => {
   } else if (currentMinutes < 7 * 60 + 45) {
     statusText = 'Guten Morgen • Vor Beginn';
   } else if (currentMinutes > 14 * 60 + 20) {
-    statusText = 'GTA / Nachmittagsbetreuung';
+    statusText = 'Unterrichtsende';
   } else {
     const foundPeriod = SCHEDULE.find(p => currentMinutes >= p.start && currentMinutes < p.end);
     if (foundPeriod) {

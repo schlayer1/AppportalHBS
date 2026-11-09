@@ -36,24 +36,21 @@ export const ClockWidget: React.FC = () => {
   const day = now.getDay();
   const currentMinutes = hours * 60 + minutes;
 
-  // Determine school schedule status
-  let statusText = 'Feierabend';
+  // Determine school schedule status (Regular HBS schedule: 1.-7. Stunde + Pausen)
+  let statusText: string | null = null;
   let isBreakTime = false;
 
-  if (day === 0 || day === 6) {
-    statusText = 'Wochenende';
-  } else if (currentMinutes < 7 * 60 + 45) {
-    statusText = 'Vor Unterrichtsbeginn';
-  } else if (currentMinutes > 14 * 60 + 20) {
-    statusText = 'GTA / Nachmittag';
-  } else {
-    const foundPeriod = SCHEDULE.find((p) => currentMinutes >= p.start && currentMinutes < p.end);
-    if (foundPeriod) {
-      statusText = foundPeriod.label;
-      isBreakTime = !!foundPeriod.isBreak;
-    } else {
-      statusText = 'Kleine Pause';
-      isBreakTime = true;
+  // Regular school days (Monday to Friday)
+  if (day >= 1 && day <= 5) {
+    if (currentMinutes >= 7 * 60 + 45 && currentMinutes <= 14 * 60 + 20) {
+      const foundPeriod = SCHEDULE.find((p) => currentMinutes >= p.start && currentMinutes < p.end);
+      if (foundPeriod) {
+        statusText = foundPeriod.label;
+        isBreakTime = !!foundPeriod.isBreak;
+      } else {
+        statusText = 'Kleine Pause';
+        isBreakTime = true;
+      }
     }
   }
 
@@ -143,19 +140,21 @@ export const ClockWidget: React.FC = () => {
         </div>
       )}
 
-      {/* Period Badge */}
-      <div className="mt-3 flex items-center gap-2">
-        <span
-          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black shadow-2xs ${
-            isBreakTime
-              ? 'bg-amber-100/90 text-amber-900 border border-amber-300/60'
-              : 'bg-hbs-blue-soft text-hbs-blue-deep border border-hbs-blue/20'
-          }`}
-        >
-          <ClockIcon className="w-3.5 h-3.5" />
-          {statusText}
-        </span>
-      </div>
+      {/* Period Badge - Only displayed during regular school hours */}
+      {statusText && (
+        <div className="mt-3 flex items-center gap-2">
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black shadow-2xs ${
+              isBreakTime
+                ? 'bg-amber-100/90 text-amber-900 border border-amber-300/60'
+                : 'bg-hbs-blue-soft text-hbs-blue-deep border border-hbs-blue/20'
+            }`}
+          >
+            <ClockIcon className="w-3.5 h-3.5" />
+            {statusText}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

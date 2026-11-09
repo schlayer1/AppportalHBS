@@ -47,6 +47,8 @@ interface BoardDockProps {
   onToggleFullscreen: () => void;
   onExitBoard: () => void;
   isGuest?: boolean;
+  isDrawingMode?: boolean;
+  onToggleDrawingMode?: () => void;
 }
 
 export const BoardDock: React.FC<BoardDockProps> = ({
@@ -59,7 +61,9 @@ export const BoardDock: React.FC<BoardDockProps> = ({
   isFullscreen,
   onToggleFullscreen,
   onExitBoard,
-  isGuest
+  isGuest,
+  isDrawingMode = false,
+  onToggleDrawingMode
 }) => {
   const [showMoreFlyout, setShowMoreFlyout] = useState(false);
 
@@ -204,6 +208,22 @@ export const BoardDock: React.FC<BoardDockProps> = ({
         >
           <Timer className="w-5 h-5 text-hbs-blue" />
         </button>
+
+        {/* Freehand Chalk / Pen Toggle (Direkt auf Tafel schreiben) */}
+        {onToggleDrawingMode && (
+          <button
+            onClick={onToggleDrawingMode}
+            className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border shadow-xs transition-all active:scale-90 shrink-0 ${
+              isDrawingMode
+                ? 'bg-amber-500 text-white border-amber-400 shadow-amber-500/40 ring-2 ring-amber-300'
+                : 'bg-white/70 hover:bg-white text-hbs-slate-dark border-white/80'
+            }`}
+            title={isDrawingMode ? "Tafel-Stift aktiv (Klicken zum Beenden)" : "Freihand auf Tafel schreiben (Stift / Kreide)"}
+            aria-label="Tafelstift"
+          >
+            <PenTool className="w-5 h-5" />
+          </button>
+        )}
 
         {/* "More Tools" Flyout Toggle */}
         <button

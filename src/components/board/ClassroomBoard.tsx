@@ -71,6 +71,7 @@ import { SaveBoardModal } from './SaveBoardModal';
 import { BoardTemplatesDrawer } from './BoardTemplatesDrawer';
 import { ExportBoardModal } from './ExportBoardModal';
 import { VoiceDictationModal } from '../tools/VoiceDictationModal';
+import { BoardDrawingCanvas } from './BoardDrawingCanvas';
 
 interface ClassroomBoardProps {
   onExit: () => void;
@@ -94,6 +95,9 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
     switchScreen,
     clearCurrentScreen,
     loadCustomScreen,
+    addDrawingStroke,
+    clearDrawings,
+    undoDrawingStroke,
     recordSnapshot,
     undo,
     redo,
@@ -102,6 +106,7 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
   } = useBoardManager();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [isBackgroundPickerOpen, setIsBackgroundPickerOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isTemplatesDrawerOpen, setIsTemplatesDrawerOpen] = useState(false);
@@ -278,6 +283,20 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
             <span className="hidden sm:inline">Diktat</span>
           </button>
 
+          {/* Quick Freehand Chalk Toggle Button */}
+          <button
+            onClick={() => setIsDrawingMode(!isDrawingMode)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ios-glass text-xs font-black transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer ${
+              isDrawingMode
+                ? 'bg-amber-500 text-white shadow-amber-500/40 ring-2 ring-amber-300'
+                : 'text-amber-800 hover:bg-white'
+            }`}
+            title={isDrawingMode ? "Tafelstift aktiv (Klicken zum Beenden)" : "Freihand auf Tafel schreiben (Stift / Kreide)"}
+          >
+            <PenTool className="w-3.5 h-3.5 text-amber-600" />
+            <span className="hidden sm:inline">{isDrawingMode ? 'Stift aktiv' : 'Tafel-Stift'}</span>
+          </button>
+
           {/* Export & Share Modal Button */}
           <button
             onClick={() => setIsExportModalOpen(true)}
@@ -318,6 +337,16 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
           }`}
           style={activeBgPreset.style}
         >
+          {/* Native Blackboard Drawing Layer (Kreide & Freihand auf der gesamten Tafel) */}
+          <BoardDrawingCanvas
+            isDrawingMode={isDrawingMode}
+            onToggleDrawingMode={(active) => setIsDrawingMode(active)}
+            drawings={activeScreen.drawings || []}
+            onAddStroke={addDrawingStroke}
+            onClearDrawings={clearDrawings}
+            onUndoStroke={undoDrawingStroke}
+          />
+
           {activeScreen.widgets
             .filter((widget) => widget.type !== 'curtain')
             .map((widget) => {
@@ -456,6 +485,8 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
           onToggleFullscreen={toggleFullscreen}
           onExitBoard={onExit}
           isGuest={isGuest}
+          isDrawingMode={isDrawingMode}
+          onToggleDrawingMode={() => setIsDrawingMode(!isDrawingMode)}
         />
       </div>
 
@@ -487,6 +518,8 @@ export const ClassroomBoard: React.FC<ClassroomBoardProps> = ({ onExit, isGuest 
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         activeScreen={activeScreen}
+        screens={screens}
+        activeScreenIndex={activeScreenIndex}
       />
 
       {/* Voice Dictation (Sprachdiktat) Modal */}

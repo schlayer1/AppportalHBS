@@ -58,11 +58,19 @@ export type BoardBackgroundId =
   | 'lineature-music-staves'
   | 'lineature-coordinate-grid';
 
+export interface BoardDrawingStroke {
+  points: { x: number; y: number }[];
+  color: string;
+  width: number;
+  isHighlighter?: boolean;
+}
+
 export interface BoardScreen {
   id: string;
   title: string;
   backgroundId: BoardBackgroundId;
   widgets: BoardWidgetInstance[];
+  drawings?: BoardDrawingStroke[];
 }
 
 export interface BackgroundPreset {

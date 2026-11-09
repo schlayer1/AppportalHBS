@@ -173,6 +173,14 @@ export const StudentBoardViewer: React.FC<StudentBoardViewerProps> = ({ onClose 
                 <User className="w-3.5 h-3.5 text-hbs-teal-light" />
                 {boardData?.teacherName || 'Fachlehrer'}
               </span>
+              {boardData?.grade && (
+                <>
+                  <span>•</span>
+                  <span className="px-2 py-0.5 rounded-md bg-teal-500/20 text-teal-300 text-[11px] font-bold">
+                    {boardData.grade}
+                  </span>
+                </>
+              )}
               {boardData?.subject && (
                 <>
                   <span>•</span>

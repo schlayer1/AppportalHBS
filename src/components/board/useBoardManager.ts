@@ -7,6 +7,7 @@ const DEFAULT_SCREEN: BoardScreen = {
   id: 'screen-1',
   title: 'Tafel 1',
   backgroundId: 'chalkboard',
+  drawings: [],
   widgets: [
     {
       id: 'init-clock',
@@ -40,6 +41,7 @@ const sanitizeScreens = (parsed: any): BoardScreen[] => {
       id: String(s.id || `screen-${idx + 1}`),
       title: String(s.title || `Tafel ${idx + 1}`),
       backgroundId: (s.backgroundId || 'chalkboard') as BoardBackgroundId,
+      drawings: Array.isArray(s.drawings) ? s.drawings : [],
       widgets: Array.isArray(s.widgets)
         ? (s.widgets as any[])
             .filter((w) => w && typeof w === 'object' && typeof w.type === 'string')
@@ -484,6 +486,7 @@ export const useBoardManager = () => {
           ...scr,
           title: screenToLoad.title || scr.title,
           backgroundId: screenToLoad.backgroundId || scr.backgroundId,
+          drawings: screenToLoad.drawings || [],
           widgets: screenToLoad.widgets.map((w, i) => ({
             ...w,
             id: `w-${w.type}-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`
@@ -492,6 +495,47 @@ export const useBoardManager = () => {
       });
     });
   }, [activeScreenIndex, recordSnapshot]);
+
+  // Native Full-Blackboard Drawing Layer Actions
+  const addDrawingStroke = useCallback((stroke: any) => {
+    setScreens((prev) => {
+      return prev.map((scr, idx) => {
+        if (idx !== activeScreenIndex) return scr;
+        const currentDrawings = scr.drawings || [];
+        return {
+          ...scr,
+          drawings: [...currentDrawings, stroke]
+        };
+      });
+    });
+  }, [activeScreenIndex]);
+
+  const clearDrawings = useCallback(() => {
+    recordSnapshot();
+    setScreens((prev) => {
+      return prev.map((scr, idx) => {
+        if (idx !== activeScreenIndex) return scr;
+        return {
+          ...scr,
+          drawings: []
+        };
+      });
+    });
+  }, [activeScreenIndex, recordSnapshot]);
+
+  const undoDrawingStroke = useCallback(() => {
+    setScreens((prev) => {
+      return prev.map((scr, idx) => {
+        if (idx !== activeScreenIndex) return scr;
+        const currentDrawings = scr.drawings || [];
+        if (currentDrawings.length === 0) return scr;
+        return {
+          ...scr,
+          drawings: currentDrawings.slice(0, -1)
+        };
+      });
+    });
+  }, [activeScreenIndex]);
 
   return {
     screens,
@@ -511,6 +555,9 @@ export const useBoardManager = () => {
     clearCurrentScreen,
     loadPreset,
     loadCustomScreen,
+    addDrawingStroke,
+    clearDrawings,
+    undoDrawingStroke,
     recordSnapshot,
     undo,
     redo,
