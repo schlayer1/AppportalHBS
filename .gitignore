@@ -14,6 +14,7 @@ dist-ssr/
 *.log
 
 # Scratch, Testing & Browser Audits
+.projectatlas/
 scratch/
 verify_output/
 *.bak

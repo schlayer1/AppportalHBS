@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   X, 
   Mic, 
@@ -46,53 +46,27 @@ export const VoiceDictationModal: React.FC<VoiceDictationModalProps> = ({
   const activeSessionRef = useRef<ActiveDictationSession | null>(null);
   const timerRef = useRef<any>(null);
 
-  // Synchronisiere initialen Text wenn Modal öffnet
-  useEffect(() => {
-    if (isOpen) {
-      setTranscript(initialText);
-      setErrorMsg(null);
-      setRecordingSeconds(0);
-    } else {
-      stopRecording();
-    }
-  }, [isOpen, initialText]);
+  const stopRecording = useCallback(async () => {
+    if (!activeSessionRef.current && !isRecording) return;
+    setIsRecording(false);
+    setIsProcessing(true);
 
-  // Timer für Aufnahme-Dauer
-  useEffect(() => {
-    if (isRecording) {
-      timerRef.current = setInterval(() => {
-        setRecordingSeconds((prev) => prev + 1);
-      }, 1000);
-    } else {
-      clearInterval(timerRef.current);
+    try {
+      if (activeSessionRef.current) {
+        const finalResult = await activeSessionRef.current.stop();
+        if (finalResult && finalResult.trim().length > 0) {
+          setTranscript(finalResult.trim());
+        }
+        activeSessionRef.current = null;
+      }
+    } catch (err) {
+      console.warn('Fehler beim Beenden der Aufnahme:', err);
+    } finally {
+      setIsProcessing(false);
     }
-    return () => clearInterval(timerRef.current);
   }, [isRecording]);
 
-  // Tastenkombination ESC zum Schließen
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        stopRecording();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
-  const handleToggleRecord = async () => {
-    if (isRecording) {
-      await stopRecording();
-    } else {
-      await startRecording();
-    }
-  };
-
-  const startRecording = async () => {
+  const startRecording = useCallback(async () => {
     setErrorMsg(null);
     if (!isSpeechRecognitionSupported()) {
       setErrorMsg('Mikrofonzugriff oder Spracherkennung wird von diesem Browser leider nicht unterstützt.');
@@ -122,27 +96,66 @@ export const VoiceDictationModal: React.FC<VoiceDictationModalProps> = ({
       setErrorMsg('Mikrofon konnte nicht aktiviert werden. Bitte Berechtigung im Browser erteilen.');
       setIsRecording(false);
     }
-  };
+  }, [selectedLanguage]);
 
-  const stopRecording = async () => {
-    if (!activeSessionRef.current && !isRecording) return;
-    setIsRecording(false);
-    setIsProcessing(true);
+  const handleToggleRecord = useCallback(async () => {
+    if (isRecording) {
+      await stopRecording();
+    } else {
+      await startRecording();
+    }
+  }, [isRecording, stopRecording, startRecording]);
 
-    try {
+  // Synchronisiere initialen Text wenn Modal öffnet
+  useEffect(() => {
+    if (isOpen) {
+      setTranscript(initialText);
+      setErrorMsg(null);
+      setRecordingSeconds(0);
+    } else {
+      if (activeSessionRef.current || isRecording) {
+        stopRecording();
+      }
+    }
+  }, [isOpen, initialText, stopRecording, isRecording]);
+
+  // Timer für Aufnahme-Dauer
+  useEffect(() => {
+    if (isRecording) {
+      timerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [isRecording]);
+
+  // Tastenkombination ESC zum Schließen
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        stopRecording();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, stopRecording]);
+
+  // Unmount Cleanup
+  useEffect(() => {
+    return () => {
       if (activeSessionRef.current) {
-        const finalResult = await activeSessionRef.current.stop();
-        if (finalResult && finalResult.trim().length > 0) {
-          setTranscript(finalResult.trim());
-        }
+        activeSessionRef.current.stop().catch(() => {});
         activeSessionRef.current = null;
       }
-    } catch (err) {
-      console.warn('Fehler beim Beenden der Aufnahme:', err);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = () => {
     if (!transcript) return;
@@ -156,6 +169,8 @@ export const VoiceDictationModal: React.FC<VoiceDictationModalProps> = ({
     const s = secs % 60;
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
+
+  if (!isOpen) return null;
 
   return (
     <div 

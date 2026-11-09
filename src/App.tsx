@@ -10,6 +10,7 @@ import { QuickToolsDrawer } from './components/QuickToolsDrawer';
 import { FloatingDock } from './components/FloatingDock';
 import { ExternalLinks } from './components/ExternalLinks';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Lazy-loaded standalone sub-applications & heavy screens
 const ClassroomBoard = lazy(() => import('./components/board/ClassroomBoard').then(m => ({ default: m.ClassroomBoard })));
@@ -507,156 +508,152 @@ export default function App() {
   // Fullscreen Classroom Board View (Classroomscreen Replica)
   if (viewMode === 'tafel') {
     return (
-      <Suspense fallback={<LoadingSpinner message="Digitale Tafel wird geladen..." />}>
-        <ClassroomBoard 
-          onExit={() => {
-            if (isGuest) {
-              logout();
-            } else {
-              handleExitToPortal();
-            }
-          }} 
-          isGuest={isGuest}
-        />
-      </Suspense>
+      <ErrorBoundary fallbackTitle="Fehler beim Laden der Digitalen Tafel" onReset={handleExitToPortal}>
+        <Suspense fallback={<LoadingSpinner message="Digitale Tafel wird geladen..." />}>
+          <ClassroomBoard 
+            onExit={() => {
+              if (isGuest) {
+                logout();
+              } else {
+                handleExitToPortal();
+              }
+            }} 
+            isGuest={isGuest}
+          />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
 
   // Fullscreen / Dedicated HBS Menti System (Mentimeter Clone)
   if (viewMode === 'menti') {
-    if (mentiSubView === 'editor' && activeMentiPresentation) {
-      return (
-        <Suspense fallback={<LoadingSpinner message="Menti Editor wird geladen..." />}>
-          <MentiEditor
-            initialPresentation={activeMentiPresentation}
-            onClose={() => setMentiSubView('dashboard')}
-            onStartPresenter={(pres) => {
-              setActiveMentiPresentation(pres);
-              setMentiSubView('presenter');
-            }}
-          />
-        </Suspense>
-      );
-    }
-
-    if (mentiSubView === 'presenter' && activeMentiPresentation) {
-      return (
-        <Suspense fallback={<LoadingSpinner message="Menti Präsentation wird geladen..." />}>
-          <MentiPresenter
-            presentation={activeMentiPresentation}
-            onExit={() => setMentiSubView('dashboard')}
-          />
-        </Suspense>
-      );
-    }
-
     return (
-      <Suspense fallback={<LoadingSpinner message="Menti Studio wird geladen..." />}>
-        <MentiDashboard
-          onBackToPortal={handleExitToPortal}
-          onEditPresentation={(pres) => {
-            setActiveMentiPresentation(pres);
-            setMentiSubView('editor');
-          }}
-          onStartPresenter={(pres) => {
-            setActiveMentiPresentation(pres);
-            setMentiSubView('presenter');
-          }}
-        />
-      </Suspense>
+      <ErrorBoundary fallbackTitle="Fehler beim Laden von HBS Menti" onReset={handleExitToPortal}>
+        {mentiSubView === 'editor' && activeMentiPresentation ? (
+          <Suspense fallback={<LoadingSpinner message="Menti Editor wird geladen..." />}>
+            <MentiEditor
+              initialPresentation={activeMentiPresentation}
+              onClose={() => setMentiSubView('dashboard')}
+              onStartPresenter={(pres) => {
+                setActiveMentiPresentation(pres);
+                setMentiSubView('presenter');
+              }}
+            />
+          </Suspense>
+        ) : mentiSubView === 'presenter' && activeMentiPresentation ? (
+          <Suspense fallback={<LoadingSpinner message="Menti Präsentation wird geladen..." />}>
+            <MentiPresenter
+              presentation={activeMentiPresentation}
+              onExit={() => setMentiSubView('dashboard')}
+            />
+          </Suspense>
+        ) : (
+          <Suspense fallback={<LoadingSpinner message="Menti Studio wird geladen..." />}>
+            <MentiDashboard
+              onBackToPortal={handleExitToPortal}
+              onEditPresentation={(pres) => {
+                setActiveMentiPresentation(pres);
+                setMentiSubView('editor');
+              }}
+              onStartPresenter={(pres) => {
+                setActiveMentiPresentation(pres);
+                setMentiSubView('presenter');
+              }}
+            />
+          </Suspense>
+        )}
+      </ErrorBoundary>
     );
   }
 
   // Fullscreen / Dedicated HBS Kahoot System (Kahoot Clone with AI Quiz Generator)
   if (viewMode === 'kahoot') {
-    if (kahootSubView === 'editor' && activeKahootGame) {
-      return (
-        <Suspense fallback={<LoadingSpinner message="Quiz Editor wird geladen..." />}>
-          <KahootEditor
-            initialGame={activeKahootGame}
-            onClose={() => setKahootSubView('dashboard')}
-            onStartPresenter={(game) => {
-              setActiveKahootGame(game);
-              setKahootSubView('presenter');
-            }}
-          />
-        </Suspense>
-      );
-    }
-
-    if (kahootSubView === 'presenter' && activeKahootGame) {
-      return (
-        <Suspense fallback={<LoadingSpinner message="Live-Quiz Arena wird gestartet..." />}>
-          <KahootPresenter
-            game={activeKahootGame}
-            onExit={() => setKahootSubView('dashboard')}
-          />
-        </Suspense>
-      );
-    }
-
     return (
-      <Suspense fallback={<LoadingSpinner message="Kahoot Studio wird geladen..." />}>
-        <KahootDashboard
-          onBackToPortal={handleExitToPortal}
-          preloadedMaterial={preloadedKahootMaterial}
-          onEditGame={(game) => {
-            setActiveKahootGame(game);
-            setKahootSubView('editor');
-          }}
-          onStartGame={(game) => {
-            setActiveKahootGame(game);
-            setKahootSubView('presenter');
-          }}
-        />
-      </Suspense>
+      <ErrorBoundary fallbackTitle="Fehler beim Laden von HBS Kahoot" onReset={handleExitToPortal}>
+        {kahootSubView === 'editor' && activeKahootGame ? (
+          <Suspense fallback={<LoadingSpinner message="Quiz Editor wird geladen..." />}>
+            <KahootEditor
+              initialGame={activeKahootGame}
+              onClose={() => setKahootSubView('dashboard')}
+              onStartPresenter={(game) => {
+                setActiveKahootGame(game);
+                setKahootSubView('presenter');
+              }}
+            />
+          </Suspense>
+        ) : kahootSubView === 'presenter' && activeKahootGame ? (
+          <Suspense fallback={<LoadingSpinner message="Live-Quiz Arena wird gestartet..." />}>
+            <KahootPresenter
+              game={activeKahootGame}
+              onExit={() => setKahootSubView('dashboard')}
+            />
+          </Suspense>
+        ) : (
+          <Suspense fallback={<LoadingSpinner message="Kahoot Studio wird geladen..." />}>
+            <KahootDashboard
+              onBackToPortal={handleExitToPortal}
+              preloadedMaterial={preloadedKahootMaterial}
+              onEditGame={(game) => {
+                setActiveKahootGame(game);
+                setKahootSubView('editor');
+              }}
+              onStartGame={(game) => {
+                setActiveKahootGame(game);
+                setKahootSubView('presenter');
+              }}
+            />
+          </Suspense>
+        )}
+      </ErrorBoundary>
     );
   }
 
   // Fullscreen / Dedicated HBS Oncoo System (Cooperative Learning Tools)
   if (viewMode === 'oncoo') {
-    if (oncooSubView === 'presenter' && activeOncooPresentationSession) {
-      return (
-        <Suspense fallback={<LoadingSpinner message="Oncoo Sitzung wird vorbereitet..." />}>
-          <OncooPresenter
-            session={activeOncooPresentationSession}
-            onExit={() => setOncooSubView('dashboard')}
-          />
-        </Suspense>
-      );
-    }
-
     return (
-      <Suspense fallback={<LoadingSpinner message="Oncoo Studio wird geladen..." />}>
-        <OncooDashboard
-          onBackToPortal={handleExitToPortal}
-          onStartSession={(session) => {
-            setActiveOncooPresentationSession(session);
-            setOncooSubView('presenter');
-          }}
-        />
-      </Suspense>
+      <ErrorBoundary fallbackTitle="Fehler beim Laden von HBS Oncoo" onReset={handleExitToPortal}>
+        {oncooSubView === 'presenter' && activeOncooPresentationSession ? (
+          <Suspense fallback={<LoadingSpinner message="Oncoo Sitzung wird vorbereitet..." />}>
+            <OncooPresenter
+              session={activeOncooPresentationSession}
+              onExit={() => setOncooSubView('dashboard')}
+            />
+          </Suspense>
+        ) : (
+          <Suspense fallback={<LoadingSpinner message="Oncoo Studio wird geladen..." />}>
+            <OncooDashboard
+              onBackToPortal={handleExitToPortal}
+              onStartSession={(session) => {
+                setActiveOncooPresentationSession(session);
+                setOncooSubView('presenter');
+              }}
+            />
+          </Suspense>
+        )}
+      </ErrorBoundary>
     );
   }
 
   // Fullscreen / Dedicated File Storage & Material Pool (Cloudflare R2 + Firestore)
   if (viewMode === 'ablage') {
     return (
-      <Suspense fallback={<LoadingSpinner message="Dateiablage & Materialpool wird geladen..." />}>
-        <FileStorageDashboard
-          onBackToPortal={handleExitToPortal}
-          onOpenInKahoot={(file) => {
-            const topic = file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
-            const contextText = `[Material: ${file.name} (Fach: ${file.subject || 'Allgemein'})]\nBitte erstelle passende Fragen zum Thema dieses Dokuments.`;
-            setPreloadedKahootMaterial({ topic, contextText });
-            setViewMode('kahoot');
-            setKahootSubView('dashboard');
-          }}
-          onOpenInBoard={() => {
-            setViewMode('tafel');
-          }}
-        />
-      </Suspense>
+      <ErrorBoundary fallbackTitle="Fehler beim Laden der Dateiablage" onReset={handleExitToPortal}>
+        <Suspense fallback={<LoadingSpinner message="Dateiablage & Materialpool wird geladen..." />}>
+          <FileStorageDashboard
+            onBackToPortal={handleExitToPortal}
+            onOpenInKahoot={(file) => {
+              const topic = file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
+              const contextText = `[Material: ${file.name} (Fach: ${file.subject || 'Allgemein'})]\nBitte erstelle passende Fragen zum Thema dieses Dokuments.`;
+              setPreloadedKahootMaterial({ topic, contextText });
+              setViewMode('kahoot');
+              setKahootSubView('dashboard');
+            }}
+            onOpenInBoard={() => {
+              setViewMode('tafel');
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
 
