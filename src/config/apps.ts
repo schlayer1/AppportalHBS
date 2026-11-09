@@ -241,6 +241,43 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
+    id: "denk-kern",
+    title: "Denk-Kern • KI-Didaktik",
+    shortTitle: "Denk-Kern",
+    subtitle: "KI nutzen & eigenes Denken stärken (Kognitive Delegation)",
+    description: "Der didaktische Kompass für reflektierten KI-Einsatz im Unterricht von Lucca Spohn (Digitales Pausenbrot): Definiert präzise, welche fachliche Denkhandlung zwingend bei den Lernenden verbleiben muss und wo KI als produktiver Sparringspartner unterstützen darf – ganz ohne Cognitive Offloading.",
+    url: "https://digitalespausenbrot.ch/denk-kern/",
+    category: "kollegium",
+    categories: ["kollegium", "unterricht"],
+    badge: "KI-Didaktik & Modell",
+    badgeColor: "amber",
+    icon: "Brain",
+    tags: [
+      "Denk-Kern",
+      "Digitales Pausenbrot",
+      "KI-Didaktik",
+      "Kognitive Delegation",
+      "Lucca Spohn",
+      "Prompting",
+      "Lernprozess",
+      "Unterrichtsplanung",
+      "Sekundarstufe"
+    ],
+    isFeaturedStudentQr: false,
+    offlineReady: false,
+    privacyBadge: "Freies OER-Material",
+    pedagogicalValue: "Verhindert das passive Auslagern des Denkens an Chatbots und hilft Lehrkräften, Aufgaben so zu gestalten, dass KI echtes Verständnis, Urteilsvermögen und Eigenleistung herausfordert.",
+    quickGuide: [
+      "Kachel antippen, um das Denk-Kern-Konzept auf digitalespausenbrot.ch zu öffnen.",
+      "Die 5 Ebenen kognitiver Delegation und didaktische Leitfragen für die eigene Unterrichtsplanung erkunden.",
+      "Den 'Denkhandlungs-Finder' nutzen, um die unantastbare Denkleistung im Arbeitsblatt festzulegen."
+    ],
+    shortcuts: [
+      { label: "Modell-Ebenen", url: "https://digitalespausenbrot.ch/denk-kern/#ebenen" },
+      { label: "Methoden & Tools", url: "https://digitalespausenbrot.ch/denk-kern/#werkzeuge" }
+    ]
+  },
+  {
     id: "lehrer-translator",
     title: "Übersetzer Lehrer",
     shortTitle: "Übersetzer Lehrer",

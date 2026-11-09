@@ -74,6 +74,16 @@ export interface MentiSlide {
   emoji?: string;
 }
 
+export interface MentiSurveySettings {
+  isEnabled: boolean;             // Whether async survey is active
+  surveyCode: string;             // 6-digit or slug code, e.g. "582194"
+  expiresAt: number | null;       // Timestamp when survey expires (null = unlimited / until manual close)
+  durationDays: number | null;    // Configured duration preset: 2, 7, 14, 30 or null
+  allowViewResultsAfterVote?: boolean; // Can colleagues see live results after submitting?
+  createdAt: number;
+  closedAt?: number | null;
+}
+
 export interface MentiPresentation {
   id: string;
   title: string;
@@ -89,6 +99,10 @@ export interface MentiPresentation {
   updatedAt: number;
   slides: MentiSlide[];
   
+  // Asynchronous Survey Settings & Results
+  surveySettings?: MentiSurveySettings;
+  responsesCount?: number;
+
   // Archived results from last run
   archivedResponses?: Record<string, any>;
   lastRunAt?: number;
@@ -122,4 +136,13 @@ export interface MentiLiveSession {
   recentReactions?: MentiLiveReaction[];
   
   updatedAt: number;
+
+  // Asynchronous Survey / Audience-Paced Mode
+  isSurveyMode?: boolean;
+  slides?: MentiSlide[];           // All slides so voters navigate independently
+  expiresAt?: number | null;       // Timestamp when survey expires
+  isClosed?: boolean;              // Manually closed
+  allowViewResults?: boolean;      // Whether voters can view intermediate results
+  authorName?: string;
+  authorId?: string;
 }

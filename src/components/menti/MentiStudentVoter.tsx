@@ -4,14 +4,18 @@ import {
   Send, 
   Sparkles, 
   Lock, 
-  ArrowRight,
+  ArrowRight, 
+  ArrowLeft,
   ArrowUp,
   ArrowDown,
-  X
+  X,
+  Clock,
+  Check,
+  BarChart3
 } from 'lucide-react';
 import { 
   subscribeToMentiSession, 
-  getMentiLiveSessionFromCloud,
+  getMentiLiveSessionFromCloud, 
   submitMentiVoteInCloud, 
   submitMentiReactionInCloud 
 } from '../../services/firebase';
@@ -49,10 +53,44 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     return localStorage.getItem('hbs_menti_student_nick') || '';
   });
 
+  // Survey Mode State (Audience-Paced)
+  const [surveySlideIndex, setSurveySlideIndex] = useState<number>(0);
+  const [isSurveyCompleted, setIsSurveyCompleted] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && pinCode) {
+      return localStorage.getItem(`hbs_menti_completed_${pinCode}`) === 'true';
+    }
+    return false;
+  });
+  const [showSurveyResults, setShowSurveyResults] = useState<boolean>(false);
+
   // State of votes for slides (slideId -> boolean)
-  const [votedSlides, setVotedSlides] = useState<Record<string, boolean>>({});
+  const [votedSlides, setVotedSlides] = useState<Record<string, boolean>>(() => {
+    if (typeof window !== 'undefined' && pinCode) {
+      try {
+        const saved = localStorage.getItem(`hbs_menti_voted_${pinCode}`);
+        return saved ? JSON.parse(saved) : {};
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  });
+
+  // Save votedSlides to localStorage
+  useEffect(() => {
+    if (pinCode && Object.keys(votedSlides).length > 0) {
+      try {
+        localStorage.setItem(`hbs_menti_voted_${pinCode}`, JSON.stringify(votedSlides));
+      } catch {}
+    }
+  }, [votedSlides, pinCode]);
+
+  const isSurveyMode = Boolean(session?.isSurveyMode || (session?.slides && session.slides.length > 1 && !session.currentSlideIndex));
+  const slides = session?.slides || (session?.activeSlide ? [session.activeSlide] : []);
+  const activeSlide: MentiSlide | undefined = isSurveyMode ? slides[surveySlideIndex] : session?.activeSlide;
+
   const [lastActiveSlideId, setLastActiveSlideId] = useState<string | null>(null);
-  const hasVotedForCurrentSlide = Boolean(session?.activeSlide?.id && votedSlides[session.activeSlide.id]);
+  const hasVotedForCurrentSlide = Boolean(activeSlide?.id && votedSlides[activeSlide.id]);
 
   // Wordcloud inputs (1 to 3 words)
   const [words, setWords] = useState<string[]>(['', '', '']);
@@ -122,7 +160,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
       if (live) {
         setSession(live);
       }
-    }, 2000);
+    }, 2500);
 
     return () => {
       unsubscribe();
@@ -132,29 +170,35 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
 
   // When active slide changes in the session, reset input fields for new slide!
   useEffect(() => {
-    if (session?.activeSlide) {
-      if (session.activeSlide.id !== lastActiveSlideId) {
-        setLastActiveSlideId(session.activeSlide.id);
+    if (activeSlide) {
+      if (activeSlide.id !== lastActiveSlideId) {
+        setLastActiveSlideId(activeSlide.id);
         setWords(['', '', '']);
         setOpenText('');
         // Initialize scales
-        if (session.activeSlide.type === 'scales' && session.activeSlide.scales) {
+        if (activeSlide.type === 'scales' && activeSlide.scales) {
           const initialScales: Record<string, number> = {};
-          session.activeSlide.scales.forEach(s => { initialScales[s.id] = 3; });
+          activeSlide.scales.forEach(s => { initialScales[s.id] = 3; });
           setScaleValues(initialScales);
         }
         // Initialize matrix
-        if (session.activeSlide.type === 'matrix') {
+        if (activeSlide.type === 'matrix') {
           setMatrixCoords({ x: 50, y: 50 });
           setMatrixHasPlaced(false);
         }
         // Initialize ranking
-        if (session.activeSlide.type === 'ranking' && session.activeSlide.rankingItems) {
-          setRankingOrder(session.activeSlide.rankingItems.map(item => item.id));
+        if (activeSlide.type === 'ranking' && activeSlide.rankingItems) {
+          setRankingOrder(activeSlide.rankingItems.map(item => item.id));
         }
       }
     }
-  }, [session?.activeSlide?.id, lastActiveSlideId]);
+  }, [activeSlide?.id, lastActiveSlideId]);
+
+  // Expiration check
+  const isExpired = Boolean(
+    session?.isClosed || 
+    (session?.expiresAt && Date.now() > session.expiresAt)
+  );
 
   // Send realtime floating reaction (❤️, 👍, 💡, 👏, 🎉)
   const handleSendReaction = async (emoji: string) => {
@@ -165,7 +209,6 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
       timestamp: Date.now()
     };
 
-    // Broadcast locally
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
         type: 'STUDENT_REACTION',
@@ -173,7 +216,6 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
       });
     }
 
-    // Cloud push
     if (session && pinCode) {
       submitMentiReactionInCloud(pinCode, reaction);
     }
@@ -181,58 +223,60 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
 
   // Submit Word Cloud
   const handleSubmitWordCloud = async () => {
-    if (!session) return;
+    if (!session || !activeSlide) return;
     const cleanWords = words.map(w => w.trim()).filter(w => w.length > 0);
     if (cleanWords.length === 0) return;
 
-    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
+    setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
 
-    // Broadcast locally
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
         type: 'STUDENT_WORD_SUBMISSION',
         payload: {
-          slideId: session.activeSlide.id,
+          slideId: activeSlide.id,
           words: cleanWords
         }
       });
     }
 
-    // Cloud push
     if (pinCode) {
-      cleanWords.forEach(w => {
+      cleanWords.forEach((w, idx) => {
         const capitalized = w.charAt(0).toUpperCase() + w.slice(1);
-        submitMentiVoteInCloud(pinCode, session.activeSlide.id, { word: capitalized });
+        submitMentiVoteInCloud(pinCode, activeSlide.id, { 
+          word: capitalized,
+          incrementParticipant: isSurveyMode ? (surveySlideIndex === 0 && idx === 0) : true
+        });
       });
     }
   };
 
   // Submit Choice
   const handleSelectChoice = async (optionId: string) => {
-    if (!session || !session.isVotingOpen) return;
-    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
+    if (!session || !activeSlide || !session.isVotingOpen || isExpired) return;
+    setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
 
-    // Broadcast locally
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
         type: 'STUDENT_VOTE_OPTION',
         payload: {
-          slideId: session.activeSlide.id,
+          slideId: activeSlide.id,
           optionId
         }
       });
     }
 
-    // Cloud push
     if (pinCode) {
-      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { optionId });
+      submitMentiVoteInCloud(pinCode, activeSlide.id, { 
+        optionId,
+        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+      });
     }
   };
 
   // Submit Open-ended
   const handleSubmitOpen = async () => {
-    if (!session || !openText.trim()) return;
-    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
+    if (!session || !activeSlide || !openText.trim() || isExpired) return;
+    setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
 
     const newResponse = {
       id: `resp-${Date.now()}-${Math.random()}`,
@@ -240,58 +284,59 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
       timestamp: Date.now()
     };
 
-    // Broadcast locally
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
         type: 'STUDENT_OPEN_SUBMISSION',
         payload: {
-          slideId: session.activeSlide.id,
+          slideId: activeSlide.id,
           item: newResponse
         }
       });
     }
 
-    // Cloud push
     if (pinCode) {
-      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { text: openText.trim() });
+      submitMentiVoteInCloud(pinCode, activeSlide.id, { 
+        text: openText.trim(),
+        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+      });
     }
   };
 
   // Submit Scales
   const handleSubmitScales = async () => {
-    if (!session) return;
-    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
+    if (!session || !activeSlide || isExpired) return;
+    setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
 
-    // Broadcast locally
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
         type: 'STUDENT_SCALE_SUBMISSION',
         payload: {
-          slideId: session.activeSlide.id,
+          slideId: activeSlide.id,
           scales: scaleValues
         }
       });
     }
 
-    // Cloud push
     if (pinCode) {
-      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { ratings: scaleValues });
+      submitMentiVoteInCloud(pinCode, activeSlide.id, { 
+        ratings: scaleValues,
+        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+      });
     }
   };
 
   // Submit Quiz Choice
   const handleSelectQuiz = async (optionId: string, isCorrect: boolean) => {
-    if (!session || !session.isVotingOpen) return;
-    const finalNick = nickname.trim() || 'Schüler';
-    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
+    if (!session || !activeSlide || !session.isVotingOpen || isExpired) return;
+    const finalNick = nickname.trim() || 'Kollege';
+    setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
     const score = isCorrect ? 1000 : 0;
 
-    // Broadcast locally
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
         type: 'STUDENT_QUIZ_ANSWER',
         payload: {
-          slideId: session.activeSlide.id,
+          slideId: activeSlide.id,
           optionId,
           nickname: finalNick,
           isCorrect,
@@ -300,16 +345,18 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
       });
     }
 
-    // Cloud push
     if (pinCode) {
-      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { optionId });
+      submitMentiVoteInCloud(pinCode, activeSlide.id, { 
+        optionId,
+        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+      });
     }
   };
 
   // Submit Matrix
   const handleSubmitMatrix = async () => {
-    if (!session || !session.isVotingOpen) return;
-    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
+    if (!session || !activeSlide || !session.isVotingOpen || isExpired) return;
+    setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
 
     const vote = {
       x: Math.round(matrixCoords.x),
@@ -317,42 +364,52 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
       label: nickname.trim() || undefined
     };
 
-    // Broadcast locally
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
         type: 'STUDENT_MATRIX_VOTE',
         payload: {
-          slideId: session.activeSlide.id,
+          slideId: activeSlide.id,
           vote
         }
       });
     }
 
-    // Cloud push
     if (pinCode) {
-      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { matrixCoords: vote });
+      submitMentiVoteInCloud(pinCode, activeSlide.id, { 
+        matrixCoords: vote,
+        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+      });
     }
   };
 
   // Submit Ranking
   const handleSubmitRanking = async () => {
-    if (!session || !session.isVotingOpen || rankingOrder.length === 0) return;
-    setVotedSlides(prev => ({ ...prev, [session.activeSlide.id]: true }));
+    if (!session || !activeSlide || !session.isVotingOpen || rankingOrder.length === 0 || isExpired) return;
+    setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
 
-    // Broadcast locally
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
         type: 'STUDENT_RANKING_VOTE',
         payload: {
-          slideId: session.activeSlide.id,
+          slideId: activeSlide.id,
           orderIds: rankingOrder
         }
       });
     }
 
-    // Cloud push
     if (pinCode) {
-      submitMentiVoteInCloud(pinCode, session.activeSlide.id, { rankingOrder });
+      submitMentiVoteInCloud(pinCode, activeSlide.id, { 
+        rankingOrder,
+        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+      });
+    }
+  };
+
+  // Complete Survey Handler
+  const handleFinishSurvey = () => {
+    setIsSurveyCompleted(true);
+    if (pinCode) {
+      localStorage.setItem(`hbs_menti_completed_${pinCode}`, 'true');
     }
   };
 
@@ -368,10 +425,10 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
             Heimbürgeschule Kahla
           </span>
           <h1 className="text-2xl font-black text-slate-900">
-            HBS Menti Live
+            HBS Menti Studio
           </h1>
           <p className="text-xs text-slate-500">
-            Gib den 6-stelligen Code vom Smartboard ein, um an der Abstimmung teilzunehmen.
+            Gib den 6-stelligen Code ein, um an der Abstimmung oder Umfrage teilzunehmen.
           </p>
         </div>
 
@@ -407,7 +464,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
             <button
               type="submit"
               disabled={enteredPin.replace(/\s+/g, '').length < 6}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Beitreten</span>
               <ArrowRight className="w-4 h-4" />
@@ -416,38 +473,192 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
         </div>
 
         <div className="text-center pb-4 text-[10px] text-slate-400 font-bold">
-          DSGVO-konform • 100 % Anonym • Ohne Anmeldung
+          DSGVO-konform • 100 % Anonym • Ohne Registrierung
         </div>
       </div>
     );
   }
 
-  // Active Slide Rendering
-  const activeSlide: MentiSlide | undefined = session?.activeSlide;
+  // EXPIRED OR CLOSED SURVEY SCREEN
+  if (session && isExpired) {
+    return (
+      <div className="min-h-dvh bg-gradient-to-b from-[#F0F8FA] via-white to-[#EDF4FF] flex flex-col justify-between p-4 sm:p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] font-sans">
+        <header className="max-w-md w-full mx-auto text-center pt-4">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-white shadow-md border border-slate-200 p-1.5 flex items-center justify-center mb-2">
+            <img src="/Siegel_bunt.png" alt="HBS" className="w-full h-full object-contain" />
+          </div>
+          <span className="text-xs font-black uppercase tracking-widest text-slate-400">
+            {session.presentationTitle || 'HBS Menti'}
+          </span>
+        </header>
+
+        <div className="max-w-md w-full mx-auto my-auto py-8">
+          <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-200 text-center space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
+              <Clock className="w-8 h-8 text-slate-400" />
+            </div>
+            <h2 className="text-xl font-black text-slate-900">
+              Umfrage beendet
+            </h2>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Die Gültigkeitsdauer dieser Umfrage ist abgelaufen oder die Umfrage wurde von der Lehrkraft geschlossen.
+            </p>
+            <div className="pt-2 text-[11px] text-slate-400 font-mono">
+              PIN: {pinCode}
+            </div>
+
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="mt-4 px-6 py-2.5 rounded-2xl bg-slate-800 text-white font-bold text-xs transition-all active:scale-95 shadow-xs cursor-pointer"
+              >
+                Zurück zum Portal
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="text-center pb-4 text-[10px] text-slate-400 font-bold">
+          Heimbürgeschule Kahla • Schulapps Portal
+        </div>
+      </div>
+    );
+  }
+
+  // SURVEY COMPLETED SCREEN (Audience Pace finished)
+  if (isSurveyMode && isSurveyCompleted) {
+    return (
+      <div className="min-h-dvh bg-gradient-to-b from-[#F0F8FA] via-white to-[#EDF4FF] flex flex-col justify-between p-4 sm:p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] font-sans">
+        <header className="max-w-md w-full mx-auto text-center pt-4">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-white shadow-md border border-slate-200 p-1 flex items-center justify-center mb-2">
+            <img src="/Siegel_bunt.png" alt="HBS" className="w-full h-full object-contain" />
+          </div>
+          <span className="text-xs font-black uppercase tracking-widest text-teal-800">
+            {session?.presentationTitle || 'HBS Menti'}
+          </span>
+        </header>
+
+        <div className="max-w-md w-full mx-auto my-auto py-6 space-y-4">
+          <div className="bg-white rounded-3xl p-8 shadow-xl border border-emerald-100 text-center space-y-4 animate-scaleUp">
+            <div className="w-20 h-20 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-inner">
+              <CheckCircle2 className="w-12 h-12" />
+            </div>
+            
+            <h2 className="text-2xl font-black text-slate-900">
+              Vielen Dank für deine Teilnahme!
+            </h2>
+            
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Deine Antworten wurden erfolgreich und vollkommen anonym übermittelt.
+              {session?.authorName && ` Die Lehrkraft (${session.authorName}) kann die Gesamtergebnisse nun einsehen.`}
+            </p>
+
+            {/* Optional Intermediate Results Toggle */}
+            {session?.allowViewResults && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSurveyResults(!showSurveyResults)}
+                  className="px-4 py-2.5 rounded-2xl bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs border border-teal-200 transition-all flex items-center justify-center gap-2 mx-auto cursor-pointer"
+                >
+                  <BarChart3 className="w-4 h-4 text-teal-600" />
+                  <span>{showSurveyResults ? 'Ergebnisse ausblenden' : 'Zwischenstand der Ergebnisse ansehen'}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Inline Results Preview if allowed */}
+            {showSurveyResults && session && (
+              <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-4 max-h-72 overflow-y-auto text-xs animate-fadeIn">
+                <h4 className="font-bold text-slate-900 border-b pb-1">Aktueller Zwischenstand:</h4>
+                {slides.map((s, idx) => {
+                  const counts = session.responses?.[s.id] || {};
+                  return (
+                    <div key={s.id || idx} className="space-y-1">
+                      <div className="font-semibold text-slate-800">
+                        {idx + 1}. {s.question}
+                      </div>
+                      {s.type === 'choice' && (
+                        <div className="space-y-1 pl-2">
+                          {(s.options || []).map(opt => (
+                            <div key={opt.id} className="flex justify-between text-[11px] text-slate-600">
+                              <span>• {opt.text}</span>
+                              <span className="font-mono font-bold">{counts[opt.id] || 0} Stimmen</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {s.type === 'wordcloud' && (
+                        <div className="flex flex-wrap gap-1 pl-2">
+                          {Object.entries(counts).map(([w, c]) => (
+                            <span key={w} className="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 text-[10px] font-bold">
+                              {w} ({String(c)}x)
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSurveyCompleted(false);
+                  setSurveySlideIndex(0);
+                }}
+                className="text-xs font-bold text-slate-500 hover:text-slate-800 transition-all cursor-pointer underline"
+              >
+                Antworten überprüfen
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-center pb-4 text-[10px] text-slate-400 font-bold">
+          DSGVO-konform • Heimbürgeschule Kahla
+        </div>
+      </div>
+    );
+  }
+
+  // PROGRESS BAR CALCULATION FOR SURVEY MODE
+  const totalSlidesCount = isSurveyMode ? slides.length : (session?.totalSlides || 1);
+  const currentProgressPercent = isSurveyMode 
+    ? Math.round(((surveySlideIndex + 1) / Math.max(totalSlidesCount, 1)) * 100)
+    : 100;
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-[#F0F8FA] via-white to-[#EDF4FF] flex flex-col justify-between p-4 sm:p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] font-sans select-none">
       
-      {/* Header */}
-      <header className="max-w-md w-full mx-auto text-center pt-2">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-white shadow-2xs border border-slate-200 p-0.5">
+      {/* Top Header */}
+      <header className="max-w-md w-full mx-auto text-center pt-2 space-y-2">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-xl bg-white shadow-2xs border border-slate-200 p-0.5 shrink-0">
               <img src="/Siegel_bunt.png" alt="HBS" className="w-full h-full object-contain" />
             </div>
-            <span className="text-xs font-black text-slate-800">
+            <span className="text-xs font-black text-slate-800 truncate">
               {session?.presentationTitle || 'HBS Menti'}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-lg bg-teal-50 text-teal-800 font-mono text-[11px] font-bold border border-teal-100">
+          <div className="flex items-center gap-2 shrink-0">
+            {isSurveyMode && (
+              <span className="px-2 py-0.5 rounded-lg bg-teal-50 text-teal-800 font-bold text-[10px] border border-teal-200">
+                Frage {surveySlideIndex + 1} / {totalSlidesCount}
+              </span>
+            )}
+            <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-mono text-[11px] font-bold border border-slate-200">
               PIN: {pinCode}
             </span>
             {onClose && (
               <button
                 onClick={onClose}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
                 title="Verlassen"
               >
                 <X className="w-4 h-4" />
@@ -455,6 +666,24 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
             )}
           </div>
         </div>
+
+        {/* Survey Mode Progress Bar */}
+        {isSurveyMode && (
+          <div className="space-y-1">
+            <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-300"
+                style={{ width: `${currentProgressPercent}%` }}
+              />
+            </div>
+            {session?.expiresAt && (
+              <div className="text-[10px] text-slate-400 font-medium flex items-center justify-between">
+                <span>Selbstgesteuerte Umfrage</span>
+                <span>Gültig bis {new Date(session.expiresAt).toLocaleDateString('de-DE')}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Voting Lock Warning */}
         {session && !session.isVotingOpen && (
@@ -480,8 +709,8 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
               Sobald die Präsentation gestartet wird, erscheint deine Frage hier auf dem Bildschirm.
             </p>
           </div>
-        ) : hasVotedForCurrentSlide ? (
-          /* Confirmation Screen */
+        ) : hasVotedForCurrentSlide && !isSurveyMode ? (
+          /* Live Confirmation Screen (only in live presenter mode) */
           <div className="bg-white rounded-3xl p-8 shadow-xl border border-emerald-100 text-center space-y-3 animate-fadeIn">
             <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
               <CheckCircle2 className="w-9 h-9" />
@@ -500,19 +729,41 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
           /* Interaction Card based on Type */
           <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 space-y-4 animate-fadeIn">
             
-            <h2 className="text-lg font-black text-slate-900 leading-snug">
-              {activeSlide.question}
-            </h2>
+            {/* Slide Question & Status */}
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100">
+                  {activeSlide.type === 'wordcloud' && '☁️ Wortwolke'}
+                  {activeSlide.type === 'choice' && '📊 Multiple Choice'}
+                  {activeSlide.type === 'open' && '💬 Freitext'}
+                  {activeSlide.type === 'scales' && '⚖️ Bewertung'}
+                  {activeSlide.type === 'quiz' && '🏆 Quiz'}
+                  {activeSlide.type === 'matrix' && '🎯 Matrix'}
+                  {activeSlide.type === 'ranking' && '🥇 Rangfolge'}
+                  {activeSlide.type === 'content' && '📄 Info'}
+                </span>
 
-            {activeSlide.description && (
-              <p className="text-xs text-slate-500">
-                {activeSlide.description}
-              </p>
-            )}
+                {hasVotedForCurrentSlide && (
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1 border border-emerald-200">
+                    <Check className="w-3 h-3" /> Gespeichert
+                  </span>
+                )}
+              </div>
+
+              <h2 className="text-lg font-black text-slate-900 leading-snug">
+                {activeSlide.question}
+              </h2>
+
+              {activeSlide.description && (
+                <p className="text-xs text-slate-500 mt-1">
+                  {activeSlide.description}
+                </p>
+              )}
+            </div>
 
             {/* WORD CLOUD INPUTS */}
             {activeSlide.type === 'wordcloud' && (
-              <div className="space-y-3 pt-2">
+              <div className="space-y-3 pt-1">
                 {[...Array(activeSlide.maxWordsPerUser || 3)].map((_, i) => (
                   <input
                     key={i}
@@ -530,25 +781,27 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                 ))}
 
                 <button
+                  type="button"
                   onClick={handleSubmitWordCloud}
                   disabled={!words.some(w => w.trim().length > 0) || !session?.isVotingOpen}
-                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Send className="w-4 h-4" />
-                  <span>Wortwolke absenden</span>
+                  <span>{hasVotedForCurrentSlide ? 'Begriffe aktualisieren' : 'Wortwolke absenden'}</span>
                 </button>
               </div>
             )}
 
             {/* CHOICE OPTIONS */}
             {activeSlide.type === 'choice' && (
-              <div className="grid grid-cols-1 gap-2.5 pt-2">
+              <div className="grid grid-cols-1 gap-2.5 pt-1">
                 {(activeSlide.options || []).map((opt, idx) => (
                   <button
                     key={opt.id}
+                    type="button"
                     onClick={() => handleSelectChoice(opt.id)}
                     disabled={!session?.isVotingOpen}
-                    className="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/60 border-2 border-slate-200 hover:border-teal-500 text-left transition-all active:scale-98 flex items-center gap-3 group"
+                    className="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/60 border-2 border-slate-200 hover:border-teal-500 text-left transition-all active:scale-98 flex items-center gap-3 group cursor-pointer"
                   >
                     <span className="w-8 h-8 rounded-xl bg-white border border-slate-200 group-hover:border-teal-500 text-slate-700 group-hover:text-teal-700 font-mono font-black text-sm flex items-center justify-center shrink-0">
                       {String.fromCharCode(65 + idx)}
@@ -563,7 +816,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
 
             {/* OPEN-ENDED TEXT */}
             {activeSlide.type === 'open' && (
-              <div className="space-y-3 pt-2">
+              <div className="space-y-3 pt-1">
                 <textarea
                   rows={4}
                   value={openText}
@@ -573,9 +826,10 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                 />
 
                 <button
+                  type="button"
                   onClick={handleSubmitOpen}
                   disabled={!openText.trim() || !session?.isVotingOpen}
-                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Send className="w-4 h-4" />
                   <span>Antwort absenden</span>
@@ -585,7 +839,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
 
             {/* SCALES (LIKERT) */}
             {activeSlide.type === 'scales' && (
-              <div className="space-y-4 pt-2">
+              <div className="space-y-4 pt-1">
                 {(activeSlide.scales || []).map((sc) => (
                   <div key={sc.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                     <div className="flex justify-between text-xs font-bold text-slate-800">
@@ -616,21 +870,22 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                 ))}
 
                 <button
+                  type="button"
                   onClick={handleSubmitScales}
                   disabled={!session?.isVotingOpen}
-                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40"
+                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
                 >
                   Bewertung absenden
                 </button>
               </div>
             )}
 
-            {/* QUIZ SPEED SELECTION */}
+            {/* QUIZ SELECTION */}
             {activeSlide.type === 'quiz' && (
-              <div className="space-y-3 pt-2">
+              <div className="space-y-3 pt-1">
                 {!nickname && (
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-500">Dein Spielername:</label>
+                    <label className="text-[11px] font-bold text-slate-500">Dein Name / Kürzel:</label>
                     <input
                       type="text"
                       maxLength={15}
@@ -638,7 +893,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                         setNickname(e.target.value);
                         localStorage.setItem('hbs_menti_student_nick', e.target.value);
                       }}
-                      placeholder="z. B. Max oder Lea"
+                      placeholder="z. B. Kollege oder Name"
                       className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold"
                     />
                   </div>
@@ -648,9 +903,10 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                   {(activeSlide.options || []).map((opt) => (
                     <button
                       key={opt.id}
+                      type="button"
                       onClick={() => handleSelectQuiz(opt.id, !!opt.isCorrect)}
                       disabled={!session?.isVotingOpen}
-                      className="p-4 rounded-2xl bg-slate-50 hover:bg-rose-50 border-2 border-slate-200 hover:border-rose-400 text-left font-bold text-sm text-slate-900 transition-all active:scale-95 shadow-2xs"
+                      className="p-4 rounded-2xl bg-slate-50 hover:bg-rose-50 border-2 border-slate-200 hover:border-rose-400 text-left font-bold text-sm text-slate-900 transition-all active:scale-95 shadow-2xs cursor-pointer"
                     >
                       {opt.text}
                     </button>
@@ -661,7 +917,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
 
             {/* MATRIX 2X2 QUADRANT */}
             {activeSlide.type === 'matrix' && (
-              <div className="space-y-4 pt-2">
+              <div className="space-y-4 pt-1">
                 <div className="text-center">
                   <p className="text-xs font-semibold text-slate-500">
                     Tippe in das Koordinatenfeld, um deine Position zu setzen:
@@ -690,7 +946,6 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                     }
                   }}
                 >
-                  {/* Quadrant Background Colors */}
                   <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
                     <div className="bg-amber-500/5 border-r border-b border-slate-200 p-2 flex flex-col justify-start">
                       <span className="text-[10px] font-black text-amber-700/60 uppercase tracking-wider line-clamp-1">
@@ -714,25 +969,9 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                     </div>
                   </div>
 
-                  {/* Axis Crosshairs */}
                   <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-300 pointer-events-none" />
                   <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-slate-300 pointer-events-none" />
 
-                  {/* Axis Labels */}
-                  <div className="absolute top-1.5 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-500 uppercase tracking-widest bg-white/80 px-1.5 py-0.5 rounded shadow-2xs pointer-events-none">
-                    {activeSlide.matrixConfig?.yHighLabel || 'Y: Hoch'}
-                  </div>
-                  <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-500 uppercase tracking-widest bg-white/80 px-1.5 py-0.5 rounded shadow-2xs pointer-events-none">
-                    {activeSlide.matrixConfig?.yLowLabel || 'Y: Niedrig'}
-                  </div>
-                  <div className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-500 uppercase tracking-widest bg-white/80 px-1.5 py-0.5 rounded shadow-2xs pointer-events-none">
-                    {activeSlide.matrixConfig?.xLowLabel || 'X: Niedrig'}
-                  </div>
-                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-500 uppercase tracking-widest bg-white/80 px-1.5 py-0.5 rounded shadow-2xs pointer-events-none">
-                    {activeSlide.matrixConfig?.xHighLabel || 'X: Hoch'}
-                  </div>
-
-                  {/* User Pin */}
                   {matrixHasPlaced && (
                     <div 
                       className="absolute w-6 h-6 -translate-x-1/2 translate-y-1/2 flex items-center justify-center pointer-events-none transition-all duration-75"
@@ -751,13 +990,14 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                 <div className="text-center text-xs text-slate-500 font-semibold">
                   {matrixHasPlaced 
                     ? `Position gesetzt (X: ${Math.round(matrixCoords.x)}%, Y: ${Math.round(matrixCoords.y)}%)`
-                    : 'Tippe irgendwo ins Feld, um deine Einschätzung zu platzieren'}
+                    : 'Tippe ins Feld, um deine Position zu markieren'}
                 </div>
 
                 <button
+                  type="button"
                   onClick={handleSubmitMatrix}
                   disabled={!matrixHasPlaced || !session?.isVotingOpen}
-                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Send className="w-4 h-4" />
                   <span>Position absenden</span>
@@ -767,7 +1007,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
 
             {/* RANKING LIST */}
             {activeSlide.type === 'ranking' && (
-              <div className="space-y-4 pt-2">
+              <div className="space-y-4 pt-1">
                 <p className="text-xs font-semibold text-slate-500 text-center">
                   Bringe die Einträge in deine Wunsch-Reihenfolge (Platz 1 = ganz oben):
                 </p>
@@ -800,7 +1040,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                                 setRankingOrder(newOrder);
                               }
                             }}
-                            className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-30 active:scale-95 transition-all text-slate-700"
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-30 active:scale-95 transition-all text-slate-700 cursor-pointer"
                             title="Nach oben"
                           >
                             <ArrowUp className="w-4 h-4" />
@@ -817,7 +1057,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                                 setRankingOrder(newOrder);
                               }
                             }}
-                            className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-30 active:scale-95 transition-all text-slate-700"
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-30 active:scale-95 transition-all text-slate-700 cursor-pointer"
                             title="Nach unten"
                           >
                             <ArrowDown className="w-4 h-4" />
@@ -829,9 +1069,10 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                 </div>
 
                 <button
+                  type="button"
                   onClick={handleSubmitRanking}
                   disabled={rankingOrder.length === 0 || !session?.isVotingOpen}
-                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Send className="w-4 h-4" />
                   <span>Rangfolge absenden</span>
@@ -844,10 +1085,51 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
               <div className="text-center py-6 space-y-3">
                 <div className="text-5xl">{activeSlide.emoji || '💡'}</div>
                 <p className="text-sm font-bold text-slate-700">
-                  Schau nach vorne auf das Smartboard!
+                  {activeSlide.question}
                 </p>
+                <div className="space-y-1 text-xs text-slate-500">
+                  {(activeSlide.bulletPoints || []).map((pt, i) => (
+                    <div key={i}>• {pt}</div>
+                  ))}
+                </div>
               </div>
             )}
+
+            {/* AUDIENCE-PACE NAVIGATION BUTTONS (SURVEY MODE) */}
+            {isSurveyMode && (
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  disabled={surveySlideIndex === 0}
+                  onClick={() => setSurveySlideIndex(prev => Math.max(prev - 1, 0))}
+                  className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold disabled:opacity-30 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Zurück</span>
+                </button>
+
+                {surveySlideIndex < slides.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setSurveySlideIndex(prev => Math.min(prev + 1, slides.length - 1))}
+                    className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95"
+                  >
+                    <span>Nächste Frage</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleFinishSurvey}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-md transition-all active:scale-95"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Umfrage abschließen 🎉</span>
+                  </button>
+                )}
+              </div>
+            )}
+
           </div>
         )}
       </main>
@@ -866,7 +1148,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
             <button
               key={r.emoji}
               onClick={() => handleSendReaction(r.emoji)}
-              className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 active:scale-125 transition-transform text-xl flex items-center justify-center shadow-2xs"
+              className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 active:scale-125 transition-transform text-xl flex items-center justify-center shadow-2xs cursor-pointer"
               title={r.label}
             >
               {r.emoji}
@@ -877,3 +1159,4 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     </div>
   );
 };
+

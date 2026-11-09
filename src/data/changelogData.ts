@@ -2,10 +2,47 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '3.1.0',
+    title: 'HBS Menti Asynchrone Umfragen (Audience Pace), Dauerhafte Gültigkeit & Ergebnis-Auswertungszentrum',
+    date: '9. November 2026',
+    isLatest: true,
+    highlight: 'Einführung des asynchronen Mentimeter-Umfragemodus (Audience Pace) mit konfigurierbarer Gültigkeitsdauer (2 Tage, 7 Tage Menti-Standard, 14 Tage, 30 Tage oder dauerhaft): Umfragen bleiben vollständig unabhängig von Login-Sitzungen des Erstellers in der Cloud aktiv. Kolleginnen und Kollegen können per Freigabe-Link selbstgesteuert durch alle Folien navigieren. Alle Ergebnisse werden dauerhaft in Google Cloud Firestore gesichert und lassen sich jederzeit über das neue interaktive Ergebnis-Dashboard einsehen, drucken oder am Smartboard präsentieren.',
+    items: [
+      {
+        id: 'cl-310-1',
+        type: 'neu',
+        title: 'Asynchroner Umfrage-Modus (Audience Pace) wie beim echten Mentimeter',
+        description: 'Jede Menti-Präsentation kann nun als selbstgesteuerte Umfrage für das Kollegium freigegeben werden. Der erzeugte Teilnahme-Link und QR-Code funktionieren dauerhaft – auch wenn die erstellende Lehrkraft aus dem Schulapps-Portal ausgeloggt ist oder der Browser geschlossen wird. Kolleginnen und Kollegen blättern selbstständig Frage für Frage durch und senden ihre Stimmen ab.',
+        badge: 'Audience Pace'
+      },
+      {
+        id: 'cl-310-2',
+        type: 'neu',
+        title: 'Konfigurierbare Gültigkeitsdauer (2, 7, 14, 30 Tage oder Dauerhaft)',
+        description: 'Über das neue Freigabemenü („Umfrage-Link“) lässt sich die Laufzeit nach Mentimeter-Vorbild flexibel definieren (2 Tage Schnellumfrage, 7 Tage Standard, 14 Tage, 30 Tage oder unbegrenzt). Eine smarte Status-Plakette im Dashboard zeigt die verbleibende Restzeit an. Mit einem Klick auf „+7 Tage verlängern“ kann jede Umfrage reaktiviert werden.',
+        badge: 'Gültigkeitsdauer'
+      },
+      {
+        id: 'cl-310-3',
+        type: 'neu',
+        title: 'Interaktives Auswertungszentrum & permanentes Ergebnis-Archiv',
+        description: 'Loggt sich der Ersteller Tage später wieder ein, erscheint direkt auf der Kachel die Anzahl der eingegangenen Stimmen. Ein Klick auf „Ergebnisse“ öffnet die Gesamtauswertung mit hochauflösenden Diagrammen, Wortwolken mit Frequenztabellen, Skalenmittelwerten, 2x2-Priorisierungsquadranten und Freitext-Karten. Die Ergebnisse können ausgedruckt, am Beamer präsentiert oder für eine neue Gruppe zurückgesetzt werden.',
+        badge: 'Auswertung & Export'
+      },
+      {
+        id: 'cl-310-4',
+        type: 'verbessert',
+        title: 'Responsiver Self-Service-Voter mit Fortschrittsanzeige & Ergebniseinsicht',
+        description: 'Der mobile Voter erkennt selbstgesteuerte Umfragen automatisch und blendet einen Fortschrittsbalken („Frage X von Y“) mit Vor- und Zurück-Navigation ein. Antworten werden zuverlässig per Firestore-Cloudpush gespeichert. Nach Abschluss bedankt sich das System mit einer Bestätigung und erlaubt – falls freigegeben – einen Blick auf den aktuellen Zwischenstand der Kollegiums-Ergebnisse.',
+        badge: 'Mobile Voter'
+      }
+    ]
+  },
+  {
     version: '3.0.0',
     title: 'Cloudflare R2 Dateiablage, Workers AI Sprachdiktat, Web Analytics & HBS Kahoot Live-Sync',
     date: '5. November 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Einführung des schuleigenen Datei- und Ordnersystems auf Cloudflare R2 Basis (10 GB kostenloser Speicher, 0 € Egress-Kosten, Trennung von persönlichem Bereich und Kollegiums-Austausch), KI-Sprachdiktat via Cloudflare Workers AI Whisper & Web Speech API, Tafelbild-Cloudspeicherung mit Miniatur-Vorschauen, DSGVO-konforme Web Analytics, Kahoot Live-Player Stabilisierung sowie responsiver Header-Schutz für Arbeitsplatz-Monitore.',
     items: [
       {

@@ -35,7 +35,7 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
   presentation,
   onExit
 }) => {
-  const { updateActiveMentiSession } = useAuth();
+  const { updateActiveMentiSession, saveMentiPresentation } = useAuth();
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0);
   const [isVotingOpen, setIsVotingOpen] = useState<boolean>(true);
@@ -44,16 +44,34 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
 
-  // 6-digit Join PIN (stable for the presentation session)
+  // 6-digit Join PIN (reuses persistent surveyCode if available, otherwise generates stable 6-digit PIN)
   const [sessionCode] = useState<string>(() => {
+    if (presentation.surveySettings?.surveyCode) {
+      return presentation.surveySettings.surveyCode;
+    }
     return Math.floor(100000 + Math.random() * 900000).toString();
   });
 
-  // Local state of votes & responses per slide
-  const [slideResponses, setSlideResponses] = useState<Record<string, any>>({});
+  // Local state of votes & responses per slide (initialized with previous/survey responses if available)
+  const [slideResponses, setSlideResponses] = useState<Record<string, any>>(() => {
+    return presentation.archivedResponses || {};
+  });
   const [floatingReactions, setFloatingReactions] = useState<MentiLiveReaction[]>([]);
-  const [participantsCount, setParticipantsCount] = useState<number>(0);
+  const [participantsCount, setParticipantsCount] = useState<number>(() => {
+    return presentation.responsesCount || 0;
+  });
   const [boardExportToast, setBoardExportToast] = useState<boolean>(false);
+
+  const handleExit = () => {
+    // Persist current responses and participants into presentation so results are saved permanently
+    saveMentiPresentation({
+      ...presentation,
+      archivedResponses: slideResponses,
+      responsesCount: participantsCount,
+      lastRunAt: Date.now()
+    }).catch(() => {});
+    onExit();
+  };
 
   // Quiz timer
   const activeSlide: MentiSlide = presentation.slides[currentSlideIndex] || presentation.slides[0];
@@ -632,7 +650,7 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
           </button>
 
           <button
-            onClick={onExit}
+            onClick={handleExit}
             className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-all active:scale-95 border border-white/10"
             title="Präsentation beenden"
           >

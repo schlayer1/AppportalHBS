@@ -696,21 +696,23 @@ export const submitKahootAnswerInCloud = async (
 };
 
 /**
- * Syncs the active Menti live session to Firestore.
+ * Syncs the active Menti live session or asynchronous survey to Firestore.
  */
 export const syncMentiLiveSession = async (session: MentiLiveSession): Promise<void> => {
   if (!db || !session.sessionCode) return;
   try {
     const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${session.sessionCode}`);
-    await setDoc(sessionDocRef, { ...session, updatedAt: Date.now() }, { merge: true });
+    const dataToWrite = sanitizeForFirestore({ ...session, updatedAt: Date.now() });
+    await setDoc(sessionDocRef, dataToWrite, { merge: true });
 
-    // Mirror to schools/HBS_portal
-    const schoolDocRef = doc(db, 'schools', 'HBS_portal');
-    await setDoc(schoolDocRef, { activeMentiSession: session }, { merge: true }).catch(() => {});
+    // Mirror to schools/HBS_portal & portal_data if live session
+    if (!session.isSurveyMode) {
+      const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+      await setDoc(schoolDocRef, { activeMentiSession: dataToWrite }, { merge: true }).catch(() => {});
 
-    // Mirror to portal_data
-    const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
-    await setDoc(portalDocRef, { activeMentiSession: session }, { merge: true }).catch(() => {});
+      const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
+      await setDoc(portalDocRef, { activeMentiSession: dataToWrite }, { merge: true }).catch(() => {});
+    }
   } catch (err) {
     console.warn("Menti sync to cloud warning:", err);
   }
@@ -719,7 +721,8 @@ export const syncMentiLiveSession = async (session: MentiLiveSession): Promise<v
 export const getMentiLiveSessionFromCloud = async (sessionCode: string): Promise<MentiLiveSession | null> => {
   if (!db || !sessionCode) return null;
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${sessionCode}`);
+    const cleanCode = (sessionCode || '').replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${cleanCode}`);
     const snap = await getDoc(sessionDocRef);
     if (snap.exists()) {
       return snap.data() as MentiLiveSession;
@@ -728,6 +731,67 @@ export const getMentiLiveSessionFromCloud = async (sessionCode: string): Promise
     console.warn("Error getting Menti session from cloud:", err);
   }
   return null;
+};
+
+/**
+ * Resets collected responses for a Menti session / survey in Firestore.
+ */
+export const resetMentiSessionResponsesInCloud = async (sessionCode: string): Promise<void> => {
+  if (!db || !sessionCode) return;
+  try {
+    const cleanCode = (sessionCode || '').replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${cleanCode}`);
+    await setDoc(sessionDocRef, {
+      responses: {},
+      participantsCount: 0,
+      updatedAt: Date.now()
+    }, { merge: true });
+
+    const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+    await setDoc(schoolDocRef, {
+      'activeMentiSession.responses': {},
+      'activeMentiSession.participantsCount': 0
+    }, { merge: true }).catch(() => {});
+  } catch (err) {
+    console.warn("Error resetting Menti session responses in cloud:", err);
+  }
+};
+
+/**
+ * Closes an asynchronous Menti survey in Firestore.
+ */
+export const closeMentiSurveyInCloud = async (sessionCode: string): Promise<void> => {
+  if (!db || !sessionCode) return;
+  try {
+    const cleanCode = (sessionCode || '').replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${cleanCode}`);
+    await setDoc(sessionDocRef, {
+      isClosed: true,
+      isVotingOpen: false,
+      updatedAt: Date.now()
+    }, { merge: true });
+  } catch (err) {
+    console.warn("Error closing Menti survey in cloud:", err);
+  }
+};
+
+/**
+ * Reopens / extends an asynchronous Menti survey in Firestore.
+ */
+export const reopenMentiSurveyInCloud = async (sessionCode: string, expiresAt: number | null): Promise<void> => {
+  if (!db || !sessionCode) return;
+  try {
+    const cleanCode = (sessionCode || '').replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${cleanCode}`);
+    await setDoc(sessionDocRef, {
+      isClosed: false,
+      isVotingOpen: true,
+      expiresAt,
+      updatedAt: Date.now()
+    }, { merge: true });
+  } catch (err) {
+    console.warn("Error reopening Menti survey in cloud:", err);
+  }
 };
 
 /**
@@ -773,7 +837,8 @@ export const submitMentiVoteInCloud = async (
 ): Promise<void> => {
   if (!db || !sessionCode) return;
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${sessionCode}`);
+    const cleanCode = (sessionCode || '').replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${cleanCode}`);
     const snap = await getDoc(sessionDocRef);
     if (snap.exists()) {
       const data = snap.data() as MentiLiveSession;
@@ -822,7 +887,9 @@ export const submitMentiVoteInCloud = async (
         responses[slideId] = arr;
       }
 
-      const newCount = (data.participantsCount || 0) + 1;
+      // If incrementParticipant is explicitly false (e.g. subsequent slides in survey mode), don't inflate participant count
+      const shouldIncrement = payload.incrementParticipant !== false;
+      const newCount = shouldIncrement ? (data.participantsCount || 0) + 1 : (data.participantsCount || 0);
 
       await setDoc(sessionDocRef, {
         responses,
