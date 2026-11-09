@@ -20,6 +20,7 @@ import {
   Printer,
   Download,
   Presentation,
+  Layers,
   X
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -100,6 +101,17 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
   const [isEditingConsensus, setIsEditingConsensus] = useState<boolean>(false);
   const [tempConsensus, setTempConsensus] = useState<string>('');
 
+  // Connected students tracking
+  const [connectedStudents, setConnectedStudents] = useState<Set<string>>(new Set());
+
+  // Free Canvas Touch Dragging & Snap-in State for Kartenabfrage
+  const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
+  const [dragCoord, setDragCoord] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [hoveredColumnId, setHoveredColumnId] = useState<string | null>(null);
+  const dragOriginRef = useRef<{ startX: number; startY: number; cardX: number; cardY: number; fromColumnId?: string } | null>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const columnRefs = useRef<{ [colId: string]: HTMLDivElement | null }>({});
+
   // Student join URL
   const studentJoinUrl = typeof window !== 'undefined'
     ? `${window.location.origin}${window.location.pathname}?oncoo=${session.pinCode}`
@@ -146,6 +158,9 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
         if (event.data?.type === 'STUDENT_SUBMISSION') {
           const payload = event.data.payload;
           handleStudentSubmission(payload);
+        } else if (event.data?.type === 'STUDENT_JOIN') {
+          const alias = event.data.payload?.studentName || `Gast-${Math.floor(Math.random() * 1000)}`;
+          setConnectedStudents(prev => new Set(prev).add(alias));
         }
       };
     } catch (e) {
@@ -329,6 +344,26 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
         };
       }
 
+      // 5b. Placemat: consensus update from student smartphone
+      if (prev.toolType === 'placemat' && payload.placematConsensusUpdate) {
+        const { groupIndex, consensus } = payload.placematConsensusUpdate;
+        const groups = (prev.placemat?.groups || []).map((grp, gIdx) => {
+          if (gIdx !== groupIndex) return grp;
+          return {
+            ...grp,
+            consensus: String(consensus || '')
+          };
+        });
+
+        return {
+          ...prev,
+          placemat: {
+            ...prev.placemat!,
+            groups
+          }
+        };
+      }
+
       return prev;
     });
   };
@@ -412,6 +447,128 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
     setIsAddColumnModalOpen(false);
   };
 
+  // Delete Column (releases cards back to free canvas)
+  const handleDeleteColumn = (columnId: string) => {
+    setSession((prev) => {
+      if (!prev.kartenabfrage) return prev;
+      const columns = prev.kartenabfrage.columns.filter((c) => c.id !== columnId);
+      const cards = prev.kartenabfrage.cards.map((c) => {
+        if (c.columnId === columnId) {
+          return { ...c, columnId: undefined };
+        }
+        return c;
+      });
+      return {
+        ...prev,
+        kartenabfrage: { ...prev.kartenabfrage, columns, cards }
+      };
+    });
+  };
+
+  // Dragging cards with Pointer Events (Touch, Stylus, Mouse on Smartboard)
+  const handlePointerDownCard = (
+    e: React.PointerEvent<HTMLDivElement>,
+    card: OncooCard,
+    defaultPos: { x: number; y: number }
+  ) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('select') || target.closest('input')) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const currentX = typeof card.x === 'number' ? card.x : defaultPos.x;
+    const currentY = typeof card.y === 'number' ? card.y : defaultPos.y;
+
+    dragOriginRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      cardX: currentX,
+      cardY: currentY,
+      fromColumnId: card.columnId
+    };
+
+    setDraggedCardId(card.id);
+    setDragCoord({ x: currentX, y: currentY });
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (err) {}
+  };
+
+  const handlePointerMoveCard = (e: React.PointerEvent<HTMLDivElement>, cardId: string) => {
+    if (draggedCardId !== cardId || !dragOriginRef.current) return;
+
+    const dx = e.clientX - dragOriginRef.current.startX;
+    const dy = e.clientY - dragOriginRef.current.startY;
+
+    const cRect = canvasRef.current?.getBoundingClientRect();
+    const maxX = Math.max(300, (cRect?.width || 1200) - 250);
+    const maxY = Math.max(300, (cRect?.height || 700) - 150);
+
+    const newX = Math.max(10, Math.min(maxX, dragOriginRef.current.cardX + dx));
+    const newY = Math.max(10, Math.min(maxY, dragOriginRef.current.cardY + dy));
+
+    setDragCoord({ x: newX, y: newY });
+
+    // Detect column hover
+    let foundColId: string | null = null;
+    if (session.kartenabfrage?.columns) {
+      for (const col of session.kartenabfrage.columns) {
+        const el = columnRefs.current[col.id];
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (
+            e.clientX >= rect.left &&
+            e.clientX <= rect.right &&
+            e.clientY >= rect.top &&
+            e.clientY <= rect.bottom
+          ) {
+            foundColId = col.id;
+            break;
+          }
+        }
+      }
+    }
+    setHoveredColumnId(foundColId);
+  };
+
+  const handlePointerUpCard = (e: React.PointerEvent<HTMLDivElement>, cardId: string) => {
+    if (draggedCardId !== cardId) return;
+
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch (err) {}
+
+    const targetColId = hoveredColumnId;
+    const finalX = dragCoord.x;
+    const finalY = dragCoord.y;
+
+    setSession((prev) => {
+      if (!prev.kartenabfrage) return prev;
+      const cards = prev.kartenabfrage.cards.map((c) => {
+        if (c.id === cardId) {
+          if (targetColId) {
+            return { ...c, columnId: targetColId, x: undefined, y: undefined };
+          } else {
+            return { ...c, columnId: undefined, x: finalX, y: finalY };
+          }
+        }
+        return c;
+      });
+      return {
+        ...prev,
+        kartenabfrage: { ...prev.kartenabfrage, cards }
+      };
+    });
+
+    setDraggedCardId(null);
+    setHoveredColumnId(null);
+    dragOriginRef.current = null;
+  };
+
   // Add Card manually from teacher screen
   const handleAddCard = (e: React.FormEvent) => {
     e.preventDefault();
@@ -441,23 +598,38 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
 
   // Count total participants
   const participantCount = React.useMemo(() => {
+    let count = 0;
     if (session.toolType === 'kartenabfrage') {
       const aliases = new Set(session.kartenabfrage?.cards.map(c => c.authorAlias).filter(Boolean));
-      return aliases.size || session.kartenabfrage?.cards.length || 0;
-    }
-    if (session.toolType === 'zielscheibe') {
-      return session.zielscheibe?.votes.length || 0;
-    }
-    if (session.toolType === 'lerntempoduett') {
+      count = aliases.size || session.kartenabfrage?.cards.length || 0;
+    } else if (session.toolType === 'zielscheibe') {
+      count = session.zielscheibe?.votes.length || 0;
+    } else if (session.toolType === 'lerntempoduett') {
       const q = session.lerntempoduett?.waitingQueue.length || 0;
       const p = (session.lerntempoduett?.pairs.length || 0) * 2;
-      return q + p;
+      count = q + p;
+    } else if (session.toolType === 'helfersystem') {
+      count = session.helfersystem?.items.length || 0;
+    } else if (session.toolType === 'placemat') {
+      const contributors = new Set<string>();
+      session.placemat?.groups?.forEach((grp, gIdx) => {
+        (['cornerA', 'cornerB', 'cornerC', 'cornerD'] as const).forEach(key => {
+          const corner = grp[key];
+          if (corner && Array.isArray(corner.notes) && corner.notes.length > 0) {
+            const author = corner.author && !corner.author.startsWith('Schüler ') 
+              ? corner.author 
+              : `g${gIdx}-${key}`;
+            contributors.add(author);
+          }
+        });
+        if (grp.consensus && grp.consensus.trim()) {
+          contributors.add(`consensus-${gIdx}`);
+        }
+      });
+      count = contributors.size;
     }
-    if (session.toolType === 'helfersystem') {
-      return session.helfersystem?.items.length || 0;
-    }
-    return 4;
-  }, [session]);
+    return Math.max(count, connectedStudents.size);
+  }, [session, connectedStudents]);
 
   const [boardExportToast, setBoardExportToast] = useState<boolean>(false);
 
@@ -906,120 +1078,226 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
               </div>
             </div>
 
-            {/* Board Columns & Cards Grid */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 items-start min-h-[500px]">
+            {/* Kartenabfrage Main Content: Snap-in Columns (if any) + Free Motion Canvas (always) */}
+            <div className="flex-1 flex flex-col gap-4 min-h-[600px] select-none">
               
-              {/* 1. Inbox / Unassigned Cards Column */}
-              <div className="bg-slate-800/50 rounded-2xl p-3 border-2 border-dashed border-slate-700 min-h-[400px] flex flex-col">
-                <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-700">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <span>Eingang / Ungeordnet</span>
-                  </span>
-                  <span className="text-xs font-bold bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                    {session.kartenabfrage.cards.filter(c => !c.columnId).length}
-                  </span>
-                </div>
+              {/* 1. Snap-in Columns (Displayed if any column exists) */}
+              {session.kartenabfrage.columns.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Einrast-Spalten ({session.kartenabfrage.columns.length})</span>
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      Tipp: Kärtchen mit Finger/Maus hierher schieben zum Einrasten
+                    </span>
+                  </div>
 
-                <div className="space-y-2.5 flex-1">
-                  {session.kartenabfrage.cards
-                    .filter(c => !c.columnId && (selectedColorFilter === 'all' || c.color === selectedColorFilter))
-                    .map((card) => (
-                      <div
-                        key={card.id}
-                        className={`p-3.5 rounded-2xl border ${CARD_COLOR_CLASSES[card.color].bg} ${CARD_COLOR_CLASSES[card.color].border} ${CARD_COLOR_CLASSES[card.color].text} shadow-md transition-all hover:scale-[1.02] flex flex-col justify-between gap-2.5 group`}
-                      >
-                        <p className="text-xs sm:text-sm font-bold leading-relaxed whitespace-pre-wrap">
-                          {card.text}
-                        </p>
+                  <div className={`grid gap-3 ${
+                    session.kartenabfrage.columns.length === 1 ? 'grid-cols-1' :
+                    session.kartenabfrage.columns.length === 2 ? 'grid-cols-2' :
+                    session.kartenabfrage.columns.length === 3 ? 'grid-cols-3' :
+                    session.kartenabfrage.columns.length === 4 ? 'grid-cols-2 lg:grid-cols-4' :
+                    'grid-cols-2 lg:grid-cols-5'
+                  }`}>
+                    {session.kartenabfrage.columns.map((column) => {
+                      const colCards = session.kartenabfrage!.cards.filter(
+                        c => c.columnId === column.id && (selectedColorFilter === 'all' || c.color === selectedColorFilter)
+                      );
+                      const isHovered = hoveredColumnId === column.id;
 
-                        <div className="flex items-center justify-between text-[10px] font-semibold opacity-75 pt-1 border-t border-black/10">
-                          <span>{card.authorAlias || 'Anonym'}</span>
-                          
-                          <div className="flex items-center gap-1">
-                            {/* Move to column dropdown */}
-                            <select
-                              value="inbox"
-                              onChange={(e) => handleMoveCard(card.id, e.target.value)}
-                              className="text-[10px] bg-white/70 rounded px-1.5 py-0.5 border border-black/10 text-slate-800"
-                            >
-                              <option value="inbox">In Spalte...</option>
-                              {session.kartenabfrage?.columns.map(col => (
-                                <option key={col.id} value={col.id}>{col.title}</option>
-                              ))}
-                            </select>
+                      return (
+                        <div
+                          key={column.id}
+                          ref={(el) => { columnRefs.current[column.id] = el; }}
+                          className={`rounded-2xl p-3 border-2 transition-all flex flex-col min-h-[160px] max-h-[320px] overflow-y-auto ${
+                            isHovered
+                              ? 'bg-rose-950/40 border-rose-500 shadow-xl shadow-rose-950/50 ring-2 ring-rose-400 scale-[1.01]'
+                              : 'bg-slate-800/80 border-slate-700/80 hover:border-slate-600'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-700/60 shrink-0">
+                            <h4 className="text-xs font-black text-white truncate max-w-[140px]" title={column.title}>
+                              {column.title}
+                            </h4>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold bg-slate-700/80 text-slate-300 px-2 py-0.5 rounded-full">
+                                {colCards.length}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteColumn(column.id)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-700/50 transition-colors"
+                                title="Spalte löschen (Karten kehren auf freie Pinnwand zurück)"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
 
-                            {/* Likes */}
-                            <button
-                              type="button"
-                              onClick={() => handleLikeCard(card.id)}
-                              className="p-1 rounded hover:bg-black/10 flex items-center gap-0.5"
-                              title="Kärtchen liken"
-                            >
-                              <Heart className={`w-3 h-3 ${card.likes ? 'fill-red-500 text-red-500' : ''}`} />
-                              <span>{card.likes || 0}</span>
-                            </button>
-
-                            {/* Delete */}
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteCard(card.id)}
-                              className="p-1 rounded hover:bg-red-500/20 text-red-700"
-                              title="Kärtchen löschen"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                          {/* Cards in column */}
+                          <div className="space-y-2 flex-1">
+                            {colCards.length === 0 ? (
+                              <div className={`h-full min-h-[85px] rounded-xl border border-dashed flex items-center justify-center text-center p-2 transition-colors ${
+                                isHovered ? 'border-rose-400 bg-rose-500/10 text-rose-300 font-bold' : 'border-slate-700 text-slate-500'
+                              }`}>
+                                <span className="text-[11px]">
+                                  {isHovered ? '✨ Kärtchen hier loslassen!' : 'Kärtchen hierher ziehen zum Einrasten'}
+                                </span>
+                              </div>
+                            ) : (
+                              colCards.map((card) => {
+                                const isDraggingThis = draggedCardId === card.id;
+                                return (
+                                  <div
+                                    key={card.id}
+                                    onPointerDown={(e) => handlePointerDownCard(e, card, { x: 50, y: 50 })}
+                                    onPointerMove={(e) => handlePointerMoveCard(e, card.id)}
+                                    onPointerUp={(e) => handlePointerUpCard(e, card.id)}
+                                    className={`p-3 rounded-xl border select-none touch-none cursor-grab active:cursor-grabbing transition-all ${
+                                      CARD_COLOR_CLASSES[card.color].bg
+                                    } ${CARD_COLOR_CLASSES[card.color].border} ${CARD_COLOR_CLASSES[card.color].text} shadow-sm hover:shadow-md ${
+                                      isDraggingThis ? 'opacity-40 scale-95' : 'hover:scale-[1.01]'
+                                    }`}
+                                  >
+                                    <p className="text-xs font-bold leading-relaxed whitespace-pre-wrap">
+                                      {card.text}
+                                    </p>
+                                    <div className="flex items-center justify-between text-[10px] font-semibold opacity-75 pt-1.5 mt-1 border-t border-black/10">
+                                      <span>{card.authorAlias || 'Anonym'}</span>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'inbox'); }}
+                                          className="px-1.5 py-0.5 rounded bg-white/70 hover:bg-white text-slate-800 text-[10px] font-bold"
+                                          title="Auf freie Pinnwand lösen"
+                                        >
+                                          Lösen
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); handleLikeCard(card.id); }}
+                                          className="p-1 rounded hover:bg-black/10 flex items-center gap-0.5"
+                                        >
+                                          <Heart className={`w-3 h-3 ${card.likes ? 'fill-red-500 text-red-500' : ''}`} />
+                                          <span>{card.likes || 0}</span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); handleDeleteCard(card.id); }}
+                                          className="p-1 rounded hover:bg-red-500/20 text-red-700"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* 2. Custom Category Columns */}
-              {session.kartenabfrage.columns.map((column) => {
-                const colCards = session.kartenabfrage!.cards.filter(
-                  c => c.columnId === column.id && (selectedColorFilter === 'all' || c.color === selectedColorFilter)
-                );
+              {/* 2. Free Motion Pinboard Canvas */}
+              <div className="flex-1 flex flex-col space-y-1.5 min-h-[460px]">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                    <span>📌 Freie Pinnwand (Frei bewegbare Kärtchen)</span>
+                    <span className="text-xs font-bold bg-slate-700 text-slate-300 px-2 py-0.2 rounded-full">
+                      {session.kartenabfrage.cards.filter(c => !c.columnId).length}
+                    </span>
+                  </span>
+                  {session.kartenabfrage.columns.length === 0 && (
+                    <span className="text-[11px] text-amber-400/90 font-medium hidden sm:inline">
+                      💡 Alle Karten sind frei per Finger / Touch verschiebbar. Über '+ Spalte' kannst du Einrast-Kategorien ergänzen.
+                    </span>
+                  )}
+                </div>
 
-                return (
-                  <div key={column.id} className="bg-slate-800/70 rounded-2xl p-3 border border-slate-700 min-h-[400px] flex flex-col">
-                    <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-700">
-                      <h4 className="text-xs font-black text-white truncate max-w-[150px]">
-                        {column.title}
-                      </h4>
-                      <span className="text-xs font-bold bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                        {colCards.length}
-                      </span>
+                <div
+                  ref={canvasRef}
+                  className="flex-1 relative rounded-3xl bg-slate-900/90 border-2 border-slate-700/80 shadow-inner overflow-hidden min-h-[420px] bg-[radial-gradient(#334155_1.2px,transparent_1.2px)] [background-size:24px_24px]"
+                >
+                  {/* Empty State Hint if 0 free cards */}
+                  {session.kartenabfrage.cards.filter(c => !c.columnId && (selectedColorFilter === 'all' || c.color === selectedColorFilter)).length === 0 && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center pointer-events-none select-none">
+                      <div className="w-16 h-16 rounded-3xl bg-slate-800/80 text-slate-400 flex items-center justify-center mb-3 border border-slate-700 shadow-lg">
+                        <Layers className="w-8 h-8 opacity-60" />
+                      </div>
+                      <h3 className="text-base font-black text-slate-300">
+                        Pinnwand wartet auf Kärtchen
+                      </h3>
+                      <p className="text-xs text-slate-400 max-w-sm mt-1">
+                        Schüler scannen den QR-Code oder geben den PIN ein, um ihre Gedanken direkt auf diese freie Pinnwand zu senden.
+                      </p>
                     </div>
+                  )}
 
-                    <div className="space-y-2.5 flex-1">
-                      {colCards.map((card) => (
+                  {/* Render Free Floating Cards */}
+                  {session.kartenabfrage.cards
+                    .filter(c => !c.columnId && (selectedColorFilter === 'all' || c.color === selectedColorFilter))
+                    .map((card, idx) => {
+                      const isDragging = draggedCardId === card.id;
+                      const defaultX = 24 + (idx % 4) * 250;
+                      const defaultY = 24 + Math.floor(idx / 4) * 160;
+                      const posX = isDragging ? dragCoord.x : (typeof card.x === 'number' ? card.x : defaultX);
+                      const posY = isDragging ? dragCoord.y : (typeof card.y === 'number' ? card.y : defaultY);
+
+                      return (
                         <div
                           key={card.id}
-                          className={`p-3.5 rounded-2xl border ${CARD_COLOR_CLASSES[card.color].bg} ${CARD_COLOR_CLASSES[card.color].border} ${CARD_COLOR_CLASSES[card.color].text} shadow-md transition-all hover:scale-[1.02] flex flex-col justify-between gap-2.5 group`}
+                          style={{
+                            transform: `translate3d(${posX}px, ${posY}px, 0)`,
+                            width: '230px',
+                            zIndex: isDragging ? 50 : 10
+                          }}
+                          onPointerDown={(e) => handlePointerDownCard(e, card, { x: defaultX, y: defaultY })}
+                          onPointerMove={(e) => handlePointerMoveCard(e, card.id)}
+                          onPointerUp={(e) => handlePointerUpCard(e, card.id)}
+                          className={`absolute top-0 left-0 p-3.5 rounded-2xl border select-none touch-none cursor-grab active:cursor-grabbing transition-shadow ${
+                            CARD_COLOR_CLASSES[card.color].bg
+                          } ${CARD_COLOR_CLASSES[card.color].border} ${CARD_COLOR_CLASSES[card.color].text} ${
+                            isDragging
+                              ? 'shadow-2xl ring-4 ring-rose-400/80 scale-105 opacity-95'
+                              : 'shadow-lg hover:shadow-xl hover:scale-[1.02]'
+                          }`}
                         >
-                          <p className="text-xs sm:text-sm font-bold leading-relaxed whitespace-pre-wrap">
+                          {/* Pushpin indicator */}
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-500/80 border border-white/80 mx-auto -mt-2 mb-1.5 shadow-xs" />
+
+                          <p className="text-xs sm:text-sm font-bold leading-relaxed whitespace-pre-wrap break-words">
                             {card.text}
                           </p>
 
-                          <div className="flex items-center justify-between text-[10px] font-semibold opacity-75 pt-1 border-t border-black/10">
-                            <span>{card.authorAlias || 'Anonym'}</span>
-                            
+                          <div className="flex items-center justify-between text-[10px] font-semibold opacity-75 pt-2 mt-2 border-t border-black/10">
+                            <span className="truncate max-w-[90px]">{card.authorAlias || 'Anonym'}</span>
+
                             <div className="flex items-center gap-1">
-                              <select
-                                value={column.id}
-                                onChange={(e) => handleMoveCard(card.id, e.target.value)}
-                                className="text-[10px] bg-white/70 rounded px-1.5 py-0.5 border border-black/10 text-slate-800"
-                              >
-                                <option value="inbox">In Eingang</option>
-                                {session.kartenabfrage?.columns.map(col => (
-                                  <option key={col.id} value={col.id}>{col.title}</option>
-                                ))}
-                              </select>
+                              {(session.kartenabfrage?.columns?.length || 0) > 0 && (
+                                <select
+                                  value="free"
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    if (e.target.value !== 'free') handleMoveCard(card.id, e.target.value);
+                                  }}
+                                  className="text-[10px] bg-white/80 rounded px-1 py-0.5 border border-black/15 text-slate-800 font-bold"
+                                >
+                                  <option value="free">Spalte...</option>
+                                  {(session.kartenabfrage?.columns || []).map(col => (
+                                    <option key={col.id} value={col.id}>{col.title}</option>
+                                  ))}
+                                </select>
+                              )}
 
                               <button
                                 type="button"
-                                onClick={() => handleLikeCard(card.id)}
+                                onClick={(e) => { e.stopPropagation(); handleLikeCard(card.id); }}
                                 className="p-1 rounded hover:bg-black/10 flex items-center gap-0.5"
                                 title="Kärtchen liken"
                               >
@@ -1029,7 +1307,7 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
 
                               <button
                                 type="button"
-                                onClick={() => handleDeleteCard(card.id)}
+                                onClick={(e) => { e.stopPropagation(); handleDeleteCard(card.id); }}
                                 className="p-1 rounded hover:bg-red-500/20 text-red-700"
                                 title="Kärtchen löschen"
                               >
@@ -1038,11 +1316,10 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+                      );
+                    })}
+                </div>
+              </div>
 
             </div>
 
@@ -1052,194 +1329,197 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
         {/* ======================================================== */}
         {/* B. ZIELSCHEIBE (EVALUATIONS-DARTBOARD)                   */}
         {/* ======================================================== */}
-        {session.toolType === 'zielscheibe' && session.zielscheibe && (
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-8 h-full">
-            
-            {/* Left: The Concentric Target SVG */}
-            <div className="flex-1 flex flex-col items-center justify-center relative w-full max-w-2xl aspect-square p-4 bg-slate-950/60 rounded-3xl border border-slate-800 shadow-2xl">
+        {session.toolType === 'zielscheibe' && session.zielscheibe && (() => {
+          const ringsCount = Math.max(2, Math.min(10, session.zielscheibe.rings || 5));
+
+          return (
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-8 h-full">
               
-              <svg viewBox="-250 -250 500 500" className="w-full h-full max-h-[550px] select-none">
+              {/* Left: The Concentric Target SVG */}
+              <div className="flex-1 flex flex-col items-center justify-center relative w-full max-w-2xl aspect-square p-4 bg-slate-950/60 rounded-3xl border border-slate-800 shadow-2xl">
                 
-                {/* 5 Concentric Rings (1 = Außen, 5 = Zentrum) */}
-                {[
-                  { r: 220, label: '1' },
-                  { r: 175, label: '2' },
-                  { r: 130, label: '3' },
-                  { r: 85, label: '4' },
-                  { r: 40, label: '5' },
-                ].map((ring, idx) => (
-                  <circle
-                    key={ring.r}
-                    cx="0"
-                    cy="0"
-                    r={ring.r}
-                    fill={idx % 2 === 0 ? '#1e293b' : '#0f172a'}
-                    stroke="#475569"
-                    strokeWidth="1.5"
-                    className="transition-colors"
-                  />
-                ))}
-
-                {/* Bulls Eye Glow in Center */}
-                <circle cx="0" cy="0" r="18" fill="#e11d48" className="animate-pulse" />
-
-                {/* Sector Dividers based on criteria count */}
-                {session.zielscheibe.criteria.map((crit, idx, arr) => {
-                  const angle = (idx * 2 * Math.PI) / arr.length - Math.PI / 2;
-                  const x = 220 * Math.cos(angle);
-                  const y = 220 * Math.sin(angle);
-                  return (
-                    <line
-                      key={crit.id}
-                      x1="0"
-                      y1="0"
-                      x2={x}
-                      y2={y}
-                      stroke="#64748b"
-                      strokeWidth="2"
-                      strokeDasharray="4 2"
+                <svg viewBox="-250 -250 500 500" className="w-full h-full max-h-[550px] select-none">
+                  
+                  {/* Dynamic Concentric Rings (1 = Außen, ringsCount = Zentrum) */}
+                  {Array.from({ length: ringsCount }, (_, i) => {
+                    const r = 220 - (i * (220 - 35) / ringsCount);
+                    return { r, score: i + 1, idx: i };
+                  }).map((ring) => (
+                    <circle
+                      key={ring.r}
+                      cx="0"
+                      cy="0"
+                      r={ring.r}
+                      fill={ring.idx % 2 === 0 ? '#1e293b' : '#0f172a'}
+                      stroke="#475569"
+                      strokeWidth="1.5"
+                      className="transition-colors"
                     />
-                  );
-                })}
+                  ))}
 
-                {/* Plot incoming student vote dots */}
-                {session.zielscheibe.votes.map((vote) => {
-                  return Object.entries(vote.scores).map(([critId, score]) => {
-                    const idx = session.zielscheibe!.criteria.findIndex(c => c.id === critId);
-                    if (idx === -1) return null;
-                    const totalSectors = session.zielscheibe!.criteria.length;
-                    
-                    // Sector center angle
-                    const sectorStart = (idx * 2 * Math.PI) / totalSectors - Math.PI / 2;
-                    const sectorEnd = ((idx + 1) * 2 * Math.PI) / totalSectors - Math.PI / 2;
-                    const midAngle = (sectorStart + sectorEnd) / 2;
-                    
-                    // Ring radius (score: 1..5, 5 = nearest center, 1 = outermost)
-                    const normalizedRadius = 220 - ((score - 0.5) / 5) * 200;
-                    
-                    // Deterministic pseudorandom jitter per vote
-                    const jitterAngle = midAngle + ((Math.sin(score * 17 + idx * 23) * 0.3) * (Math.PI / totalSectors));
-                    const jitterRadius = normalizedRadius + (Math.cos(score * 31 + idx * 7) * 12);
+                  {/* Bulls Eye Glow in Center */}
+                  <circle cx="0" cy="0" r="16" fill="#e11d48" className="animate-pulse" />
 
-                    const dotX = jitterRadius * Math.cos(jitterAngle);
-                    const dotY = jitterRadius * Math.sin(jitterAngle);
-
+                  {/* Sector Dividers based on criteria count */}
+                  {session.zielscheibe.criteria.map((crit, idx, arr) => {
+                    const angle = (idx * 2 * Math.PI) / arr.length - Math.PI / 2;
+                    const x = 220 * Math.cos(angle);
+                    const y = 220 * Math.sin(angle);
                     return (
-                      <circle
-                        key={`${vote.id}-${critId}`}
-                        cx={dotX}
-                        cy={dotY}
-                        r="6"
-                        fill="#f43f5e"
-                        stroke="#ffe4e6"
-                        strokeWidth="1.5"
-                        className="transition-all duration-300 drop-shadow-md animate-in zoom-in"
+                      <line
+                        key={crit.id}
+                        x1="0"
+                        y1="0"
+                        x2={x}
+                        y2={y}
+                        stroke="#64748b"
+                        strokeWidth="2"
+                        strokeDasharray="4 2"
                       />
                     );
-                  });
-                })}
+                  })}
 
-                {/* Criteria labels around the outside perimeter */}
-                {session.zielscheibe.criteria.map((crit, idx, arr) => {
-                  const sectorStart = (idx * 2 * Math.PI) / arr.length - Math.PI / 2;
-                  const sectorEnd = ((idx + 1) * 2 * Math.PI) / arr.length - Math.PI / 2;
-                  const midAngle = (sectorStart + sectorEnd) / 2;
-                  const labelRadius = 238;
-                  const lx = labelRadius * Math.cos(midAngle);
-                  const ly = labelRadius * Math.sin(midAngle);
+                  {/* Plot incoming student vote dots */}
+                  {session.zielscheibe.votes.map((vote) => {
+                    return Object.entries(vote.scores).map(([critId, score]) => {
+                      const idx = session.zielscheibe!.criteria.findIndex(c => c.id === critId);
+                      if (idx === -1) return null;
+                      const totalSectors = session.zielscheibe!.criteria.length;
+                      
+                      // Sector center angle
+                      const sectorStart = (idx * 2 * Math.PI) / totalSectors - Math.PI / 2;
+                      const sectorEnd = ((idx + 1) * 2 * Math.PI) / totalSectors - Math.PI / 2;
+                      const midAngle = (sectorStart + sectorEnd) / 2;
+                      
+                      // Ring radius (score: 1..ringsCount, ringsCount = nearest center, 1 = outermost)
+                      const normalizedRadius = 220 - ((score - 0.5) / ringsCount) * 190;
+                      
+                      // Deterministic pseudorandom jitter per vote
+                      const jitterAngle = midAngle + ((Math.sin(score * 17 + idx * 23) * 0.3) * (Math.PI / totalSectors));
+                      const jitterRadius = normalizedRadius + (Math.cos(score * 31 + idx * 7) * 10);
 
-                  return (
-                    <text
-                      key={crit.id}
-                      x={lx}
-                      y={ly}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fill="#38bdf8"
-                      fontSize="11"
-                      fontWeight="bold"
-                      className="drop-shadow"
-                    >
-                      {crit.label}
-                    </text>
-                  );
-                })}
+                      const dotX = jitterRadius * Math.cos(jitterAngle);
+                      const dotY = jitterRadius * Math.sin(jitterAngle);
 
-              </svg>
-
-              <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-[11px] font-bold text-slate-400">
-                <span>Zentrum = 5 (Trifft voll zu)</span>
-                <span>Außen = 1 (Trifft gar nicht zu)</span>
-              </div>
-            </div>
-
-            {/* Right: Statistics & Score breakdown per axis */}
-            <div className="w-full lg:w-96 bg-slate-950/70 p-6 rounded-3xl border border-slate-800 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div>
-                  <h3 className="text-base font-black text-white">Auswertung</h3>
-                  <span className="text-xs text-slate-400">
-                    {session.zielscheibe.votes.length} abgegebene Bewertungen
-                  </span>
-                </div>
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
-                  <Target className="w-5 h-5" />
-                </div>
-              </div>
-
-              {/* Criteria Score Bars */}
-              <div className="space-y-3.5">
-                {session.zielscheibe.criteria.map((crit) => {
-                  const votes = session.zielscheibe!.votes
-                    .map(v => v.scores[crit.id])
-                    .filter((s): s is number => typeof s === 'number');
-
-                  const avg = votes.length > 0
-                    ? (votes.reduce((a, b) => a + b, 0) / votes.length).toFixed(1)
-                    : '-';
-
-                  const percentage = votes.length > 0 ? (Number(avg) / 5) * 100 : 0;
-
-                  return (
-                    <div key={crit.id} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-slate-200">{crit.label}</span>
-                        <span className="text-emerald-400 font-mono text-sm">{avg} / 5.0</span>
-                      </div>
-                      <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full transition-all duration-500"
-                          style={{ width: `${percentage}%` }}
+                      return (
+                        <circle
+                          key={`${vote.id}-${critId}`}
+                          cx={dotX}
+                          cy={dotY}
+                          r="6"
+                          fill="#f43f5e"
+                          stroke="#ffe4e6"
+                          strokeWidth="1.5"
+                          className="transition-all duration-300 drop-shadow-md animate-in zoom-in"
                         />
-                      </div>
-                      {crit.description && (
-                        <span className="text-[10px] text-slate-400 block">{crit.description}</span>
-                      )}
-                    </div>
-                  );
-                })}
+                      );
+                    });
+                  })}
+
+                  {/* Criteria labels around the outside perimeter */}
+                  {session.zielscheibe.criteria.map((crit, idx, arr) => {
+                    const sectorStart = (idx * 2 * Math.PI) / arr.length - Math.PI / 2;
+                    const sectorEnd = ((idx + 1) * 2 * Math.PI) / arr.length - Math.PI / 2;
+                    const midAngle = (sectorStart + sectorEnd) / 2;
+                    const labelRadius = 238;
+                    const lx = labelRadius * Math.cos(midAngle);
+                    const ly = labelRadius * Math.sin(midAngle);
+
+                    return (
+                      <text
+                        key={crit.id}
+                        x={lx}
+                        y={ly}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fill="#38bdf8"
+                        fontSize="11"
+                        fontWeight="bold"
+                        className="drop-shadow"
+                      >
+                        {crit.label}
+                      </text>
+                    );
+                  })}
+
+                </svg>
+
+                <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-[11px] font-bold text-slate-400">
+                  <span>Zentrum = {ringsCount} ({session.zielscheibe.maxLabel || 'Trifft voll zu'})</span>
+                  <span>Außen = 1 ({session.zielscheibe.minLabel || 'Trifft gar nicht zu'})</span>
+                </div>
               </div>
 
-              {/* Reset votes */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Möchtest du alle Stimmen auf dieser Zielscheibe zurücksetzen?')) {
-                    setSession(s => ({
-                      ...s,
-                      zielscheibe: { ...s.zielscheibe!, votes: [] }
-                    }));
-                  }
-                }}
-                className="w-full mt-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Ergebnisse zurücksetzen</span>
-              </button>
-            </div>
+              {/* Right: Statistics & Score breakdown per axis */}
+              <div className="w-full lg:w-96 bg-slate-950/70 p-6 rounded-3xl border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div>
+                    <h3 className="text-base font-black text-white">Auswertung</h3>
+                    <span className="text-xs text-slate-400">
+                      {session.zielscheibe.votes.length} abgegebene Bewertungen
+                    </span>
+                  </div>
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                    <Target className="w-5 h-5" />
+                  </div>
+                </div>
 
-          </div>
-        )}
+                {/* Criteria Score Bars */}
+                <div className="space-y-3.5">
+                  {session.zielscheibe.criteria.map((crit) => {
+                    const votes = session.zielscheibe!.votes
+                      .map(v => v.scores[crit.id])
+                      .filter((s): s is number => typeof s === 'number');
+
+                    const avg = votes.length > 0
+                      ? (votes.reduce((a, b) => a + b, 0) / votes.length).toFixed(1)
+                      : '-';
+
+                    const percentage = votes.length > 0 ? (Number(avg) / ringsCount) * 100 : 0;
+
+                    return (
+                      <div key={crit.id} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="text-slate-200">{crit.label}</span>
+                          <span className="text-emerald-400 font-mono text-sm">
+                            {avg !== '-' ? `${avg} / ${ringsCount}.0` : '—'}
+                          </span>
+                        </div>
+                        <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full transition-all duration-500"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        {crit.description && (
+                          <span className="text-[10px] text-slate-400 block">{crit.description}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Reset votes */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Möchtest du alle Stimmen auf dieser Zielscheibe zurücksetzen?')) {
+                      setSession(s => ({
+                        ...s,
+                        zielscheibe: { ...s.zielscheibe!, votes: [] }
+                      }));
+                    }
+                  }}
+                  className="w-full mt-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Ergebnisse zurücksetzen</span>
+                </button>
+              </div>
+
+            </div>
+          );
+        })()}
 
         {/* ======================================================== */}
         {/* C. LERNTEMPODUETT                                        */}

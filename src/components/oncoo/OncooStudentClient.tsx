@@ -82,6 +82,9 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
   const [placematCorner, setPlacematCorner] = useState<'cornerA' | 'cornerB' | 'cornerC' | 'cornerD'>('cornerA');
   const [placematNote, setPlacematNote] = useState<string>('');
   const [myPlacematNotes, setMyPlacematNotes] = useState<string[]>([]);
+  const [placematTab, setPlacematTab] = useState<'corner' | 'consensus'>('corner');
+  const [placematConsensusText, setPlacematConsensusText] = useState<string>('');
+  const [hasSubmittedConsensus, setHasSubmittedConsensus] = useState<boolean>(false);
 
   // Broadcast Channel for live sync
   const broadcastRef = React.useRef<BroadcastChannel | null>(null);
@@ -355,6 +358,34 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
     setPlacematNote('');
   };
 
+  // Submit Placemat Consensus
+  const handleSubmitPlacematConsensus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session || session.isLocked || !placematConsensusText.trim()) return;
+
+    const payload = {
+      placematConsensusUpdate: {
+        groupIndex: placematGroupIndex,
+        consensus: placematConsensusText.trim()
+      },
+      studentName: studentName.trim() || undefined
+    };
+
+    if (broadcastRef.current) {
+      broadcastRef.current.postMessage({
+        type: 'STUDENT_SUBMISSION',
+        payload
+      });
+    }
+
+    if (pinCode) {
+      await submitOncooActionInCloud(pinCode, payload);
+    }
+
+    setHasSubmittedConsensus(true);
+    setTimeout(() => setHasSubmittedConsensus(false), 3000);
+  };
+
   return (
     <div className="min-h-dvh bg-slate-100 text-slate-900 font-sans flex flex-col justify-between pb-[calc(1rem+env(safe-area-inset-bottom))]">
       
@@ -601,78 +632,86 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
             )}
 
             {/* 2. ZIELSCHEIBE */}
-            {session.toolType === 'zielscheibe' && (
-              <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-lg space-y-4">
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 block">
-                    Zielscheiben-Evaluation
-                  </span>
-                  <h3 className="text-sm font-black text-slate-900 leading-snug mt-0.5">
-                    {session.zielscheibe?.title || session.title}
-                  </h3>
-                </div>
+            {session.toolType === 'zielscheibe' && (() => {
+              const totalRings = Math.max(2, Math.min(10, session.zielscheibe?.rings || 5));
+              const minLbl = session.zielscheibe?.minLabel || 'trifft nicht zu';
+              const maxLbl = session.zielscheibe?.maxLabel || 'trifft voll zu';
 
-                {!hasVotedTarget ? (
-                  <form onSubmit={handleSubmitTarget} className="space-y-4">
-                    <p className="text-xs text-slate-500">
-                      Bewerte jedes Kriterium von 1 (trifft gar nicht zu) bis 5 (trifft voll zu):
-                    </p>
-
-                    <div className="space-y-3">
-                      {session.zielscheibe?.criteria.map((crit) => {
-                        const val = targetScores[crit.id] || 4;
-                        return (
-                          <div key={crit.id} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black text-slate-800">{crit.label}</span>
-                              <span className="text-xs font-mono font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
-                                {val} von 5
-                              </span>
-                            </div>
-
-                            {/* 1 to 5 Pill Buttons */}
-                            <div className="flex items-center justify-between gap-1">
-                              {[1, 2, 3, 4, 5].map((num) => (
-                                <button
-                                  key={num}
-                                  type="button"
-                                  onClick={() => setTargetScores(prev => ({ ...prev, [crit.id]: num }))}
-                                  className={`flex-1 py-2.5 min-h-[40px] rounded-xl text-xs font-black transition-all touch-manipulation cursor-pointer active:scale-95 ${
-                                    val === num
-                                      ? 'bg-emerald-600 text-white shadow-xs scale-105'
-                                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                                  }`}
-                                >
-                                  {num}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Bewertung auf die Zielscheibe setzen</span>
-                    </button>
-                  </form>
-                ) : (
-                  <div className="p-6 text-center space-y-2 bg-emerald-50 rounded-2xl border border-emerald-200">
-                    <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-sm">
-                      <Check className="w-6 h-6" />
-                    </div>
-                    <h4 className="text-sm font-black text-emerald-950">Vielen Dank!</h4>
-                    <p className="text-xs text-emerald-800">
-                      Deine Klebepunkte sind auf der Zielscheibe am Beamer eingegangen.
-                    </p>
+              return (
+                <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-lg space-y-4">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 block">
+                      Zielscheiben-Evaluation
+                    </span>
+                    <h3 className="text-sm font-black text-slate-900 leading-snug mt-0.5">
+                      {session.zielscheibe?.title || session.title}
+                    </h3>
                   </div>
-                )}
-              </div>
-            )}
+
+                  {!hasVotedTarget ? (
+                    <form onSubmit={handleSubmitTarget} className="space-y-4">
+                      <p className="text-xs text-slate-500">
+                        Bewerte jedes Kriterium von 1 ({minLbl}) bis {totalRings} ({maxLbl}):
+                      </p>
+
+                      <div className="space-y-3">
+                        {session.zielscheibe?.criteria.map((crit) => {
+                          const val = targetScores[crit.id] || Math.round(totalRings / 2) || 1;
+                          return (
+                            <div key={crit.id} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-black text-slate-800">{crit.label}</span>
+                                <span className="text-xs font-mono font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                                  {val} von {totalRings}
+                                </span>
+                              </div>
+
+                              {/* 1 to totalRings Pill Buttons */}
+                              <div className={`grid gap-1 ${
+                                totalRings <= 5 ? 'grid-cols-5' : totalRings <= 8 ? 'grid-cols-4 sm:grid-cols-8' : 'grid-cols-5 sm:grid-cols-10'
+                              }`}>
+                                {Array.from({ length: totalRings }, (_, i) => i + 1).map((num) => (
+                                  <button
+                                    key={num}
+                                    type="button"
+                                    onClick={() => setTargetScores(prev => ({ ...prev, [crit.id]: num }))}
+                                    className={`py-2 min-h-[38px] rounded-xl text-xs font-black transition-all touch-manipulation cursor-pointer active:scale-95 ${
+                                      val === num
+                                        ? 'bg-emerald-600 text-white shadow-xs scale-105 ring-2 ring-emerald-300'
+                                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {num}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Bewertung auf die Zielscheibe setzen</span>
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="p-6 text-center space-y-2 bg-emerald-50 rounded-2xl border border-emerald-200">
+                      <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-sm">
+                        <Check className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-sm font-black text-emerald-950">Vielen Dank!</h4>
+                      <p className="text-xs text-emerald-800">
+                        Deine Klebepunkte sind auf der Zielscheibe am Beamer eingegangen.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* 3. LERNTEMPODUETT */}
             {session.toolType === 'lerntempoduett' && (
@@ -813,95 +852,200 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
               <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-lg space-y-4">
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 block">
-                    Placemat
+                    Placemat (Think-Pair-Share)
                   </span>
                   <h3 className="text-sm font-black text-slate-900 mt-0.5">
                     {session.placemat?.topic}
                   </h3>
                 </div>
 
-                <form onSubmit={handleSubmitPlacematNote} className="space-y-3">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                      Dein Tisch / Deine Gruppe
-                    </label>
-                    <select
-                      value={placematGroupIndex}
-                      onChange={(e) => setPlacematGroupIndex(Number(e.target.value))}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-white"
-                    >
-                      {(session.placemat?.groups || [
-                        { groupName: 'Tisch 1' },
-                        { groupName: 'Tisch 2' },
-                        { groupName: 'Tisch 3' },
-                        { groupName: 'Tisch 4' }
-                      ]).map((g, idx) => (
-                        <option key={idx} value={idx}>{g.groupName || `Tisch ${idx + 1}`}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                      Dein Quadrant (Ecke)
-                    </label>
-                    <select
-                      value={placematCorner}
-                      onChange={(e) => setPlacematCorner(e.target.value as any)}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-white"
-                    >
-                      <option value="cornerA">Quadrant A (Norden)</option>
-                      <option value="cornerB">Quadrant B (Osten)</option>
-                      <option value="cornerC">Quadrant C (Süden)</option>
-                      <option value="cornerD">Quadrant D (Westen)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                      Dein Gedanke für dein Außenfeld
-                    </label>
-                    <textarea
-                      rows={3}
-                      required
-                      value={placematNote}
-                      onChange={(e) => setPlacematNote(e.target.value)}
-                      placeholder="Stichpunkt eingeben..."
-                      className="w-full p-3 rounded-2xl border border-slate-200 text-base font-medium focus:outline-none focus:border-rose-500"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={session.isLocked || !placematNote.trim()}
-                    className="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-black text-xs shadow-md transition-all active:scale-95"
+                {/* Table / Group selector */}
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                    Dein Gruppentisch:
+                  </label>
+                  <select
+                    value={placematGroupIndex}
+                    onChange={(e) => {
+                      const newIdx = Number(e.target.value);
+                      setPlacematGroupIndex(newIdx);
+                      setPlacematConsensusText(session.placemat?.groups?.[newIdx]?.consensus || '');
+                    }}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-white focus:outline-none focus:border-rose-500"
                   >
-                    In mein Feld eintragen
+                    {(session.placemat?.groups || [
+                      { groupName: 'Tisch 1' },
+                      { groupName: 'Tisch 2' },
+                      { groupName: 'Tisch 3' },
+                      { groupName: 'Tisch 4' }
+                    ]).map((g, idx) => (
+                      <option key={idx} value={idx}>{g.groupName || `Tisch ${idx + 1}`}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Mode Tabs: Außenfeld (Think) vs Gruppenkonsens (Share) */}
+                <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPlacematTab('corner')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                      placematTab === 'corner' ? 'bg-white text-rose-600 shadow-xs font-black' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>✏️ Mein Außenfeld (Think)</span>
                   </button>
-                </form>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlacematTab('consensus');
+                      if (!placematConsensusText && session.placemat?.groups?.[placematGroupIndex]?.consensus) {
+                        setPlacematConsensusText(session.placemat.groups[placematGroupIndex].consensus);
+                      }
+                    }}
+                    className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                      placematTab === 'consensus' ? 'bg-white text-rose-600 shadow-xs font-black' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>🤝 Gruppenkonsens (Share)</span>
+                  </button>
+                </div>
 
-                {/* Central consensus if formulated by teacher/class */}
-                {session.placemat?.groups?.[placematGroupIndex]?.consensus && (
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-red-50 border border-rose-200 text-rose-950 space-y-1 animate-in fade-in">
-                    <span className="text-[10px] font-black uppercase text-rose-700 tracking-wider block">
-                      🤝 Vereinbarter Gruppenkonsens:
-                    </span>
-                    <p className="text-xs font-bold leading-relaxed">
-                      {session.placemat.groups[placematGroupIndex].consensus}
-                    </p>
-                  </div>
-                )}
+                {placematTab === 'corner' ? (
+                  <form onSubmit={handleSubmitPlacematNote} className="space-y-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                        Dein Quadrant (Ecke) am Tisch
+                      </label>
+                      <select
+                        value={placematCorner}
+                        onChange={(e) => setPlacematCorner(e.target.value as any)}
+                        className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-white"
+                      >
+                        <option value="cornerA">Quadrant A (Norden)</option>
+                        <option value="cornerB">Quadrant B (Osten)</option>
+                        <option value="cornerC">Quadrant C (Süden)</option>
+                        <option value="cornerD">Quadrant D (Westen)</option>
+                      </select>
+                    </div>
 
-                {myPlacematNotes.length > 0 && (
-                  <div className="pt-2 border-t border-slate-100">
-                    <span className="text-[10px] font-bold text-slate-400 block mb-1">
-                      Deine Notizen auf dem Tischset:
-                    </span>
-                    <ul className="text-xs text-slate-700 space-y-1">
-                      {myPlacematNotes.map((n, idx) => (
-                        <li key={idx}>• {n}</li>
-                      ))}
-                    </ul>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                        Dein Gedanke für dein Außenfeld
+                      </label>
+                      <textarea
+                        rows={3}
+                        required
+                        value={placematNote}
+                        onChange={(e) => setPlacematNote(e.target.value)}
+                        placeholder="Stichpunkt eingeben..."
+                        className="w-full p-3 rounded-2xl border border-slate-200 text-base font-medium focus:outline-none focus:border-rose-500"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={session.isLocked || !placematNote.trim()}
+                      className="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-black text-xs shadow-md transition-all active:scale-95"
+                    >
+                      In mein Feld eintragen
+                    </button>
+
+                    {/* Central consensus display if already formulated */}
+                    {session.placemat?.groups?.[placematGroupIndex]?.consensus && (
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-red-50 border border-rose-200 text-rose-950 space-y-1 animate-in fade-in">
+                        <span className="text-[10px] font-black uppercase text-rose-700 tracking-wider block">
+                          🤝 Vereinbarter Gruppenkonsens:
+                        </span>
+                        <p className="text-xs font-bold leading-relaxed">
+                          {session.placemat.groups[placematGroupIndex].consensus}
+                        </p>
+                      </div>
+                    )}
+
+                    {myPlacematNotes.length > 0 && (
+                      <div className="pt-2 border-t border-slate-100">
+                        <span className="text-[10px] font-bold text-slate-400 block mb-1">
+                          Deine Notizen auf dem Tischset:
+                        </span>
+                        <ul className="text-xs text-slate-700 space-y-1">
+                          {myPlacematNotes.map((n, idx) => (
+                            <li key={idx}>• {n}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </form>
+                ) : (
+                  /* Gruppenkonsens Share Mode */
+                  <div className="space-y-4">
+                    {/* View all 4 corners of current table */}
+                    {(() => {
+                      const curGroup = session.placemat?.groups?.[placematGroupIndex];
+                      if (!curGroup) return null;
+                      return (
+                        <div className="space-y-2">
+                          <span className="text-[11px] font-bold text-slate-600 block">
+                            Notizen aller 4 Ecken an {curGroup.groupName || `Tisch ${placematGroupIndex + 1}`}:
+                          </span>
+                          <div className="grid grid-cols-2 gap-2 text-left">
+                            {[
+                              { key: 'cornerA' as const, label: 'A (Norden)', corner: curGroup.cornerA, bg: 'bg-blue-50 border-blue-200 text-blue-950', badge: 'text-blue-700' },
+                              { key: 'cornerB' as const, label: 'B (Osten)', corner: curGroup.cornerB, bg: 'bg-purple-50 border-purple-200 text-purple-950', badge: 'text-purple-700' },
+                              { key: 'cornerD' as const, label: 'D (Westen)', corner: curGroup.cornerD, bg: 'bg-amber-50 border-amber-200 text-amber-950', badge: 'text-amber-700' },
+                              { key: 'cornerC' as const, label: 'C (Süden)', corner: curGroup.cornerC, bg: 'bg-emerald-50 border-emerald-200 text-emerald-950', badge: 'text-emerald-700' },
+                            ].map((c) => (
+                              <div key={c.key} className={`p-2.5 rounded-xl border ${c.bg}`}>
+                                <span className={`text-[10px] font-black uppercase block mb-1 ${c.badge}`}>
+                                  {c.label} {c.corner?.author ? `[${c.corner.author}]` : ''}
+                                </span>
+                                {c.corner?.notes && c.corner.notes.length > 0 ? (
+                                  <ul className="space-y-0.5 text-xs">
+                                    {c.corner.notes.map((note, nIdx) => (
+                                      <li key={nIdx} className="leading-snug">• {note}</li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 italic">Noch keine Notizen</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Consensus Input & Submit */}
+                    <form onSubmit={handleSubmitPlacematConsensus} className="space-y-3 pt-2 border-t border-slate-100">
+                      <div>
+                        <label className="text-[11px] font-black text-rose-700 block mb-1">
+                          🤝 Formuliert hier euren gemeinsamen Gruppenkonsens:
+                        </label>
+                        <textarea
+                          rows={3}
+                          required
+                          value={placematConsensusText}
+                          onChange={(e) => setPlacematConsensusText(e.target.value)}
+                          placeholder="Fasst hier die gemeinsamen Ergebnisse eures Tisches zusammen..."
+                          className="w-full p-3 rounded-2xl border-2 border-rose-300 text-base font-medium focus:outline-none focus:border-rose-600 bg-rose-50/30"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={session.isLocked || !placematConsensusText.trim()}
+                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:opacity-95 disabled:opacity-50 text-white font-black text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Konsens an die Tafel senden</span>
+                      </button>
+
+                      {hasSubmittedConsensus && (
+                        <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold text-center animate-in fade-in">
+                          ✓ Gruppenkonsens erfolgreich übertragen!
+                        </div>
+                      )}
+                    </form>
                   </div>
                 )}
               </div>

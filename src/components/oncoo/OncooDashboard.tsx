@@ -133,6 +133,20 @@ export const OncooDashboard: React.FC<OncooDashboardProps> = ({
   const [newGrade, setNewGrade] = useState<string>('Klasse 7–10');
   const [newQuestion, setNewQuestion] = useState<string>('');
 
+  // Tool-specific creation config
+  const [zielscheibeRings, setZielscheibeRings] = useState<number>(5);
+  const [zielscheibeCriteria, setZielscheibeCriteria] = useState<string[]>([
+    'Verständlichkeit',
+    'Arbeitstempo',
+    'Mitarbeit & Team',
+    'Lernzuwachs'
+  ]);
+  const [helfersystemTopics, setHelfersystemTopics] = useState<string[]>([
+    'Aufgabe 1 (Grundlagen)',
+    'Aufgabe 2 (Anwendung)',
+    'Aufgabe 3 (Vertiefung)'
+  ]);
+
   // Close modal on Escape key
   useEffect(() => {
     if (!isCreateModalOpen) return;
@@ -190,11 +204,7 @@ export const OncooDashboard: React.FC<OncooDashboardProps> = ({
     if (newToolType === 'kartenabfrage') {
       newSession.kartenabfrage = {
         question: newQuestion.trim() || 'Welche Gedanken oder Fragen hast du zu diesem Thema?',
-        columns: [
-          { id: 'col-1', title: 'Ideen & Vorschläge', color: 'yellow' },
-          { id: 'col-2', title: 'Fragen & Unklarheiten', color: 'blue' },
-          { id: 'col-3', title: 'Wichtige Argumente', color: 'green' },
-        ],
+        columns: [], // Standardmäßig freie Oberfläche, Spalten können an der Tafel frei ergänzt werden
         cards: [],
         allowMultipleCards: true,
         maxCardsPerStudent: 3,
@@ -202,17 +212,21 @@ export const OncooDashboard: React.FC<OncooDashboardProps> = ({
         allowLikes: true
       };
     } else if (newToolType === 'zielscheibe') {
+      const rings = Math.max(2, Math.min(10, Number(zielscheibeRings) || 5));
+      const validCriteria = zielscheibeCriteria.filter(c => c.trim().length > 0);
       newSession.zielscheibe = {
         title: newQuestion.trim() || newTitle.trim(),
-        rings: 5,
+        rings,
         minLabel: '1 = Trifft nicht zu',
-        maxLabel: '5 = Trifft voll zu',
-        criteria: [
-          { id: 'c-1', label: 'Verständlichkeit', description: 'Waren die Erklärungen und Aufgaben verständlich?' },
-          { id: 'c-2', label: 'Arbeitstempo', description: 'War das Tempo angemessen?' },
-          { id: 'c-3', label: 'Mitarbeit & Team', description: 'Hat die Zusammenarbeit gut funktioniert?' },
-          { id: 'c-4', label: 'Lernzuwachs', description: 'Hast du heute Neues gelernt?' },
-        ],
+        maxLabel: `${rings} = Trifft voll zu`,
+        criteria: validCriteria.length > 0 
+          ? validCriteria.slice(0, 6).map((label, idx) => ({ id: `c-${idx + 1}`, label: label.trim() }))
+          : [
+              { id: 'c-1', label: 'Verständlichkeit' },
+              { id: 'c-2', label: 'Arbeitstempo' },
+              { id: 'c-3', label: 'Zusammenarbeit' },
+              { id: 'c-4', label: 'Lernzuwachs' }
+            ],
         votes: []
       };
     } else if (newToolType === 'lerntempoduett') {
@@ -228,14 +242,12 @@ export const OncooDashboard: React.FC<OncooDashboardProps> = ({
         pairs: []
       };
     } else if (newToolType === 'helfersystem') {
+      const validTopics = helfersystemTopics.filter(t => t.trim().length > 0);
       newSession.helfersystem = {
         exerciseTitle: newQuestion.trim() || newTitle.trim(),
-        topics: [
-          'Aufgabe 1 (Grundlagen)',
-          'Aufgabe 2 (Anwendung)',
-          'Aufgabe 3 (Transfer & Vertiefung)',
-          'Allgemeine Fragen'
-        ],
+        topics: validTopics.length > 0 
+          ? validTopics
+          : ['Aufgabe 1 (Grundlagen)', 'Aufgabe 2 (Anwendung)', 'Aufgabe 3 (Vertiefung)'],
         items: []
       };
     } else if (newToolType === 'placemat') {
@@ -712,6 +724,174 @@ export const OncooDashboard: React.FC<OncooDashboardProps> = ({
                   />
                 </div>
               </div>
+
+              {/* Tool-specific dynamic configuration */}
+              {newToolType === 'zielscheibe' && (
+                <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-emerald-800 tracking-wider flex items-center gap-1.5">
+                      <Target className="w-4 h-4" />
+                      <span>Zielscheiben-Einstellungen</span>
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                      Skala 2–10 • Bis zu 6 Kriterien
+                    </span>
+                  </div>
+
+                  {/* Scale selection */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                      Bewertungsskala (Anzahl der Ringe): <strong className="text-emerald-700">{zielscheibeRings} Stufen</strong>
+                    </label>
+                    <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                      {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setZielscheibeRings(num)}
+                          className={`flex-1 min-w-[32px] py-1.5 rounded-lg text-xs font-black transition-all ${
+                            zielscheibeRings === num
+                              ? 'bg-emerald-600 text-white shadow-xs scale-105 ring-2 ring-emerald-300'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-emerald-100'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-slate-500 block mt-1">
+                      1 = Außenkreis (trifft nicht zu) bis {zielscheibeRings} = Zentrum / Volltreffer (trifft voll zu)
+                    </span>
+                  </div>
+
+                  {/* Criteria Inputs */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800">
+                        Punkte für die Auswertung ({zielscheibeCriteria.length} von max. 6):
+                      </label>
+                      {zielscheibeCriteria.length < 6 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (zielscheibeCriteria.length < 6) {
+                              setZielscheibeCriteria([...zielscheibeCriteria, `Kriterium ${zielscheibeCriteria.length + 1}`]);
+                            }
+                          }}
+                          className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>Punkt hinzufügen</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {zielscheibeCriteria.map((crit, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-emerald-200 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          <input
+                            type="text"
+                            required
+                            value={crit}
+                            onChange={(e) => {
+                              const updated = [...zielscheibeCriteria];
+                              updated[idx] = e.target.value;
+                              setZielscheibeCriteria(updated);
+                            }}
+                            placeholder={`Kriterium ${idx + 1} benennen...`}
+                            className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium bg-white focus:outline-none focus:border-emerald-500"
+                          />
+                          {zielscheibeCriteria.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setZielscheibeCriteria(zielscheibeCriteria.filter((_, i) => i !== idx));
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                              title="Kriterium entfernen"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {newToolType === 'helfersystem' && (
+                <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-purple-800 tracking-wider flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4" />
+                      <span>Aufgabenstellung & Stationen</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHelfersystemTopics([...helfersystemTopics, `Station ${helfersystemTopics.length + 1}`]);
+                      }}
+                      className="text-[11px] font-bold text-purple-700 hover:text-purple-800 flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Aufgabe hinzufügen</span>
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-purple-900 leading-snug">
+                    Gib hier die konkreten Aufgaben/Stationen ein. Schüler können sich dann gezielt für diese Aufgaben als hilfesuchend (🆘) oder helfend (💡) eintragen:
+                  </p>
+
+                  <div className="space-y-1.5">
+                    {helfersystemTopics.map((topic, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-purple-600 w-16 shrink-0 truncate">
+                          Aufgabe {idx + 1}:
+                        </span>
+                        <input
+                          type="text"
+                          required
+                          value={topic}
+                          onChange={(e) => {
+                            const updated = [...helfersystemTopics];
+                            updated[idx] = e.target.value;
+                            setHelfersystemTopics(updated);
+                          }}
+                          placeholder={`z. B. Station ${idx + 1}: Bruchrechnen`}
+                          className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium bg-white focus:outline-none focus:border-purple-500"
+                        />
+                        {helfersystemTopics.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setHelfersystemTopics(helfersystemTopics.filter((_, i) => i !== idx));
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                            title="Aufgabe entfernen"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {newToolType === 'kartenabfrage' && (
+                <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-950 text-xs space-y-1">
+                  <span className="font-black flex items-center gap-1.5 text-amber-900">
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Standardmäßig freie Pinnwand-Oberfläche</span>
+                  </span>
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    Kärtchen erscheinen frei verschiebbar auf der Tafel. Du kannst während der Stunde jederzeit flexibel Spalten anlegen (z. B. Pro / Contra) – hineingeschobene Karten rasten dann automatisch ein.
+                  </p>
+                </div>
+              )}
 
               {/* Submit Button */}
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">

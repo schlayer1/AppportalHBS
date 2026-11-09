@@ -1031,6 +1031,7 @@ export const submitOncooActionInCloud = async (
     studentName?: string;
     tandemFinished?: { studentName: string };
     placematUpdate?: { groupIndex: number; cornerKey: string; note: string };
+    placematConsensusUpdate?: { groupIndex: number; consensus: string };
   }
 ): Promise<void> => {
   if (!db || !pinCode) return;
@@ -1117,6 +1118,20 @@ export const submitOncooActionInCloud = async (
             };
           });
           sess.placemat.groups = groups;
+        }
+      }
+
+      // 5b. Placemat Consensus Update
+      if (payload.placematConsensusUpdate && sess.toolType === 'placemat' && sess.placemat) {
+        const { groupIndex, consensus } = payload.placematConsensusUpdate;
+        if (sess.placemat.groups && sess.placemat.groups[groupIndex]) {
+          sess.placemat.groups = sess.placemat.groups.map((grp, gIdx) => {
+            if (gIdx !== groupIndex) return grp;
+            return {
+              ...grp,
+              consensus: typeof consensus === 'string' ? consensus : ''
+            };
+          });
         }
       }
 
