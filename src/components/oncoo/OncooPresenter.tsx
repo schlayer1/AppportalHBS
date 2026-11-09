@@ -95,8 +95,10 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
   const [newCardColor, setNewCardColor] = useState<OncooCardColor>('yellow');
   const [newCardColumn, setNewCardColumn] = useState<string>('inbox');
 
-  // Placemat active group
+  // Placemat active group & consensus editing
   const [activePlacematGroupIndex, setActivePlacematGroupIndex] = useState<number>(0);
+  const [isEditingConsensus, setIsEditingConsensus] = useState<boolean>(false);
+  const [tempConsensus, setTempConsensus] = useState<string>('');
 
   // Student join URL
   const studentJoinUrl = typeof window !== 'undefined'
@@ -104,15 +106,33 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
     : `https://appportalhbs.vercel.app?oncoo=${session.pinCode}`;
 
   const lastLocalSyncRef = useRef<number>(session.updatedAt || 0);
+  const isRemoteUpdateRef = useRef<boolean>(false);
 
-  // Broadcast & Sync Session
+  // Push active session on mount
   useEffect(() => {
-    // Set as active session for cloud & local storage
-    updateActiveOncooSession(session);
-    saveOncooSession(session);
+    updateActiveOncooSession(initialSession);
+    syncOncooLiveSession(initialSession);
+  }, []);
+
+  // Broadcast & Sync Session when teacher modifies state locally
+  useEffect(() => {
+    if (isRemoteUpdateRef.current) {
+      isRemoteUpdateRef.current = false;
+      return;
+    }
     lastLocalSyncRef.current = session.updatedAt || Date.now();
     syncOncooLiveSession(session);
-  }, [session, updateActiveOncooSession, saveOncooSession]);
+  }, [session]);
+
+  const handleExit = async () => {
+    try {
+      await saveOncooSession(session);
+      await updateActiveOncooSession(null);
+    } catch (e) {
+      console.warn('Error saving Oncoo session on exit:', e);
+    }
+    onExit();
+  };
 
   const channelRef = useRef<BroadcastChannel | null>(null);
 
@@ -145,6 +165,7 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
       if (updatedSess && updatedSess.pinCode === session.pinCode) {
         if (!updatedSess.updatedAt || updatedSess.updatedAt >= lastLocalSyncRef.current - 500) {
           lastLocalSyncRef.current = updatedSess.updatedAt || Date.now();
+          isRemoteUpdateRef.current = true;
           setSession(updatedSess);
         }
       }
@@ -636,6 +657,56 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  // Placemat table & note management
+  const handleAddPlacematGroup = () => {
+    if (!session.placemat) return;
+    const newIdx = session.placemat.groups.length + 1;
+    const newGroup = {
+      id: `grp-${Date.now()}`,
+      groupName: `Tisch ${newIdx}`,
+      phase: 'think' as const,
+      cornerA: { author: 'Schüler A (Norden)', notes: [] },
+      cornerB: { author: 'Schüler B (Osten)', notes: [] },
+      cornerC: { author: 'Schüler C (Süden)', notes: [] },
+      cornerD: { author: 'Schüler D (Westen)', notes: [] },
+      consensus: ''
+    };
+    const updated = {
+      ...session,
+      placemat: {
+        ...session.placemat,
+        groups: [...session.placemat.groups, newGroup]
+      },
+      updatedAt: Date.now()
+    };
+    setSession(updated);
+    setActivePlacematGroupIndex(session.placemat.groups.length);
+  };
+
+  const handleDeletePlacematNote = (cornerKey: 'cornerA' | 'cornerB' | 'cornerC' | 'cornerD', noteIndex: number) => {
+    if (!session.placemat) return;
+    const groups = session.placemat.groups.map((grp, gIdx) => {
+      if (gIdx !== activePlacematGroupIndex) return grp;
+      const corner = grp[cornerKey];
+      return {
+        ...grp,
+        [cornerKey]: {
+          ...corner,
+          notes: corner.notes.filter((_, idx) => idx !== noteIndex)
+        }
+      };
+    });
+    const updated = {
+      ...session,
+      placemat: {
+        ...session.placemat,
+        groups
+      },
+      updatedAt: Date.now()
+    };
+    setSession(updated);
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-white font-sans flex flex-col justify-between select-none">
       
@@ -645,9 +716,9 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
         {/* Left: Back & Title */}
         <div className="flex items-center gap-3">
           <button
-            onClick={onExit}
+            onClick={handleExit}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all flex items-center gap-2 text-xs font-bold"
-            title="Sitzung verlassen"
+            title="Sitzung beenden und Ergebnisse speichern"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">Beenden</span>
@@ -1372,10 +1443,10 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
               </div>
 
               {/* Group tabs */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {session.placemat.groups.map((grp, gIdx) => (
                   <button
-                    key={grp.id}
+                    key={grp.id || gIdx}
                     type="button"
                     onClick={() => setActivePlacematGroupIndex(gIdx)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
@@ -1387,6 +1458,15 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
                     {grp.groupName}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={handleAddPlacematGroup}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white transition-all flex items-center gap-1 border border-dashed border-slate-600"
+                  title="Neuen Tisch hinzufügen"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Tisch</span>
+                </button>
               </div>
             </div>
 
@@ -1397,50 +1477,110 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
                 {/* North Corner A */}
                 <div className="col-span-3 bg-slate-900 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
                   <span className="text-xs font-black text-blue-400">{session.placemat.groups[activePlacematGroupIndex].cornerA.author}</span>
-                  <div className="text-xs text-slate-200 mt-1 space-y-1">
+                  <div className="text-xs text-slate-200 mt-1 space-y-1 overflow-y-auto max-h-[120px]">
                     {session.placemat.groups[activePlacematGroupIndex].cornerA.notes.map((n, i) => (
-                      <p key={i}>• {n}</p>
+                      <div key={i} className="flex items-start justify-between gap-1 group/note">
+                        <p className="break-words flex-1">• {n}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePlacematNote('cornerA', i)}
+                          className="opacity-0 group-hover/note:opacity-100 text-slate-400 hover:text-rose-400 p-0.5 rounded transition-opacity"
+                          title="Notiz entfernen"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     ))}
+                    {session.placemat.groups[activePlacematGroupIndex].cornerA.notes.length === 0 && (
+                      <span className="text-[11px] text-slate-500 italic">Noch keine Notizen eingereicht</span>
+                    )}
                   </div>
                 </div>
 
                 {/* West Corner D */}
                 <div className="row-span-1 col-span-1 bg-slate-900 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
                   <span className="text-xs font-black text-amber-400">{session.placemat.groups[activePlacematGroupIndex].cornerD.author}</span>
-                  <div className="text-xs text-slate-200 mt-1 space-y-1">
+                  <div className="text-xs text-slate-200 mt-1 space-y-1 overflow-y-auto max-h-[120px]">
                     {session.placemat.groups[activePlacematGroupIndex].cornerD.notes.map((n, i) => (
-                      <p key={i}>• {n}</p>
+                      <div key={i} className="flex items-start justify-between gap-1 group/note">
+                        <p className="break-words flex-1">• {n}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePlacematNote('cornerD', i)}
+                          className="opacity-0 group-hover/note:opacity-100 text-slate-400 hover:text-rose-400 p-0.5 rounded transition-opacity"
+                          title="Notiz entfernen"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     ))}
+                    {session.placemat.groups[activePlacematGroupIndex].cornerD.notes.length === 0 && (
+                      <span className="text-[11px] text-slate-500 italic">Noch keine Notizen</span>
+                    )}
                   </div>
                 </div>
 
                 {/* CENTER CONSENSUS FIELD */}
-                <div className="row-span-1 col-span-1 bg-gradient-to-br from-rose-950/80 to-red-900/60 rounded-2xl p-4 border-2 border-rose-500 shadow-xl flex flex-col justify-center items-center text-center">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-rose-300 mb-1">
-                    Gruppenkonsens
+                <div 
+                  onClick={() => {
+                    setTempConsensus(session.placemat?.groups[activePlacematGroupIndex]?.consensus || '');
+                    setIsEditingConsensus(true);
+                  }}
+                  className="row-span-1 col-span-1 bg-gradient-to-br from-rose-950/80 to-red-900/60 rounded-2xl p-4 border-2 border-rose-500 shadow-xl flex flex-col justify-center items-center text-center cursor-pointer hover:border-rose-400 hover:scale-[1.01] transition-all group"
+                  title="Klicken, um den Gruppenkonsens zu formulieren"
+                >
+                  <span className="text-[11px] font-black uppercase tracking-wider text-rose-300 mb-1 flex items-center gap-1.5">
+                    <span>Gruppenkonsens</span>
+                    <span className="text-[10px] text-rose-400 group-hover:underline font-normal">(Bearbeiten)</span>
                   </span>
-                  <p className="text-xs font-bold text-white leading-relaxed">
-                    {session.placemat.groups[activePlacematGroupIndex].consensus || 'Wird in der Share-Phase gemeinsam formuliert...'}
+                  <p className="text-xs font-bold text-white leading-relaxed line-clamp-4">
+                    {session.placemat.groups[activePlacematGroupIndex].consensus || 'Wird in der Share-Phase gemeinsam formuliert... (Klick zum Eingeben)'}
                   </p>
                 </div>
 
                 {/* East Corner B */}
                 <div className="row-span-1 col-span-1 bg-slate-900 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
                   <span className="text-xs font-black text-purple-400">{session.placemat.groups[activePlacematGroupIndex].cornerB.author}</span>
-                  <div className="text-xs text-slate-200 mt-1 space-y-1">
+                  <div className="text-xs text-slate-200 mt-1 space-y-1 overflow-y-auto max-h-[120px]">
                     {session.placemat.groups[activePlacematGroupIndex].cornerB.notes.map((n, i) => (
-                      <p key={i}>• {n}</p>
+                      <div key={i} className="flex items-start justify-between gap-1 group/note">
+                        <p className="break-words flex-1">• {n}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePlacematNote('cornerB', i)}
+                          className="opacity-0 group-hover/note:opacity-100 text-slate-400 hover:text-rose-400 p-0.5 rounded transition-opacity"
+                          title="Notiz entfernen"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     ))}
+                    {session.placemat.groups[activePlacematGroupIndex].cornerB.notes.length === 0 && (
+                      <span className="text-[11px] text-slate-500 italic">Noch keine Notizen</span>
+                    )}
                   </div>
                 </div>
 
                 {/* South Corner C */}
                 <div className="col-span-3 bg-slate-900 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
                   <span className="text-xs font-black text-emerald-400">{session.placemat.groups[activePlacematGroupIndex].cornerC.author}</span>
-                  <div className="text-xs text-slate-200 mt-1 space-y-1">
+                  <div className="text-xs text-slate-200 mt-1 space-y-1 overflow-y-auto max-h-[120px]">
                     {session.placemat.groups[activePlacematGroupIndex].cornerC.notes.map((n, i) => (
-                      <p key={i}>• {n}</p>
+                      <div key={i} className="flex items-start justify-between gap-1 group/note">
+                        <p className="break-words flex-1">• {n}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePlacematNote('cornerC', i)}
+                          className="opacity-0 group-hover/note:opacity-100 text-slate-400 hover:text-rose-400 p-0.5 rounded transition-opacity"
+                          title="Notiz entfernen"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     ))}
+                    {session.placemat.groups[activePlacematGroupIndex].cornerC.notes.length === 0 && (
+                      <span className="text-[11px] text-slate-500 italic">Noch keine Notizen eingereicht</span>
+                    )}
                   </div>
                 </div>
 
@@ -1656,6 +1796,86 @@ export const OncooPresenter: React.FC<OncooPresenterProps> = ({
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= 4. PLACEMAT CONSENSUS MODAL ================= */}
+      {isEditingConsensus && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150 cursor-pointer"
+          onClick={() => setIsEditingConsensus(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-700 text-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-4 cursor-default animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-black uppercase text-rose-400 tracking-wider">
+                  Phase 3: Share
+                </span>
+                <h3 className="text-lg font-black text-white">
+                  Gruppenkonsens formulieren ({session.placemat?.groups[activePlacematGroupIndex]?.groupName})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditingConsensus(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Welches gemeinsame Fazit oder Kernergebnis hat die Gruppe vereinbart? Dieser Konsens wird direkt auf die Handys der Gruppe übertragen.
+            </p>
+
+            <textarea
+              rows={4}
+              value={tempConsensus}
+              onChange={(e) => setTempConsensus(e.target.value)}
+              placeholder="Gemeinsamen Konsens hier eingeben..."
+              className="w-full p-3 rounded-2xl bg-slate-950 border border-slate-700 text-sm font-medium text-white focus:outline-none focus:border-rose-500"
+              autoFocus
+            />
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsEditingConsensus(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!session.placemat) return;
+                  const groups = session.placemat.groups.map((grp, gIdx) => {
+                    if (gIdx !== activePlacematGroupIndex) return grp;
+                    return {
+                      ...grp,
+                      consensus: tempConsensus.trim()
+                    };
+                  });
+                  const updated = {
+                    ...session,
+                    placemat: {
+                      ...session.placemat,
+                      groups
+                    },
+                    updatedAt: Date.now()
+                  };
+                  setSession(updated);
+                  setIsEditingConsensus(false);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-md transition-all active:scale-95"
+              >
+                Konsens speichern
+              </button>
+            </div>
           </div>
         </div>
       )}

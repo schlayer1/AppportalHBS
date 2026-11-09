@@ -7,7 +7,10 @@ import {
   Users, 
   Clock, 
   ArrowRight,
-  X
+  X,
+  AlertCircle,
+  Lock,
+  Loader2
 } from 'lucide-react';
 import { 
   OncooSession, 
@@ -36,12 +39,12 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
   onClose
 }) => {
   const [pinCode, setPinCode] = useState<string>(() => {
-    if (initialCode) return initialCode;
+    if (initialCode) return initialCode.trim().replace(/\s+/g, '');
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search).get('oncoo');
-      if (p && p.length >= 6) return p;
-      const hash = window.location.hash.replace('#oncoo=', '').replace('#oncoo', '');
-      if (hash && hash.length >= 6) return hash;
+      if (p && p.trim().length >= 6) return p.trim().replace(/\s+/g, '');
+      const hash = window.location.hash.replace('#oncoo=', '').replace('#oncoo', '').trim();
+      if (hash && hash.length >= 6) return hash.replace(/\s+/g, '');
     }
     return '';
   });
@@ -49,6 +52,8 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
   const [enteredPin, setEnteredPin] = useState<string>('');
   const [session, setSession] = useState<OncooSession | null>(null);
   const [hasJoined, setHasJoined] = useState<boolean>(false);
+  const [isSearchingSession, setIsSearchingSession] = useState<boolean>(false);
+  const [sessionNotFound, setSessionNotFound] = useState<boolean>(false);
   const [studentName, setStudentName] = useState<string>(() => {
     return localStorage.getItem('hbs_oncoo_student_name') || '';
   });
@@ -83,106 +88,123 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
 
   // Auto-join and live Firestore subscription + polling
   useEffect(() => {
-    if (pinCode && pinCode.length >= 6) {
-      attemptJoinSession(pinCode);
+    if (!pinCode || pinCode.trim().length < 6) {
+      setHasJoined(false);
+      setSession(null);
+      setIsSearchingSession(false);
+      setSessionNotFound(false);
+      return;
     }
-    if (pinCode) {
-      const applySession = (cloudSess: OncooSession | null) => {
-        if (cloudSess) {
-          setSession(cloudSess);
-          setHasJoined(true);
-          if (cloudSess.toolType === 'zielscheibe' && cloudSess.zielscheibe) {
-            setTargetScores(prev => {
-              if (Object.keys(prev).length > 0) return prev;
-              const defaults: Record<string, number> = {};
-              cloudSess.zielscheibe?.criteria.forEach(c => {
-                defaults[c.id] = 4;
-              });
-              return defaults;
-            });
-          }
-        }
-      };
 
-      const unsub = subscribeToOncooSession(pinCode, applySession);
+    const cleanPin = pinCode.trim().replace(/\s+/g, '');
+    setIsSearchingSession(true);
+    setSessionNotFound(false);
 
-      const heartbeat = setInterval(async () => {
-        const live = await getOncooLiveSessionFromCloud(pinCode);
-        if (live) applySession(live);
-      }, 2500);
-
-      return () => {
-        unsub();
-        clearInterval(heartbeat);
-      };
-    }
-  }, [pinCode]);
-
-  const attemptJoinSession = (pin: string) => {
+    // 1. Check local cache ONLY if PIN strictly matches!
     const cloud = getCachedPortalData();
-    const found = (cloud.oncooSessions || []).find(s => s.pinCode === pin) || cloud.activeOncooSession;
+    const localMatch = (cloud.oncooSessions || []).find(s => s.pinCode?.replace(/\s+/g, '') === cleanPin) ||
+      (cloud.activeOncooSession?.pinCode?.replace(/\s+/g, '') === cleanPin ? cloud.activeOncooSession : null);
 
-    if (found) {
-      setSession(found);
+    if (localMatch) {
+      setSession(localMatch);
       setHasJoined(true);
-      setPinCode(pin);
-
-      // Initialize default scores for Zielscheibe
-      if (found.toolType === 'zielscheibe' && found.zielscheibe) {
-        const defaults: Record<string, number> = {};
-        found.zielscheibe.criteria.forEach(c => {
-          defaults[c.id] = 4; // default good rating
+      setIsSearchingSession(false);
+      if (localMatch.toolType === 'zielscheibe' && localMatch.zielscheibe) {
+        setTargetScores(prev => {
+          if (Object.keys(prev).length > 0) return prev;
+          const defaults: Record<string, number> = {};
+          localMatch.zielscheibe?.criteria.forEach(c => { defaults[c.id] = 4; });
+          return defaults;
         });
-        setTargetScores(defaults);
       }
+    }
 
-      // Initialize broadcast channel
-      try {
-        const channel = new BroadcastChannel(`hbs_oncoo_${pin}`);
-        broadcastRef.current = channel;
+    // 2. Helper to apply live session from Firestore or broadcast
+    const applySession = (liveSess: OncooSession | null) => {
+      if (liveSess && liveSess.pinCode?.replace(/\s+/g, '') === cleanPin) {
+        setSession(liveSess);
+        setHasJoined(true);
+        setIsSearchingSession(false);
+        setSessionNotFound(false);
 
-        // Check if student is already in a pair for Lerntempoduett
-        channel.onmessage = (event) => {
-          if (event.data?.type === 'PAIR_FORMED' && studentName) {
-            const pair = event.data.payload;
-            if (pair.student1 === studentName) {
-              setMyTandemPartner({ name: pair.student2, table: pair.tableNumber });
-            } else if (pair.student2 === studentName) {
-              setMyTandemPartner({ name: pair.student1, table: pair.tableNumber });
-            }
+        // Zielscheibe initial defaults
+        if (liveSess.toolType === 'zielscheibe' && liveSess.zielscheibe) {
+          setTargetScores(prev => {
+            if (Object.keys(prev).length > 0) return prev;
+            const defaults: Record<string, number> = {};
+            liveSess.zielscheibe?.criteria.forEach(c => { defaults[c.id] = 4; });
+            return defaults;
+          });
+        }
+
+        // Lerntempoduett pair matching for student
+        if (liveSess.toolType === 'lerntempoduett' && liveSess.lerntempoduett && studentName) {
+          const sName = studentName.trim().toLowerCase();
+          const pair = liveSess.lerntempoduett.pairs?.find(
+            p => p.student1.trim().toLowerCase() === sName || p.student2.trim().toLowerCase() === sName
+          );
+          if (pair) {
+            const partner = pair.student1.trim().toLowerCase() === sName ? pair.student2 : pair.student1;
+            setMyTandemPartner({ name: partner, table: pair.tableNumber || 1 });
           }
-        };
-      } catch (e) {
-        console.warn('BroadcastChannel error:', e);
+        }
       }
-    } else {
-      // Create lightweight fallback session for student
-      const fallback: OncooSession = {
-        id: `oncoo-session-${pin}`,
-        toolType: 'kartenabfrage',
-        title: 'Unterrichts-Sitzung',
-        authorId: 'system',
-        authorName: 'Lehrkraft',
-        isShared: true,
-        pinCode: pin,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        isActive: true,
-        kartenabfrage: {
-          question: 'Welche Gedanken oder Fragen hast du zu diesem Thema?',
-          columns: [],
-          cards: [],
-          allowMultipleCards: true,
-          maxCardsPerStudent: 5,
-          showAuthor: true,
-          allowLikes: true
+    };
+
+    // 3. Connect to Firestore
+    const unsub = subscribeToOncooSession(cleanPin, applySession);
+
+    // Initial fetch
+    getOncooLiveSessionFromCloud(cleanPin).then(live => {
+      if (live) applySession(live);
+    });
+
+    // 2.5s polling heartbeat
+    const heartbeat = setInterval(async () => {
+      const live = await getOncooLiveSessionFromCloud(cleanPin);
+      if (live) applySession(live);
+    }, 2500);
+
+    // Timeout: if still not joined after 6 seconds, show not found
+    const timeout = setTimeout(() => {
+      setIsSearchingSession(prev => {
+        if (prev && !hasJoined) {
+          setSessionNotFound(true);
+        }
+        return false;
+      });
+    }, 6000);
+
+    // 4. BroadcastChannel for same-origin tabs
+    try {
+      const channel = new BroadcastChannel(`hbs_oncoo_${cleanPin}`);
+      broadcastRef.current = channel;
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'PAIR_FORMED' && studentName) {
+          const pair = event.data.payload;
+          if (pair.student1 === studentName) {
+            setMyTandemPartner({ name: pair.student2, table: pair.tableNumber });
+          } else if (pair.student2 === studentName) {
+            setMyTandemPartner({ name: pair.student1, table: pair.tableNumber });
+          }
+        } else if (event.data?.type === 'SESSION_UPDATE' && event.data.payload) {
+          applySession(event.data.payload);
         }
       };
-      setSession(fallback);
-      setHasJoined(true);
-      setPinCode(pin);
+    } catch (e) {
+      console.warn('BroadcastChannel error:', e);
     }
-  };
+
+    return () => {
+      unsub();
+      clearInterval(heartbeat);
+      clearTimeout(timeout);
+      if (broadcastRef.current) {
+        broadcastRef.current.close();
+        broadcastRef.current = null;
+      }
+    };
+  }, [pinCode, studentName]);
 
   // Submit Card
   const handleSubmitCard = (e: React.FormEvent) => {
@@ -301,7 +323,7 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
   // Submit Placemat Note
   const handleSubmitPlacematNote = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!placematNote.trim() || !session) return;
+    if (!placematNote.trim() || !session || session.isLocked) return;
 
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
@@ -311,7 +333,8 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
             groupIndex: placematGroupIndex,
             cornerKey: placematCorner,
             note: placematNote.trim()
-          }
+          },
+          studentName: studentName.trim() || undefined
         }
       });
     }
@@ -323,7 +346,8 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
           groupIndex: placematGroupIndex,
           cornerKey: placematCorner,
           note: placematNote.trim()
-        }
+        },
+        studentName: studentName.trim() || undefined
       });
     }
 
@@ -371,62 +395,114 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
       {/* Main Content Area */}
       <main className="flex-1 max-w-md w-full mx-auto p-4 flex flex-col justify-center">
         
-        {/* ================= STEP 1: PIN ENTRY ================= */}
+        {/* ================= STEP 1: PIN ENTRY & CONNECTION STATES ================= */}
         {!hasJoined && (
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl text-center space-y-5 animate-in fade-in">
-            <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
-              <Users className="w-7 h-7" />
-            </div>
-
-            <div>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                Sitzung beitreten
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Gib den 6-stelligen PIN-Code von der Tafel oder dem Beamer ein:
-              </p>
-            </div>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (enteredPin.trim().length >= 6) {
-                  attemptJoinSession(enteredPin.trim());
-                }
-              }}
-              className="space-y-4"
-            >
-              <div>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  required
-                  value={enteredPin}
-                  onChange={(e) => setEnteredPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="123456"
-                  className="w-full text-center text-3xl font-mono font-black tracking-widest py-3 rounded-2xl border-2 border-slate-300 focus:border-rose-500 focus:outline-none focus:ring-4 focus:ring-rose-100 transition-all bg-slate-50 text-slate-900"
-                />
+          <>
+            {isSearchingSession && !sessionNotFound ? (
+              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-xl text-center space-y-4 animate-in fade-in">
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+                  <Loader2 className="w-7 h-7 animate-spin" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                    Sitzung wird verbunden...
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1 font-mono">
+                    PIN: {pinCode}
+                  </p>
+                </div>
               </div>
+            ) : sessionNotFound ? (
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl text-center space-y-4 animate-in fade-in">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto shadow-inner">
+                  <AlertCircle className="w-7 h-7" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                    Sitzung nicht gefunden
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Unter der PIN <span className="font-mono font-black text-rose-600">{pinCode}</span> wurde keine aktive Oncoo-Sitzung gefunden. Bitte vergleiche die PIN mit der Anzeige an der Tafel.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPinCode('');
+                    setEnteredPin('');
+                    setSessionNotFound(false);
+                    setIsSearchingSession(false);
+                  }}
+                  className="w-full py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-black text-xs shadow-md transition-all active:scale-95"
+                >
+                  Andere PIN eingeben
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl text-center space-y-5 animate-in fade-in">
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+                  <Users className="w-7 h-7" />
+                </div>
 
-              <button
-                type="submit"
-                disabled={enteredPin.trim().length < 6}
-                className="w-full py-3.5 rounded-2xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                <span>Beitreten</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                    Sitzung beitreten
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Gib den 6-stelligen PIN-Code von der Tafel oder dem Beamer ein:
+                  </p>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (enteredPin.trim().length >= 6) {
+                      setPinCode(enteredPin.trim().replace(/\s+/g, ''));
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      required
+                      value={enteredPin}
+                      onChange={(e) => setEnteredPin(e.target.value.replace(/\D/g, ''))}
+                      placeholder="123456"
+                      className="w-full text-center text-3xl font-mono font-black tracking-widest py-3 rounded-2xl border-2 border-slate-300 focus:border-rose-500 focus:outline-none focus:ring-4 focus:ring-rose-100 transition-all bg-slate-50 text-slate-900"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={enteredPin.trim().length < 6}
+                    className="w-full py-3.5 rounded-2xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <span>Beitreten</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
+              </div>
+            )}
+          </>
         )}
 
         {/* ================= STEP 2: ACTIVE SESSION TOOL UI ================= */}
         {hasJoined && session && (
           <div className="space-y-4 animate-in fade-in">
             
+            {/* Lock status banner */}
+            {session.isLocked && (
+              <div className="bg-amber-50 border border-amber-300 text-amber-900 p-3 rounded-2xl flex items-center gap-2.5 text-xs font-bold animate-pulse">
+                <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Eingaben pausiert – Die Lehrkraft hat neue Beiträge vorübergehend gesperrt.</span>
+              </div>
+            )}
+
             {/* Student Alias Bar */}
             <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between gap-2">
               <span className="text-xs text-slate-500 font-bold">Dein Name / Alias:</span>
@@ -797,11 +873,24 @@ export const OncooStudentClient: React.FC<OncooStudentClientProps> = ({
 
                   <button
                     type="submit"
-                    className="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-md transition-all active:scale-95"
+                    disabled={session.isLocked || !placematNote.trim()}
+                    className="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-black text-xs shadow-md transition-all active:scale-95"
                   >
                     In mein Feld eintragen
                   </button>
                 </form>
+
+                {/* Central consensus if formulated by teacher/class */}
+                {session.placemat?.groups?.[placematGroupIndex]?.consensus && (
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-red-50 border border-rose-200 text-rose-950 space-y-1 animate-in fade-in">
+                    <span className="text-[10px] font-black uppercase text-rose-700 tracking-wider block">
+                      🤝 Vereinbarter Gruppenkonsens:
+                    </span>
+                    <p className="text-xs font-bold leading-relaxed">
+                      {session.placemat.groups[placematGroupIndex].consensus}
+                    </p>
+                  </div>
+                )}
 
                 {myPlacematNotes.length > 0 && (
                   <div className="pt-2 border-t border-slate-100">

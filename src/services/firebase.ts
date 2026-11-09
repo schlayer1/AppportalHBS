@@ -232,7 +232,7 @@ export const subscribeToPortalData = (callback: (data: PortalCloudData) => void)
  * Saves portal data to Firestore (and updates local cache)
  */
 export const savePortalDataToCloud = async (data: PortalCloudData): Promise<boolean> => {
-  const updatedData = { ...data, updatedAt: Date.now() };
+  const updatedData = sanitizeForFirestore({ ...data, updatedAt: Date.now() });
   setCachedPortalData(updatedData);
 
   if (!db) return true;
@@ -938,12 +938,18 @@ export const submitMentiReactionInCloud = async (
 export const syncOncooLiveSession = async (session: OncooSession): Promise<void> => {
   if (!db || !session.pinCode) return;
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${session.pinCode}`);
-    await setDoc(sessionDocRef, { ...session, updatedAt: Date.now() }, { merge: true });
+    const cleanPin = (session.pinCode || '').replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${cleanPin}`);
+    const dataToWrite = sanitizeForFirestore({ ...session, pinCode: cleanPin, updatedAt: Date.now() });
+    await setDoc(sessionDocRef, dataToWrite, { merge: true });
 
     // Mirror to portal_data
     const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
-    await setDoc(portalDocRef, { activeOncooSession: session }, { merge: true }).catch(() => {});
+    await setDoc(portalDocRef, { activeOncooSession: dataToWrite }, { merge: true }).catch(() => {});
+
+    // Mirror to schoolDocRef
+    const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+    await setDoc(schoolDocRef, { activeOncooSession: dataToWrite }, { merge: true }).catch(() => {});
   } catch (err) {
     console.warn("Oncoo sync to cloud warning:", err);
   }
@@ -952,10 +958,21 @@ export const syncOncooLiveSession = async (session: OncooSession): Promise<void>
 export const getOncooLiveSessionFromCloud = async (pinCode: string): Promise<OncooSession | null> => {
   if (!db || !pinCode) return null;
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${pinCode}`);
+    const cleanPin = (pinCode || '').replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${cleanPin}`);
     const snap = await getDoc(sessionDocRef);
     if (snap.exists()) {
       return snap.data() as OncooSession;
+    }
+
+    // Fallback: check portal_data
+    const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
+    const pSnap = await getDoc(portalDocRef);
+    if (pSnap.exists()) {
+      const active = pSnap.data()?.activeOncooSession;
+      if (active && String(active.pinCode || '').replace(/\s+/g, '') === cleanPin) {
+        return active as OncooSession;
+      }
     }
   } catch (err) {
     console.warn("Error getting Oncoo session from cloud:", err);
@@ -972,12 +989,24 @@ export const subscribeToOncooSession = (
 ): (() => void) => {
   if (!db || !pinCode) return () => {};
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${pinCode}`);
+    const cleanPin = (pinCode || '').replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${cleanPin}`);
     const unsubscribe = onSnapshot(sessionDocRef, (snap) => {
       if (snap.exists()) {
         callback(snap.data() as OncooSession);
       } else {
-        callback(null);
+        // Fallback: check portal_data
+        const portalDocRef = doc(db!, PORTAL_COLLECTION, PORTAL_DATA_DOC);
+        getDoc(portalDocRef).then((pSnap) => {
+          if (pSnap.exists()) {
+            const active = pSnap.data()?.activeOncooSession;
+            if (active && String(active.pinCode || '').replace(/\s+/g, '') === cleanPin) {
+              callback(active as OncooSession);
+              return;
+            }
+          }
+          callback(null);
+        }).catch(() => callback(null));
       }
     }, (err) => {
       console.warn("Oncoo snapshot error:", err);
@@ -1006,7 +1035,8 @@ export const submitOncooActionInCloud = async (
 ): Promise<void> => {
   if (!db || !pinCode) return;
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${pinCode}`);
+    const cleanPin = (pinCode || '').replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `oncoo_${cleanPin}`);
     const snap = await getDoc(sessionDocRef);
     if (snap.exists()) {
       const sess = snap.data() as OncooSession;
@@ -1081,6 +1111,7 @@ export const submitOncooActionInCloud = async (
               ...grp,
               [key]: {
                 ...corner,
+                author: (payload.studentName && (!corner.author || corner.author.startsWith('Schüler '))) ? payload.studentName : corner.author,
                 notes: [...(corner.notes || []), note]
               }
             };
@@ -1090,7 +1121,12 @@ export const submitOncooActionInCloud = async (
       }
 
       sess.updatedAt = Date.now();
-      await setDoc(sessionDocRef, sess, { merge: true });
+      const sanitized = sanitizeForFirestore(sess);
+      await setDoc(sessionDocRef, sanitized, { merge: true });
+
+      // Mirror to portal_data
+      const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
+      await setDoc(portalDocRef, { activeOncooSession: sanitized }, { merge: true }).catch(() => {});
     }
   } catch (err) {
     console.warn("Error submitting Oncoo action in cloud:", err);

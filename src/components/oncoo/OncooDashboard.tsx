@@ -174,7 +174,7 @@ export const OncooDashboard: React.FC<OncooDashboardProps> = ({
       id: `oncoo-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       toolType: newToolType,
       title: newTitle.trim(),
-      description: newDescription.trim() || undefined,
+      description: newDescription.trim() || '',
       subject: newSubject,
       grade: newGrade,
       authorId: currentUser?.id || 'guest',
