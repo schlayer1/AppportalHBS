@@ -2,10 +2,54 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '3.2.0',
+    title: 'HBS Oncoo 2.0: Placemat-Gruppenkonsens, Smartboard Touch-Kartenabfrage, dynamische Zielscheiben (2–10) & Helfersystem',
+    date: '9. November 2026',
+    isLatest: true,
+    highlight: 'Großes Interaktions-Update für das kooperative Lernmethoden-Modul HBS Oncoo: Schülerinnen und Schüler können den Gruppenkonsens in der Placemat-Methode ab sofort direkt vom Handy/Tablet formulieren und an die Tafel übertragen. Die Kartenabfrage startet nun standardmäßig als offene, touch-optimierte Pinnwand (Pointer Events) mit automatischer Einrast-Funktion für frei definierbare Spalten. Die Zielscheibe unterstützt flexible Skalen von 2 bis 10 Ringen mit bis zu 6 frei benennbaren Kriterien, das Helfersystem erlaubt konkrete Aufgabenstellungen/Stationen und die Teilnehmerzählung wurde präzisiert.',
+    items: [
+      {
+        id: 'cl-320-1',
+        type: 'neu',
+        title: 'Placemat: Mobiler Gruppenkonsens & 4-Quadranten-Einsicht (Think-Pair-Share)',
+        description: 'In der Schüleransicht (QR-Code-Scan oder PIN) kann in Phase 3 (Share) nahtlos zwischen dem eigenen Außenfeld (Think) und dem gemeinsamen Gruppenkonsens (Share) gewechselt werden. Schüler sehen die Notizen aller 4 Tischecken (Norden, Osten, Süden, Westen) direkt auf ihrem Smartphone-Bildschirm und können den vereinbarten Konsens formulieren, der sofort live im Zentrum der Tafel-Placemat und in der Cloud erscheint.',
+        badge: 'Placemat Share'
+      },
+      {
+        id: 'cl-320-2',
+        type: 'neu',
+        title: 'Kartenabfrage: Standardmäßig freie Pinnwand mit Smartboard-Touch & magnetischen Spalten',
+        description: 'Neue Kartenabfragen starten standardmäßig auf einer weiten, freien Pinnwand-Fläche mit Dot-Grid-Muster. Alle Kärtchen lassen sich per Finger- oder Whiteboardstift-Touch (Pointer Events mit Pointer Capture) völlig frei an der interaktiven Tafel verschieben. Über „+ Spalte“ kann die Lehrkraft jederzeit flexible Kategorien anlegen: Hineingezogene Kärtchen leuchten auf und rasten ein, herausgezogene Kärtchen werden wieder zu frei schwebenden Notizen.',
+        badge: 'Smartboard Touch'
+      },
+      {
+        id: 'cl-320-3',
+        type: 'verbessert',
+        title: 'Zielscheibe: Frei wählbare Skala (2 bis 10 Ringe) & bis zu 6 Kriterien',
+        description: 'Im Erstellungs-Modal kann die Bewertungsskala flexibel zwischen 2 (z. B. Ja/Nein) und 10 Stufen (z. B. Schulnoten) eingestellt werden. Zudem können bis zu 6 Auswertungskriterien frei benannt, hinzugefügt und gelöscht werden. Die konzentrische Vektor-Zielscheibe an der Tafel sowie die mobilen Bewertungs-Buttons passen sich vollautomatisch an die gewählte Skalierung an.',
+        badge: 'Zielscheibe 2–10'
+      },
+      {
+        id: 'cl-320-4',
+        type: 'verbessert',
+        title: 'Helfersystem: Aufgaben & Stationen durch Lehrkraft frei definierbar',
+        description: 'Beim Anlegen des Helfersystems kann die Lehrkraft die konkreten Aufgabenstellungen oder Lernstationen des Unterrichts (z. B. Station 1: Bruchrechnen, Station 2: Textaufgaben etc.) hinterlegen. Das Dropdown-Menü auf den Schüler-Geräten zeigt exakt diese Stationen an, sodass sich Schüler passgenau als hilfesuchend (🆘) oder helfend (💡) eintragen können.',
+        badge: 'Peer-Teaching'
+      },
+      {
+        id: 'cl-320-5',
+        type: 'behoben',
+        title: 'Teilnehmerzahl: Korrekte Zählung aktiver Schüler im Placemat',
+        description: 'Behebung des statischen Fallbacks, der im Oncoo-Presenter unabhängig von der tatsächlichen Schüleranzahl immer „4“ anzeigte. Die Teilnehmerzahl errechnet sich nun präzise anhand der aktiven Beitragsleistenden und verbundenen Schülerinnen und Schüler.',
+        badge: 'Bugfix Live-Count'
+      }
+    ]
+  },
+  {
     version: '3.1.0',
     title: 'HBS Menti Asynchrone Umfragen (Audience Pace), Dauerhafte Gültigkeit & Ergebnis-Auswertungszentrum',
     date: '9. November 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Einführung des asynchronen Mentimeter-Umfragemodus (Audience Pace) mit konfigurierbarer Gültigkeitsdauer (2 Tage, 7 Tage Menti-Standard, 14 Tage, 30 Tage oder dauerhaft): Umfragen bleiben vollständig unabhängig von Login-Sitzungen des Erstellers in der Cloud aktiv. Kolleginnen und Kollegen können per Freigabe-Link selbstgesteuert durch alle Folien navigieren. Alle Ergebnisse werden dauerhaft in Google Cloud Firestore gesichert und lassen sich jederzeit über das neue interaktive Ergebnis-Dashboard einsehen, drucken oder am Smartboard präsentieren.',
     items: [
       {
