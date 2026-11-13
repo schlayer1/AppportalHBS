@@ -96,8 +96,18 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
       broadcastRef.current = channel;
       channel.onmessage = (event) => {
         const { type, payload } = event.data || {};
-        if (type === 'STAGE_CHANGE' && payload) {
-          setSession(payload);
+        if (type === 'STAGE_CHANGE' && payload && payload.stage) {
+          setSession(prev => {
+            if (!prev) return payload;
+            if (
+              payload.teacherSeq !== undefined &&
+              prev.teacherSeq !== undefined &&
+              payload.teacherSeq < prev.teacherSeq
+            ) {
+              return prev;
+            }
+            return payload;
+          });
         } else if (type === 'JOIN_CONFIRMED') {
           setHasJoinedLobby(true);
         }
@@ -112,35 +122,34 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
     };
   }, [pinCode]);
 
-  // Snapshot listener + 2s fallback heartbeat for active Kahoot session from Firestore
+  // Snapshot listener + 1.5s fallback heartbeat for active Kahoot session from Firestore
   useEffect(() => {
     if (!pinCode) return;
+
+    const applyCloudSession = (incoming: KahootLiveSession) => {
+      if (!incoming || !incoming.stage) return;
+      setSession(prev => {
+        if (!prev) return incoming;
+        // Monotonic protection using ONLY teacher-generated teacherSeq (immune to student phone vs PC clock skew!)
+        if (
+          incoming.teacherSeq !== undefined &&
+          prev.teacherSeq !== undefined &&
+          incoming.teacherSeq < prev.teacherSeq
+        ) {
+          return prev;
+        }
+        return incoming;
+      });
+    };
+
     const unsubscribe = subscribeToKahootSession(pinCode, (sess) => {
-      if (sess) {
-        setSession(prev => {
-          if (!prev) return sess;
-          // Monotoner Schutz: Ältere Snapshots dürfen neuere Stände niemals überschreiben
-          if (sess.updatedAt && prev.updatedAt && sess.updatedAt < prev.updatedAt) {
-            return prev;
-          }
-          return sess;
-        });
-      }
+      if (sess) applyCloudSession(sess);
     });
 
     const heartbeat = setInterval(async () => {
       const live = await getKahootLiveSessionFromCloud(pinCode);
-      if (live) {
-        setSession(prev => {
-          if (!prev) return live;
-          // Monotoner Schutz gegen veraltete HTTP-Antworten
-          if (live.updatedAt && prev.updatedAt && live.updatedAt < prev.updatedAt) {
-            return prev;
-          }
-          return live;
-        });
-      }
-    }, 2000);
+      if (live) applyCloudSession(live);
+    }, 1500);
 
     return () => {
       unsubscribe();
@@ -171,8 +180,10 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
     return () => clearInterval(timer);
   }, [teamConsultationLeft]);
 
-  // Find my current participant state in session
-  const myParticipant = session?.participants?.find(p => p.id === studentId);
+  // Find my current participant state in session (merging array & playerProfiles fallback)
+  const myParticipant =
+    session?.participants?.find(p => p.id === studentId) ||
+    session?.playerProfiles?.[studentId];
 
   // Handle PIN submit
   const handlePinSubmit = (e: React.FormEvent) => {
@@ -490,6 +501,18 @@ export const KahootStudentPlayer: React.FC<KahootStudentPlayerProps> = ({
               </div>
             ) : (
               <div className="flex-1 flex flex-col justify-between h-full">
+                {/* Question Counter & Prompt Header */}
+                <div className="mb-2 px-3 py-2 rounded-2xl bg-white/10 border border-white/15 text-center shrink-0">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-purple-300">
+                    Frage {currentQIdx + 1} von {session?.totalQuestions || 1}
+                  </div>
+                  {session?.activeQuestion?.question && (
+                    <div className="text-xs sm:text-sm font-bold text-white line-clamp-2 mt-0.5">
+                      {session.activeQuestion.question}
+                    </div>
+                  )}
+                </div>
+
                 {/* Team Consultation Banner */}
                 {session?.gameMode === 'team' && teamConsultationLeft > 0 && (
                   <div className="p-3 mb-2 rounded-2xl bg-amber-500/25 border-2 border-amber-400 text-amber-100 text-center animate-pulse shrink-0">

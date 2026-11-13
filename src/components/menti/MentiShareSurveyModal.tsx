@@ -55,7 +55,7 @@ export const MentiShareSurveyModal: React.FC<MentiShareSurveyModalProps> = ({
   });
 
   const [allowViewResults, setAllowViewResults] = useState<boolean>(() => {
-    return existingSettings?.allowViewResultsAfterVote || false;
+    return existingSettings?.allowViewResultsAfterVote ?? true;
   });
 
   const [copied, setCopied] = useState<boolean>(false);
@@ -164,7 +164,8 @@ export const MentiShareSurveyModal: React.FC<MentiShareSurveyModalProps> = ({
         authorId: presentation.authorId
       };
 
-      await syncMentiLiveSession(sessionDoc);
+      // Preserve live cloud responses if survey already existed
+      await syncMentiLiveSession(sessionDoc, { includeResponses: !existingSettings });
 
       // 2. Persist in presentation state / Portal Data
       await onSavePresentation(updatedPresentation);

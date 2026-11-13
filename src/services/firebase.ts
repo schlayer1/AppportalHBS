@@ -6,6 +6,7 @@ import {
   setDoc, 
   onSnapshot,
   arrayUnion,
+  runTransaction,
   Firestore
 } from 'firebase/firestore';
 import { PortalUser, UserPreferences, SavedBoardTemplate } from '../types/user';
@@ -498,7 +499,7 @@ export const sanitizeForFirestore = <T>(data: T): T => {
 
 /**
  * Syncs the active Kahoot live session to Firestore.
- * Writes to dedicated document and mirrors to schools/HBS_portal and portal_data.
+ * Writes to dedicated document and mirrors to schools/HBS_portal.
  */
 export const syncKahootLiveSession = async (
   session: Partial<KahootLiveSession> & { sessionCode: string }
@@ -507,7 +508,11 @@ export const syncKahootLiveSession = async (
   try {
     const cleanCode = (session.sessionCode || '').replace(/\s+/g, '');
     const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${cleanCode}`);
-    const dataToWrite: any = sanitizeForFirestore({ ...session, sessionCode: cleanCode, updatedAt: Date.now() });
+    const dataToWrite: any = sanitizeForFirestore({
+      ...session,
+      sessionCode: cleanCode,
+      updatedAt: session.updatedAt || Date.now()
+    });
 
     // If caller did not provide participants explicitly, do NOT overwrite participants in Firestore
     if (!session.participants) {
@@ -576,6 +581,8 @@ export const getKahootLiveSessionFromCloud = async (sessionCode: string): Promis
 
 /**
  * Student joins the Kahoot lobby from their smartphone via QR code / PIN.
+ * Uses Firestore runTransaction + playerProfiles map to prevent concurrent write races
+ * and avoids overwriting teacherSeq / updatedAt with student device clock time.
  */
 export const joinKahootSessionInCloud = async (
   sessionCode: string,
@@ -585,32 +592,42 @@ export const joinKahootSessionInCloud = async (
   try {
     const cleanCode = (sessionCode || '').replace(/\s+/g, '');
     const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${cleanCode}`);
-    const snap = await getDoc(sessionDocRef);
-    let participants: KahootParticipant[] = [];
-
-    if (snap.exists()) {
-      const data = snap.data() as KahootLiveSession;
-      participants = Array.isArray(data.participants) ? data.participants : [];
-    }
     const cleanParticipant = sanitizeForFirestore(participant);
-    const updated = [...participants.filter(p => p.id !== cleanParticipant.id), cleanParticipant];
 
-    const dataToWrite = sanitizeForFirestore({
-      sessionCode: cleanCode,
-      participants: updated,
-      updatedAt: Date.now()
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(sessionDocRef);
+      const data = snap.exists() ? (snap.data() as KahootLiveSession) : null;
+      const existingParticipants = Array.isArray(data?.participants) ? data!.participants : [];
+      const updatedParticipants = [
+        ...existingParticipants.filter(p => p.id !== cleanParticipant.id),
+        cleanParticipant
+      ];
+      const existingProfiles = (data?.playerProfiles && typeof data.playerProfiles === 'object')
+        ? data.playerProfiles
+        : {};
+
+      tx.set(
+        sessionDocRef,
+        sanitizeForFirestore({
+          sessionCode: cleanCode,
+          participants: updatedParticipants,
+          playerProfiles: {
+            ...existingProfiles,
+            [cleanParticipant.id]: cleanParticipant
+          }
+        }),
+        { merge: true }
+      );
     });
 
-    await setDoc(sessionDocRef, dataToWrite, { merge: true });
-
-    // Mirror to schools/HBS_portal
+    // Mirror participant profile to schools/HBS_portal without overwriting presenter stage/index
     const schoolDocRef = doc(db, 'schools', 'HBS_portal');
     await setDoc(schoolDocRef, sanitizeForFirestore({
       activeKahootSession: {
-        ...(snap.exists() ? snap.data() : {}),
         sessionCode: cleanCode,
-        participants: updated,
-        updatedAt: Date.now()
+        playerProfiles: {
+          [cleanParticipant.id]: cleanParticipant
+        }
       }
     }), { merge: true }).catch(() => {});
 
@@ -623,6 +640,8 @@ export const joinKahootSessionInCloud = async (
 
 /**
  * Student submits their answer in Kahoot from their smartphone for a specific question.
+ * Uses Firestore runTransaction + nested responses map so simultaneous answers never overwrite each other
+ * and teacher's stage/currentQuestionIndex/teacherSeq are never overwritten or blocked by phone clock skew.
  */
 export const submitKahootAnswerInCloud = async (
   sessionCode: string,
@@ -635,61 +654,74 @@ export const submitKahootAnswerInCloud = async (
   try {
     const cleanCode = (sessionCode || '').replace(/\s+/g, '');
     const sessionDocRef = doc(db, PORTAL_COLLECTION, `kahoot_${cleanCode}`);
-    const snap = await getDoc(sessionDocRef);
-    let participants: KahootParticipant[] = [];
-    if (snap.exists()) {
-      const data = snap.data() as KahootLiveSession;
-      participants = Array.isArray(data.participants) ? data.participants : [];
-    }
+    const qKey = String(questionIndex);
+    const answerTime = Date.now();
 
-    let found = false;
-    const updated = participants.map(p => {
-      if (p.id === studentId) {
-        found = true;
-        return {
-          ...p,
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(sessionDocRef);
+      const data = snap.exists() ? (snap.data() as KahootLiveSession) : null;
+      const existingParticipants = Array.isArray(data?.participants) ? data!.participants : [];
+      const existingProfiles = (data?.playerProfiles && typeof data.playerProfiles === 'object')
+        ? { ...data.playerProfiles }
+        : {};
+      const existingResponses = (data?.responses && typeof data.responses === 'object')
+        ? { ...data.responses }
+        : {};
+      const qResponses = (existingResponses[qKey] && typeof existingResponses[qKey] === 'object')
+        ? { ...existingResponses[qKey] }
+        : {};
+
+      qResponses[studentId] = {
+        optionId,
+        answeredAt: answerTime,
+        ...(studentInfo?.nickname ? { nickname: studentInfo.nickname } : {}),
+        ...(studentInfo?.avatar ? { avatar: studentInfo.avatar } : {})
+      };
+      existingResponses[qKey] = qResponses;
+
+      let found = false;
+      const updatedParticipants = existingParticipants.map(p => {
+        if (p.id === studentId) {
+          found = true;
+          return {
+            ...p,
+            lastAnswerId: optionId,
+            lastAnswerTime: answerTime,
+            answeredQuestionIndex: questionIndex
+          };
+        }
+        return p;
+      });
+
+      if (!found) {
+        const profile = existingProfiles[studentId];
+        const newEntry: KahootParticipant = {
+          id: studentId,
+          nickname: profile?.nickname || studentInfo?.nickname || 'Schüler',
+          avatar: profile?.avatar || studentInfo?.avatar || '🦊',
+          score: profile?.score || 0,
+          streak: profile?.streak || 0,
           lastAnswerId: optionId,
-          lastAnswerTime: Date.now(),
+          lastAnswerTime: answerTime,
           answeredQuestionIndex: questionIndex
         };
+        updatedParticipants.push(newEntry);
+        existingProfiles[studentId] = newEntry;
       }
-      return p;
+
+      const answersReceived = Object.keys(qResponses).length;
+
+      tx.set(
+        sessionDocRef,
+        sanitizeForFirestore({
+          responses: existingResponses,
+          participants: updatedParticipants,
+          playerProfiles: existingProfiles,
+          answersReceived
+        }),
+        { merge: true }
+      );
     });
-
-    // If student was not yet in participants list, upsert them immediately
-    if (!found) {
-      updated.push({
-        id: studentId,
-        nickname: studentInfo?.nickname || 'Schüler',
-        avatar: studentInfo?.avatar || '🦊',
-        score: 0,
-        streak: 0,
-        lastAnswerId: optionId,
-        lastAnswerTime: Date.now(),
-        answeredQuestionIndex: questionIndex
-      });
-    }
-
-    const answersReceived = updated.filter(p => p.answeredQuestionIndex === questionIndex && p.lastAnswerId).length;
-
-    const dataToWrite = sanitizeForFirestore({
-      participants: updated,
-      answersReceived,
-      updatedAt: Date.now()
-    });
-
-    await setDoc(sessionDocRef, dataToWrite, { merge: true });
-
-    // Mirror to schools/HBS_portal
-    const schoolDocRef = doc(db, 'schools', 'HBS_portal');
-    await setDoc(schoolDocRef, sanitizeForFirestore({
-      activeKahootSession: {
-        ...(snap.exists() ? snap.data() : {}),
-        participants: updated,
-        answersReceived,
-        updatedAt: Date.now()
-      }
-    }), { merge: true }).catch(() => {});
   } catch (err) {
     console.warn("Error submitting Kahoot answer in cloud:", err);
   }
@@ -697,12 +729,22 @@ export const submitKahootAnswerInCloud = async (
 
 /**
  * Syncs the active Menti live session or asynchronous survey to Firestore.
+ * Set includeResponses=false when only updating presenter controls so concurrent votes are preserved.
  */
-export const syncMentiLiveSession = async (session: MentiLiveSession): Promise<void> => {
+export const syncMentiLiveSession = async (
+  session: MentiLiveSession,
+  options?: { includeResponses?: boolean }
+): Promise<void> => {
   if (!db || !session.sessionCode) return;
   try {
-    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${session.sessionCode}`);
-    const dataToWrite = sanitizeForFirestore({ ...session, updatedAt: Date.now() });
+    const cleanCode = (session.sessionCode || '').replace(/\s+/g, '');
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${cleanCode}`);
+    const payloadObj: any = { ...session, sessionCode: cleanCode, updatedAt: Date.now() };
+    if (options?.includeResponses === false) {
+      delete payloadObj.responses;
+      delete payloadObj.participantsCount;
+    }
+    const dataToWrite = sanitizeForFirestore(payloadObj);
     await setDoc(sessionDocRef, dataToWrite, { merge: true });
 
     // Mirror to schools/HBS_portal & portal_data if live session
@@ -829,6 +871,7 @@ export const subscribeToMentiSession = (
 
 /**
  * Student submits a vote or answer in Menti from their smartphone.
+ * Uses Firestore runTransaction to guarantee zero dropped votes under concurrent classroom usage.
  */
 export const submitMentiVoteInCloud = async (
   sessionCode: string,
@@ -839,25 +882,55 @@ export const submitMentiVoteInCloud = async (
   try {
     const cleanCode = (sessionCode || '').replace(/\s+/g, '');
     const sessionDocRef = doc(db, PORTAL_COLLECTION, `menti_${cleanCode}`);
-    const snap = await getDoc(sessionDocRef);
-    if (snap.exists()) {
+
+    let updatedResponses: Record<string, any> | null = null;
+    let updatedCount = 0;
+
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(sessionDocRef);
+      if (!snap.exists()) return;
+
       const data = snap.data() as MentiLiveSession;
-      const responses = data.responses || {};
-      let slideResp = responses[slideId];
+      const responses = { ...(data.responses || {}) };
+      const slideResp = responses[slideId];
 
       if (payload.optionId) {
         // Choice or Quiz
-        const obj = (typeof slideResp === 'object' && !Array.isArray(slideResp) && slideResp !== null) ? slideResp : {};
+        const obj = (typeof slideResp === 'object' && !Array.isArray(slideResp) && slideResp !== null) ? { ...slideResp } : {};
         obj[payload.optionId] = (obj[payload.optionId] || 0) + 1;
         responses[slideId] = obj;
+
+        // If quiz score info is supplied, update leaderboard map
+        if (payload.quizNickname) {
+          const scoresKey = `${slideId}_scores`;
+          const scoresMap = (typeof responses[scoresKey] === 'object' && responses[scoresKey] !== null)
+            ? { ...responses[scoresKey] }
+            : {};
+          scoresMap[payload.quizNickname] = {
+            name: payload.quizNickname,
+            isCorrect: Boolean(payload.quizIsCorrect),
+            score: Number(payload.quizScore || 0)
+          };
+          responses[scoresKey] = scoresMap;
+        }
+      } else if (Array.isArray(payload.words)) {
+        // Batch Wordcloud submission from a single user
+        const obj = (typeof slideResp === 'object' && !Array.isArray(slideResp) && slideResp !== null) ? { ...slideResp } : {};
+        payload.words.forEach((rawWord: string) => {
+          const clean = String(rawWord || '').trim();
+          if (clean) {
+            obj[clean] = (obj[clean] || 0) + 1;
+          }
+        });
+        responses[slideId] = obj;
       } else if (payload.word) {
-        // Wordcloud
-        const obj = (typeof slideResp === 'object' && !Array.isArray(slideResp) && slideResp !== null) ? slideResp : {};
+        // Single Wordcloud word
+        const obj = (typeof slideResp === 'object' && !Array.isArray(slideResp) && slideResp !== null) ? { ...slideResp } : {};
         obj[payload.word] = (obj[payload.word] || 0) + 1;
         responses[slideId] = obj;
       } else if (payload.text) {
         // Open-ended thoughts
-        const arr = Array.isArray(slideResp) ? slideResp : [];
+        const arr = Array.isArray(slideResp) ? [...slideResp] : [];
         arr.push({
           id: `resp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           text: payload.text,
@@ -866,7 +939,7 @@ export const submitMentiVoteInCloud = async (
         responses[slideId] = arr;
       } else if (payload.ratings) {
         // Scales
-        const obj = (typeof slideResp === 'object' && !Array.isArray(slideResp) && slideResp !== null) ? slideResp : {};
+        const obj = (typeof slideResp === 'object' && !Array.isArray(slideResp) && slideResp !== null) ? { ...slideResp } : {};
         Object.entries(payload.ratings).forEach(([scaleId, val]) => {
           const current = obj[scaleId] || { sum: 0, count: 0 };
           obj[scaleId] = {
@@ -877,31 +950,37 @@ export const submitMentiVoteInCloud = async (
         responses[slideId] = obj;
       } else if (payload.rankingOrder) {
         // Ranking
-        const arr = Array.isArray(slideResp) ? slideResp : [];
+        const arr = Array.isArray(slideResp) ? [...slideResp] : [];
         arr.push(payload.rankingOrder);
         responses[slideId] = arr;
       } else if (payload.matrixCoords) {
         // 2x2 Matrix
-        const arr = Array.isArray(slideResp) ? slideResp : [];
+        const arr = Array.isArray(slideResp) ? [...slideResp] : [];
         arr.push(payload.matrixCoords);
         responses[slideId] = arr;
       }
 
-      // If incrementParticipant is explicitly false (e.g. subsequent slides in survey mode), don't inflate participant count
       const shouldIncrement = payload.incrementParticipant !== false;
-      const newCount = shouldIncrement ? (data.participantsCount || 0) + 1 : (data.participantsCount || 0);
+      updatedCount = shouldIncrement ? (data.participantsCount || 0) + 1 : (data.participantsCount || 0);
+      updatedResponses = responses;
 
-      await setDoc(sessionDocRef, {
-        responses,
-        participantsCount: newCount,
-        updatedAt: Date.now()
-      }, { merge: true });
+      tx.set(
+        sessionDocRef,
+        sanitizeForFirestore({
+          responses,
+          participantsCount: updatedCount,
+          updatedAt: Date.now()
+        }),
+        { merge: true }
+      );
+    });
 
+    if (updatedResponses) {
       const schoolDocRef = doc(db, 'schools', 'HBS_portal');
-      await setDoc(schoolDocRef, {
-        'activeMentiSession.responses': responses,
-        'activeMentiSession.participantsCount': newCount
-      }, { merge: true }).catch(() => {});
+      await setDoc(schoolDocRef, sanitizeForFirestore({
+        'activeMentiSession.responses': updatedResponses,
+        'activeMentiSession.participantsCount': updatedCount
+      }), { merge: true }).catch(() => {});
     }
   } catch (err) {
     console.warn("Error submitting Menti vote in cloud:", err);

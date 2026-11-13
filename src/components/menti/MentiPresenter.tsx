@@ -40,6 +40,8 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0);
   const [isVotingOpen, setIsVotingOpen] = useState<boolean>(true);
   const [showResults, setShowResults] = useState<boolean>(true);
+  const [allowParticipantView, setAllowParticipantView] = useState<boolean>(true);
+  const hasInitializedSessionRef = useRef<boolean>(false);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
@@ -148,6 +150,9 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
 
   // Sync session state with Firebase Firestore & BroadcastChannel
   useEffect(() => {
+    const isInitialMount = !hasInitializedSessionRef.current;
+    hasInitializedSessionRef.current = true;
+
     const sessionState: MentiLiveSession = {
       presentationId: presentation.id,
       presentationTitle: presentation.title,
@@ -155,6 +160,7 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
       currentSlideIndex,
       isVotingOpen,
       showResults,
+      allowViewResults: allowParticipantView,
       activeSlide,
       totalSlides: presentation.slides.length,
       participantsCount,
@@ -175,9 +181,9 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
       }
     } catch (e) {}
 
-    // Sync to Firestore cloud (dedicated session doc & mirrors)
-    syncMentiLiveSession(sessionState);
-  }, [currentSlideIndex, isVotingOpen, showResults, sessionCode, presentation.id]);
+    // Only write responses on initial mount so slide navigation never overwrites concurrent student votes
+    syncMentiLiveSession(sessionState, { includeResponses: isInitialMount });
+  }, [currentSlideIndex, isVotingOpen, showResults, allowParticipantView, sessionCode, presentation.id]);
 
   // Listen to incoming votes & reactions via BroadcastChannel (local/offline)
   useEffect(() => {
@@ -400,10 +406,11 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
         activeSlide,
         isVotingOpen,
         showResults,
+        allowViewResults: allowParticipantView,
         responses: updated,
         participantsCount,
         updatedAt: Date.now()
-      });
+      }, { includeResponses: true });
     }
   };
 
@@ -1102,6 +1109,19 @@ export const MentiPresenter: React.FC<MentiPresenterProps> = ({
           >
             {showResults ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             <span className="hidden sm:inline">{showResults ? 'Ergebnisse sichtbar' : 'Versteckt'}</span>
+          </button>
+
+          <button
+            onClick={() => setAllowParticipantView(!allowParticipantView)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+              allowParticipantView 
+                ? 'bg-teal-500/20 text-teal-200 border-teal-500/35' 
+                : 'bg-white/5 text-slate-400 border-white/10'
+            }`}
+            title="Ob Teilnehmende nach ihrer eigenen Eingabe die Ergebnisse auf ihrem Handy ansehen dürfen"
+          >
+            <Smartphone className="w-4 h-4" />
+            <span className="hidden lg:inline">{allowParticipantView ? 'Handy-Einblick: An' : 'Handy-Einblick: Aus'}</span>
           </button>
 
           <button

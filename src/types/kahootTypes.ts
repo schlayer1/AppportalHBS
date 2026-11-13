@@ -61,6 +61,13 @@ export type KahootSessionStage =
   | 'scoreboard'     // Top 5 Leaderboard
   | 'podium';        // Final 1., 2., 3. place celebration
 
+export interface KahootAnswerRecord {
+  optionId: string;
+  answeredAt: number;
+  nickname?: string;
+  avatar?: string;
+}
+
 export interface KahootLiveSession {
   gameId: string;
   gameTitle: string;
@@ -73,7 +80,10 @@ export interface KahootLiveSession {
   timeLeft: number;
   isAnswerOpen: boolean;
   participants: KahootParticipant[];
+  playerProfiles?: Record<string, KahootParticipant>;
+  responses?: Record<string, Record<string, KahootAnswerRecord>>;
   answersReceived: number;
+  teacherSeq?: number;
   updatedAt: number;
 }
 

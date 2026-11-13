@@ -87,27 +87,37 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
   timeLeftRef.current = timeLeft;
   const currentQuestionIndexRef = useRef(currentQuestionIndex);
   currentQuestionIndexRef.current = currentQuestionIndex;
+  const isAnswerOpenRef = useRef(isAnswerOpen);
+  isAnswerOpenRef.current = isAnswerOpen;
+  const teacherSeqRef = useRef<number>(1);
+  const endedQuestionRef = useRef<number>(-1);
 
   // Sync to Firestore, localStorage & BroadcastChannel
   const syncSessionToCloud = (partial?: Partial<KahootLiveSession>) => {
+    teacherSeqRef.current += 1;
+    const seq = teacherSeqRef.current;
+
     const currentParts = partial?.participants !== undefined ? partial.participants : participantsRef.current;
     const targetQIdx = partial?.currentQuestionIndex !== undefined ? partial.currentQuestionIndex : currentQuestionIndexRef.current;
     const targetQ = partial?.activeQuestion !== undefined ? partial.activeQuestion : (game.questions[targetQIdx] || game.questions[0]);
     const targetAnswersReceived = currentParts.filter(p => p.answeredQuestionIndex === targetQIdx && Boolean(p.lastAnswerId)).length;
+    const targetStage = partial?.stage || stageRef.current;
+    const targetAnswerOpen = partial?.isAnswerOpen !== undefined ? partial.isAnswerOpen : isAnswerOpenRef.current;
 
     const sessionState: KahootLiveSession = {
       gameId: game.id,
       gameTitle: game.title,
       sessionCode,
-      stage: partial?.stage || stageRef.current,
+      stage: targetStage,
       gameMode: partial?.gameMode || gameMode,
       currentQuestionIndex: targetQIdx,
       totalQuestions: game.questions.length,
       activeQuestion: targetQ,
       timeLeft: partial?.timeLeft !== undefined ? partial.timeLeft : timeLeftRef.current,
-      isAnswerOpen: partial?.isAnswerOpen !== undefined ? partial.isAnswerOpen : isAnswerOpen,
+      isAnswerOpen: targetAnswerOpen,
       participants: currentParts,
       answersReceived: targetAnswersReceived,
+      teacherSeq: seq,
       updatedAt: Date.now()
     };
 
@@ -135,6 +145,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
       activeQuestion: sessionState.activeQuestion,
       timeLeft: sessionState.timeLeft,
       isAnswerOpen: sessionState.isAnswerOpen,
+      teacherSeq: seq,
       updatedAt: sessionState.updatedAt
     };
 
@@ -166,14 +177,12 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
           if (participant) {
             setParticipants(prev => {
               const filtered = prev.filter(p => p.id !== participant.id);
-              const updated = [...filtered, participant];
-              return updated;
+              return [...filtered, participant];
             });
-            audio.playTick();
-            // Confirm to student
+            try { audio.playTick(); } catch {}
             channel?.postMessage({
               type: 'JOIN_CONFIRMED',
-              payload: { stage: stageRef.current, currentQuestionIndex }
+              payload: { stage: stageRef.current, currentQuestionIndex: currentQuestionIndexRef.current }
             });
           }
         } else if (type === 'STUDENT_ANSWER') {
@@ -185,7 +194,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
                   ...p,
                   lastAnswerId: optionId,
                   lastAnswerTime: Date.now(),
-                  answeredQuestionIndex: questionIndex !== undefined ? questionIndex : currentQuestionIndex
+                  answeredQuestionIndex: questionIndex !== undefined ? questionIndex : currentQuestionIndexRef.current
                 };
               }
               return p;
@@ -201,33 +210,107 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
       if (channel) channel.close();
       broadcastRef.current = null;
     };
-  }, [sessionCode, currentQuestionIndex]);
+  }, [sessionCode]);
 
-  // Firestore Snapshot Listener & Active Heartbeat: Listen for students joining or answering in real time continuously
+  // Firestore Snapshot Listener & Active Heartbeat: Merge playerProfiles + responses[qIdx] + participants
   useEffect(() => {
-    const applyParticipants = (liveList: KahootParticipant[]) => {
-      if (!Array.isArray(liveList)) return;
+    const applyLiveSession = (liveSess: KahootLiveSession) => {
+      if (!liveSess) return;
+      // Never overwrite scored participants during reveal/scoreboard/podium/get_ready transitions
+      const activeStage = stageRef.current;
+      if (activeStage === 'reveal' || activeStage === 'scoreboard' || activeStage === 'podium') {
+        return;
+      }
+
+      const activeQIdx = currentQuestionIndexRef.current;
+      const qResponses = liveSess.responses?.[String(activeQIdx)] || {};
+      const profilesMap = liveSess.playerProfiles || {};
+      const arrayList = Array.isArray(liveSess.participants) ? liveSess.participants : [];
+
       setParticipants(prev => {
-        if (stageRef.current === 'lobby' && liveList.length > prev.length) {
+        const mergedMap = new Map<string, KahootParticipant>();
+
+        // 1. Keep local scores & streaks as baseline
+        prev.forEach(p => mergedMap.set(p.id, { ...p }));
+
+        // 2. Add any new players from playerProfiles
+        Object.values(profilesMap).forEach(prof => {
+          if (!prof?.id) return;
+          const existing = mergedMap.get(prof.id);
+          if (!existing) {
+            mergedMap.set(prof.id, { ...prof });
+          } else {
+            mergedMap.set(prof.id, {
+              ...existing,
+              nickname: prof.nickname || existing.nickname,
+              avatar: prof.avatar || existing.avatar
+            });
+          }
+        });
+
+        // 3. Add/update from arrayList ONLY if matching active question or lobby
+        arrayList.forEach(p => {
+          if (!p?.id) return;
+          const existing = mergedMap.get(p.id);
+          if (!existing) {
+            // If joining during lobby or question, clear stale answer if from older question
+            const cleanP = p.answeredQuestionIndex === activeQIdx
+              ? { ...p }
+              : { ...p, lastAnswerId: undefined, answeredQuestionIndex: undefined };
+            mergedMap.set(p.id, cleanP);
+          } else if (activeStage === 'question' && p.answeredQuestionIndex === activeQIdx && p.lastAnswerId) {
+            mergedMap.set(p.id, {
+              ...existing,
+              lastAnswerId: p.lastAnswerId,
+              lastAnswerTime: p.lastAnswerTime,
+              answeredQuestionIndex: activeQIdx
+            });
+          }
+        });
+
+        // 4. Overlay atomic responses[activeQIdx] (100% immune to array race overwrites!)
+        if (activeStage === 'question') {
+          Object.entries(qResponses).forEach(([studentId, rec]) => {
+            if (!rec?.optionId) return;
+            const existing = mergedMap.get(studentId);
+            if (existing) {
+              mergedMap.set(studentId, {
+                ...existing,
+                lastAnswerId: rec.optionId,
+                lastAnswerTime: rec.answeredAt,
+                answeredQuestionIndex: activeQIdx
+              });
+            } else {
+              mergedMap.set(studentId, {
+                id: studentId,
+                nickname: rec.nickname || 'Schüler',
+                avatar: rec.avatar || '🦊',
+                score: 0,
+                streak: 0,
+                lastAnswerId: rec.optionId,
+                lastAnswerTime: rec.answeredAt,
+                answeredQuestionIndex: activeQIdx
+              });
+            }
+          });
+        }
+
+        const nextList = Array.from(mergedMap.values());
+        if (activeStage === 'lobby' && nextList.length > prev.length) {
           try { audio.playTick(); } catch {}
         }
-        return liveList;
+        return nextList;
       });
     };
 
     const unsubscribe = subscribeToKahootSession(sessionCode, (liveSess) => {
-      if (liveSess && Array.isArray(liveSess.participants)) {
-        applyParticipants(liveSess.participants);
-      }
+      if (liveSess) applyLiveSession(liveSess);
     });
 
-    // Active 1s Polling Heartbeat while in lobby or question to guarantee instant updates
     const heartbeat = setInterval(async () => {
       if (stageRef.current === 'lobby' || stageRef.current === 'question') {
         const live = await getKahootLiveSessionFromCloud(sessionCode);
-        if (live && Array.isArray(live.participants)) {
-          applyParticipants(live.participants);
-        }
+        if (live) applyLiveSession(live);
       }
     }, 1000);
 
@@ -239,48 +322,68 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
 
   // Handle stage transitions
   const handleStartGame = () => {
+    endedQuestionRef.current = -1;
+    stageRef.current = 'get_ready';
+    isAnswerOpenRef.current = false;
+    setIsAnswerOpen(false);
     setStage('get_ready');
     setGetReadyCount(3);
-    syncSessionToCloud({ stage: 'get_ready' });
+    syncSessionToCloud({ stage: 'get_ready', isAnswerOpen: false });
   };
 
-  // 3-2-1 Get Ready Countdown
+  // 3-2-1 Get Ready Countdown (strictly timer-only, no nested setStates inside updater)
   useEffect(() => {
     if (stage !== 'get_ready') return;
     const interval = setInterval(() => {
       setGetReadyCount(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setStage('question');
-          const initialTime = currentQ.timeLimitSeconds || 20;
-          setTimeLeft(initialTime);
-          setIsAnswerOpen(true);
-          // Clear last answers for this question
-          const cleared = participantsRef.current.map(p => {
-            const { lastAnswerId, lastAnswerTime, lastAnswerCorrect, answeredQuestionIndex, ...rest } = p;
-            return {
-              ...rest,
-              lastPointsEarned: 0
-            };
-          });
-          setParticipants(cleared);
-          syncSessionToCloud({
-            stage: 'question',
-            currentQuestionIndex: currentQuestionIndexRef.current,
-            activeQuestion: game.questions[currentQuestionIndexRef.current] || currentQ,
-            timeLeft: initialTime,
-            isAnswerOpen: true,
-            participants: cleared
-          });
+        const next = prev - 1;
+        if (next > 0) {
           try { audio.playTick(); } catch {}
-          return 0;
         }
-        try { audio.playTick(); } catch {}
-        return prev - 1;
+        return Math.max(0, next);
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [stage, currentQ]);
+  }, [stage]);
+
+  // Trigger question start cleanly when getReadyCount hits 0
+  useEffect(() => {
+    if (stage !== 'get_ready' || getReadyCount > 0) return;
+
+    const qIdx = currentQuestionIndexRef.current;
+    const targetQ = game.questions[qIdx] || game.questions[0];
+    const initialTime = targetQ.timeLimitSeconds || 20;
+
+    // Clear previous question answer markers locally & in cloud
+    const cleared = participantsRef.current.map(p => {
+      const { lastAnswerId, lastAnswerTime, lastAnswerCorrect, answeredQuestionIndex, ...rest } = p;
+      return {
+        ...rest,
+        lastPointsEarned: 0
+      };
+    });
+
+    endedQuestionRef.current = -1;
+    stageRef.current = 'question';
+    isAnswerOpenRef.current = true;
+    timeLeftRef.current = initialTime;
+
+    setParticipants(cleared);
+    setTimeLeft(initialTime);
+    setIsAnswerOpen(true);
+    setStage('question');
+
+    syncSessionToCloud({
+      stage: 'question',
+      currentQuestionIndex: qIdx,
+      activeQuestion: targetQ,
+      timeLeft: initialTime,
+      isAnswerOpen: true,
+      participants: cleared
+    });
+
+    try { audio.playTick(); } catch {}
+  }, [stage, getReadyCount]);
 
   // Cleanup audio loop on unmount
   useEffect(() => {
@@ -289,7 +392,7 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
     };
   }, []);
 
-  // Question Timer Countdown & Tension Loop
+  // Question Timer Countdown & Tension Loop (clean timer decrement without side effects inside updater)
   useEffect(() => {
     if (stage !== 'question' || !isAnswerOpen) {
       classroomAudio.stopTensionLoop();
@@ -300,15 +403,11 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleTimeUp();
-          return 0;
+        const next = prev - 1;
+        if (next > 0 && next <= 5) {
+          try { audio.playTick(true); } catch {}
         }
-        if (prev <= 5) {
-          audio.playTick(true);
-        }
-        return prev - 1;
+        return Math.max(0, next);
       });
     }, 1000);
 
@@ -317,6 +416,13 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
       classroomAudio.stopTensionLoop();
     };
   }, [stage, isAnswerOpen]);
+
+  // Trigger handleTimeUp cleanly when countdown reaches 0
+  useEffect(() => {
+    if (stage === 'question' && isAnswerOpen && timeLeft <= 0) {
+      handleTimeUp();
+    }
+  }, [stage, isAnswerOpen, timeLeft]);
 
   // Check if all students answered the CURRENT question
   useEffect(() => {
@@ -331,15 +437,22 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
   }, [participants, stage, isAnswerOpen, currentQuestionIndex]);
 
   const handleTimeUp = () => {
+    const activeQIdx = currentQuestionIndexRef.current;
+    if (endedQuestionRef.current === activeQIdx) return;
+    endedQuestionRef.current = activeQIdx;
+
+    const targetQ = game.questions[activeQIdx] || currentQ;
     classroomAudio.stopTensionLoop();
+    isAnswerOpenRef.current = false;
+    stageRef.current = 'reveal';
     setIsAnswerOpen(false);
-    audio.playReveal();
+    try { audio.playReveal(); } catch {}
 
     // Calculate points and streaks for participants
-    const correctOpt = currentQ.options.find(o => o.isCorrect);
-    const correctOptIndex = currentQ.options.findIndex(o => o.isCorrect);
+    const correctOpt = targetQ.options.find(o => o.isCorrect);
+    const correctOptIndex = targetQ.options.findIndex(o => o.isCorrect);
     const updatedParticipants = participantsRef.current.map(p => {
-      const answeredThisQ = p.answeredQuestionIndex === currentQuestionIndex && Boolean(p.lastAnswerId);
+      const answeredThisQ = p.answeredQuestionIndex === activeQIdx && Boolean(p.lastAnswerId);
       if (!answeredThisQ) {
         return {
           ...p,
@@ -355,10 +468,10 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
 
       if (isCorrect) {
         // Speed bonus: (timeLeft / totalTime) * 500 + 500
-        const totalSec = currentQ.timeLimitSeconds || 20;
+        const totalSec = targetQ.timeLimitSeconds || 20;
         const curTime = Math.max(1, timeLeftRef.current);
-        const speedBonus = Math.round((curTime / totalSec) * (currentQ.points / 2));
-        const basePoints = Math.round(currentQ.points / 2);
+        const speedBonus = Math.round((curTime / totalSec) * (targetQ.points / 2));
+        const basePoints = Math.round(targetQ.points / 2);
         earned = basePoints + speedBonus;
       }
 
@@ -373,41 +486,54 @@ export const KahootPresenter: React.FC<KahootPresenterProps> = ({
 
     // Sort participants by score descending
     updatedParticipants.sort((a, b) => b.score - a.score);
+    participantsRef.current = updatedParticipants;
     setParticipants(updatedParticipants);
     setStage('reveal');
 
     // Sync scored participants to cloud immediately
     syncSessionToCloud({
       stage: 'reveal',
+      currentQuestionIndex: activeQIdx,
+      activeQuestion: targetQ,
       isAnswerOpen: false,
       participants: updatedParticipants
     });
   };
 
   const handleNextFromReveal = () => {
+    stageRef.current = 'scoreboard';
+    isAnswerOpenRef.current = false;
     setStage('scoreboard');
-    syncSessionToCloud({ stage: 'scoreboard' });
+    syncSessionToCloud({ stage: 'scoreboard', isAnswerOpen: false });
   };
 
   const handleNextFromScoreboard = () => {
-    if (currentQuestionIndex < game.questions.length - 1) {
-      const nextIndex = currentQuestionIndex + 1;
+    if (currentQuestionIndexRef.current < game.questions.length - 1) {
+      const nextIndex = currentQuestionIndexRef.current + 1;
+      endedQuestionRef.current = -1;
       currentQuestionIndexRef.current = nextIndex;
+      stageRef.current = 'get_ready';
+      isAnswerOpenRef.current = false;
       setCurrentQuestionIndex(nextIndex);
+      setIsAnswerOpen(false);
       setStage('get_ready');
       setGetReadyCount(3);
       syncSessionToCloud({
         stage: 'get_ready',
         currentQuestionIndex: nextIndex,
-        activeQuestion: game.questions[nextIndex]
+        activeQuestion: game.questions[nextIndex],
+        isAnswerOpen: false
       });
     } else {
+      stageRef.current = 'podium';
+      isAnswerOpenRef.current = false;
       setStage('podium');
       syncSessionToCloud({
         stage: 'podium',
+        isAnswerOpen: false,
         participants: participantsRef.current
       });
-      audio.playFanfare();
+      try { audio.playFanfare(); } catch {}
     }
   };
 

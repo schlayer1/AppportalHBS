@@ -11,7 +11,9 @@ import {
   X,
   Clock,
   Check,
-  BarChart3
+  BarChart3,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { 
   subscribeToMentiSession, 
@@ -20,6 +22,7 @@ import {
   submitMentiReactionInCloud 
 } from '../../services/firebase';
 import { MentiLiveSession, MentiSlide } from '../../types/mentiTypes';
+import { MentiVoterResultsPanel } from './MentiVoterResultsPanel';
 
 interface MentiStudentVoterProps {
   initialCode?: string;
@@ -85,11 +88,12 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     }
   }, [votedSlides, pinCode]);
 
-  const isSurveyMode = Boolean(session?.isSurveyMode || (session?.slides && session.slides.length > 1 && !session.currentSlideIndex));
+  const isSurveyMode = Boolean(session?.isSurveyMode);
   const slides = session?.slides || (session?.activeSlide ? [session.activeSlide] : []);
   const activeSlide: MentiSlide | undefined = isSurveyMode ? slides[surveySlideIndex] : session?.activeSlide;
 
   const [lastActiveSlideId, setLastActiveSlideId] = useState<string | null>(null);
+  const [showLiveSlideResults, setShowLiveSlideResults] = useState<boolean>(true);
   const hasVotedForCurrentSlide = Boolean(activeSlide?.id && votedSlides[activeSlide.id]);
 
   // Wordcloud inputs (1 to 3 words)
@@ -221,13 +225,57 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     }
   };
 
+  // Optimistic local state update so collective inputs appear immediately after voting
+  const applyOptimisticResponse = (
+    slideId: string,
+    updater: (current: any) => any,
+    incrementParticipant: boolean
+  ) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const existingResponses = prev.responses || {};
+      const nextSlideResponse = updater(existingResponses[slideId]);
+      const next: MentiLiveSession = {
+        ...prev,
+        participantsCount: (prev.participantsCount || 0) + (incrementParticipant ? 1 : 0),
+        responses: {
+          ...existingResponses,
+          [slideId]: nextSlideResponse
+        },
+        updatedAt: Date.now()
+      };
+      if (pinCode) {
+        try {
+          localStorage.setItem(`hbs_menti_session_${pinCode}`, JSON.stringify(next));
+        } catch {
+          // ignore storage quota errors
+        }
+      }
+      return next;
+    });
+  };
+
   // Submit Word Cloud
   const handleSubmitWordCloud = async () => {
     if (!session || !activeSlide) return;
     const cleanWords = words.map(w => w.trim()).filter(w => w.length > 0);
     if (cleanWords.length === 0) return;
 
+    const capitalizedWords = cleanWords.map(w => w.charAt(0).toUpperCase() + w.slice(1));
+    const shouldIncrement = isSurveyMode ? surveySlideIndex === 0 : true;
+
     setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
+    applyOptimisticResponse(
+      activeSlide.id,
+      (cur) => {
+        const nextMap = { ...(cur && !Array.isArray(cur) ? cur : {}) };
+        capitalizedWords.forEach((word) => {
+          nextMap[word] = (nextMap[word] || 0) + 1;
+        });
+        return nextMap;
+      },
+      shouldIncrement
+    );
 
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
@@ -240,12 +288,9 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     }
 
     if (pinCode) {
-      cleanWords.forEach((w, idx) => {
-        const capitalized = w.charAt(0).toUpperCase() + w.slice(1);
-        submitMentiVoteInCloud(pinCode, activeSlide.id, { 
-          word: capitalized,
-          incrementParticipant: isSurveyMode ? (surveySlideIndex === 0 && idx === 0) : true
-        });
+      submitMentiVoteInCloud(pinCode, activeSlide.id, {
+        words: capitalizedWords,
+        incrementParticipant: shouldIncrement
       });
     }
   };
@@ -253,7 +298,17 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Submit Choice
   const handleSelectChoice = async (optionId: string) => {
     if (!session || !activeSlide || !session.isVotingOpen || isExpired) return;
+    const shouldIncrement = isSurveyMode ? surveySlideIndex === 0 : true;
     setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
+    applyOptimisticResponse(
+      activeSlide.id,
+      (cur) => {
+        const nextMap = { ...(cur && !Array.isArray(cur) ? cur : {}) };
+        nextMap[optionId] = (nextMap[optionId] || 0) + 1;
+        return nextMap;
+      },
+      shouldIncrement
+    );
 
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
@@ -268,7 +323,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     if (pinCode) {
       submitMentiVoteInCloud(pinCode, activeSlide.id, { 
         optionId,
-        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+        incrementParticipant: shouldIncrement
       });
     }
   };
@@ -276,13 +331,24 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Submit Open-ended
   const handleSubmitOpen = async () => {
     if (!session || !activeSlide || !openText.trim() || isExpired) return;
+    const shouldIncrement = isSurveyMode ? surveySlideIndex === 0 : true;
+    const trimmed = openText.trim();
     setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
 
     const newResponse = {
       id: `resp-${Date.now()}-${Math.random()}`,
-      text: openText.trim(),
+      text: trimmed,
       timestamp: Date.now()
     };
+
+    applyOptimisticResponse(
+      activeSlide.id,
+      (cur) => {
+        const list = Array.isArray(cur) ? cur : [];
+        return [newResponse, ...list];
+      },
+      shouldIncrement
+    );
 
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
@@ -296,8 +362,8 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
 
     if (pinCode) {
       submitMentiVoteInCloud(pinCode, activeSlide.id, { 
-        text: openText.trim(),
-        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+        text: trimmed,
+        incrementParticipant: shouldIncrement
       });
     }
   };
@@ -305,7 +371,29 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Submit Scales
   const handleSubmitScales = async () => {
     if (!session || !activeSlide || isExpired) return;
+    const shouldIncrement = isSurveyMode ? surveySlideIndex === 0 : true;
     setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
+
+    applyOptimisticResponse(
+      activeSlide.id,
+      (cur) => {
+        const current = (cur && typeof cur === 'object' && !Array.isArray(cur))
+          ? cur
+          : { sums: {}, counts: {}, voters: 0 };
+        const nextSums: Record<string, number> = { ...(current.sums || {}) };
+        const nextCounts: Record<string, number> = { ...(current.counts || {}) };
+        Object.entries(scaleValues).forEach(([stmtId, val]) => {
+          nextSums[stmtId] = (nextSums[stmtId] || 0) + val;
+          nextCounts[stmtId] = (nextCounts[stmtId] || 0) + 1;
+        });
+        return {
+          sums: nextSums,
+          counts: nextCounts,
+          voters: (current.voters || 0) + 1
+        };
+      },
+      shouldIncrement
+    );
 
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
@@ -320,7 +408,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     if (pinCode) {
       submitMentiVoteInCloud(pinCode, activeSlide.id, { 
         ratings: scaleValues,
-        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+        incrementParticipant: shouldIncrement
       });
     }
   };
@@ -328,9 +416,23 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Submit Quiz Choice
   const handleSelectQuiz = async (optionId: string, isCorrect: boolean) => {
     if (!session || !activeSlide || !session.isVotingOpen || isExpired) return;
+    const shouldIncrement = isSurveyMode ? surveySlideIndex === 0 : true;
     const finalNick = nickname.trim() || 'Kollege';
     setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
     const score = isCorrect ? 1000 : 0;
+
+    applyOptimisticResponse(
+      activeSlide.id,
+      (cur) => {
+        const nextMap = { ...(cur && !Array.isArray(cur) ? cur : {}) };
+        nextMap[optionId] = (nextMap[optionId] || 0) + 1;
+        const leaderboard = Array.isArray(nextMap._leaderboard) ? [...nextMap._leaderboard] : [];
+        leaderboard.push({ nickname: finalNick, score, isCorrect });
+        nextMap._leaderboard = leaderboard;
+        return nextMap;
+      },
+      shouldIncrement
+    );
 
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
@@ -348,7 +450,10 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     if (pinCode) {
       submitMentiVoteInCloud(pinCode, activeSlide.id, { 
         optionId,
-        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+        quizNickname: finalNick,
+        quizIsCorrect: isCorrect,
+        quizScore: score,
+        incrementParticipant: shouldIncrement
       });
     }
   };
@@ -356,6 +461,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Submit Matrix
   const handleSubmitMatrix = async () => {
     if (!session || !activeSlide || !session.isVotingOpen || isExpired) return;
+    const shouldIncrement = isSurveyMode ? surveySlideIndex === 0 : true;
     setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
 
     const vote = {
@@ -363,6 +469,15 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
       y: Math.round(matrixCoords.y),
       label: nickname.trim() || undefined
     };
+
+    applyOptimisticResponse(
+      activeSlide.id,
+      (cur) => {
+        const list = Array.isArray(cur) ? cur : [];
+        return [...list, { ...vote, id: `m-${Date.now()}` }];
+      },
+      shouldIncrement
+    );
 
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
@@ -377,7 +492,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     if (pinCode) {
       submitMentiVoteInCloud(pinCode, activeSlide.id, { 
         matrixCoords: vote,
-        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+        incrementParticipant: shouldIncrement
       });
     }
   };
@@ -385,7 +500,27 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
   // Submit Ranking
   const handleSubmitRanking = async () => {
     if (!session || !activeSlide || !session.isVotingOpen || rankingOrder.length === 0 || isExpired) return;
+    const shouldIncrement = isSurveyMode ? surveySlideIndex === 0 : true;
     setVotedSlides(prev => ({ ...prev, [activeSlide.id]: true }));
+
+    applyOptimisticResponse(
+      activeSlide.id,
+      (cur) => {
+        const current = (cur && typeof cur === 'object' && !Array.isArray(cur))
+          ? cur
+          : { scores: {}, counts: 0 };
+        const nextScores: Record<string, number> = { ...(current.scores || {}) };
+        const n = rankingOrder.length;
+        rankingOrder.forEach((optId, idx) => {
+          nextScores[optId] = (nextScores[optId] || 0) + (n - idx);
+        });
+        return {
+          scores: nextScores,
+          counts: (current.counts || 0) + 1
+        };
+      },
+      shouldIncrement
+    );
 
     if (broadcastRef.current) {
       broadcastRef.current.postMessage({
@@ -400,7 +535,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
     if (pinCode) {
       submitMentiVoteInCloud(pinCode, activeSlide.id, { 
         rankingOrder,
-        incrementParticipant: isSurveyMode ? (surveySlideIndex === 0) : true
+        incrementParticipant: shouldIncrement
       });
     }
   };
@@ -554,7 +689,7 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
             </p>
 
             {/* Optional Intermediate Results Toggle */}
-            {session?.allowViewResults && (
+            {session?.allowViewResults !== false && (
               <div className="pt-2">
                 <button
                   type="button"
@@ -562,44 +697,28 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                   className="px-4 py-2.5 rounded-2xl bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs border border-teal-200 transition-all flex items-center justify-center gap-2 mx-auto cursor-pointer"
                 >
                   <BarChart3 className="w-4 h-4 text-teal-600" />
-                  <span>{showSurveyResults ? 'Ergebnisse ausblenden' : 'Zwischenstand der Ergebnisse ansehen'}</span>
+                  <span>{showSurveyResults ? 'Ergebnisse ausblenden' : 'Gesamtergebnisse der Gruppe ansehen'}</span>
                 </button>
               </div>
             )}
 
             {/* Inline Results Preview if allowed */}
-            {showSurveyResults && session && (
-              <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-4 max-h-72 overflow-y-auto text-xs animate-fadeIn">
-                <h4 className="font-bold text-slate-900 border-b pb-1">Aktueller Zwischenstand:</h4>
-                {slides.map((s, idx) => {
-                  const counts = session.responses?.[s.id] || {};
-                  return (
-                    <div key={s.id || idx} className="space-y-1">
-                      <div className="font-semibold text-slate-800">
-                        {idx + 1}. {s.question}
-                      </div>
-                      {s.type === 'choice' && (
-                        <div className="space-y-1 pl-2">
-                          {(s.options || []).map(opt => (
-                            <div key={opt.id} className="flex justify-between text-[11px] text-slate-600">
-                              <span>• {opt.text}</span>
-                              <span className="font-mono font-bold">{counts[opt.id] || 0} Stimmen</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {s.type === 'wordcloud' && (
-                        <div className="flex flex-wrap gap-1 pl-2">
-                          {Object.entries(counts).map(([w, c]) => (
-                            <span key={w} className="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 text-[10px] font-bold">
-                              {w} ({String(c)}x)
-                            </span>
-                          ))}
-                        </div>
-                      )}
+            {showSurveyResults && session && session.allowViewResults !== false && (
+              <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-4 max-h-[60vh] overflow-y-auto text-xs animate-fadeIn">
+                <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-2">Aktueller Zwischenstand aller Folien:</h4>
+                {slides.map((s, idx) => (
+                  <div key={s.id || idx} className="space-y-2 pb-3 border-b border-slate-100 last:border-b-0 last:pb-0">
+                    <div className="font-bold text-slate-800">
+                      {idx + 1}. {s.question || 'Folie'}
                     </div>
-                  );
-                })}
+                    <MentiVoterResultsPanel
+                      slide={s}
+                      slideResponses={session.responses?.[s.id]}
+                      participantsCount={session.participantsCount}
+                      compact
+                    />
+                  </div>
+                ))}
               </div>
             )}
 
@@ -710,18 +829,59 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
             </p>
           </div>
         ) : hasVotedForCurrentSlide && !isSurveyMode ? (
-          /* Live Confirmation Screen (only in live presenter mode) */
-          <div className="bg-white rounded-3xl p-8 shadow-xl border border-emerald-100 text-center space-y-3 animate-fadeIn">
-            <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-              <CheckCircle2 className="w-9 h-9" />
+          /* Live Confirmation + Group Results Screen (live presenter mode) */
+          <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-xl border border-emerald-100 space-y-4 animate-fadeIn">
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-11 h-11 shrink-0 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-black text-slate-900">
+                  Antwort abgegeben!
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Deine Eingabe wurde live übertragen.
+                </p>
+              </div>
             </div>
-            <h3 className="text-lg font-black text-slate-900">
-              Antwort abgegeben!
-            </h3>
-            <p className="text-xs text-slate-500">
-              Deine Eingabe wurde live an das Smartboard übertragen. Schau nach vorne, um die Ergebnisse zu sehen!
-            </p>
-            <div className="pt-2 text-[11px] text-slate-400 font-medium">
+
+            {session?.allowViewResults !== false && session?.showResults !== false ? (
+              <div className="pt-2 border-t border-slate-100 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-teal-700 flex items-center gap-1.5">
+                    <BarChart3 className="w-4 h-4 text-teal-600" />
+                    Eingaben der Gruppe (Live)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowLiveSlideResults(v => !v)}
+                    className="text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+                  >
+                    {showLiveSlideResults ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    {showLiveSlideResults ? 'Ausblenden' : 'Anzeigen'}
+                  </button>
+                </div>
+
+                {showLiveSlideResults && (
+                  <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-left">
+                    <div className="text-xs font-bold text-slate-800 mb-2.5">
+                      {activeSlide.question || 'Folie'}
+                    </div>
+                    <MentiVoterResultsPanel
+                      slide={activeSlide}
+                      slideResponses={session?.responses?.[activeSlide.id]}
+                      participantsCount={session?.participantsCount}
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-500 text-center">
+                Der Moderator hat den Handy-Einblick für diese Folie ausgeblendet. Schau nach vorne ans Smartboard!
+              </div>
+            )}
+
+            <div className="pt-1 text-center text-[11px] text-slate-400 font-medium">
               Warte auf die nächste Folie...
             </div>
           </div>
@@ -1092,6 +1252,33 @@ export const MentiStudentVoter: React.FC<MentiStudentVoterProps> = ({
                     <div key={i}>• {pt}</div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* LIVE COLLECTIVE RESULTS IN SURVEY MODE AFTER VOTING FOR THIS SLIDE */}
+            {isSurveyMode && hasVotedForCurrentSlide && session?.allowViewResults !== false && (
+              <div className="pt-4 border-t border-slate-100 space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowLiveSlideResults(v => !v)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200/80 text-xs font-bold flex items-center justify-between cursor-pointer transition-colors"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <BarChart3 className="w-4 h-4 text-teal-600" />
+                    Eingaben der anderen ansehen (Live)
+                  </span>
+                  {showLiveSlideResults ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+                {showLiveSlideResults && (
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-left">
+                    <MentiVoterResultsPanel
+                      slide={activeSlide}
+                      slideResponses={session?.responses?.[activeSlide.id]}
+                      participantsCount={session?.participantsCount}
+                      compact
+                    />
+                  </div>
+                )}
               </div>
             )}
 
