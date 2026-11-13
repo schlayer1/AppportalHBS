@@ -24,28 +24,30 @@ export const STORAGE_KEYS = {
   CACHED_MODEL: 'hbs_gemini_cached_working_model',
 };
 
-// Bekannte zukunftssichere Flash- & Pro-Modelle in bevorzugter Prioritätsreihenfolge
+// Bekannte zukunftssichere Free-Tier-Modelle in bevorzugter Prioritätsreihenfolge
 export const CANDIDATE_FLASH_MODELS = [
+  'gemini-4-hydrogen',
+  'gemini-flash-lite-latest',
+  'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
   'gemini-3.6-flash',
   'gemini-flash-latest',
-  'gemini-3.7-flash',
-  'gemini-3.8-flash',
-  'gemini-3.5-flash',
-  'gemini-3.1-flash-lite',
-  'gemini-flash-lite-latest',
-  'gemini-3.1-pro-preview',
-  'gemini-pro-latest',
 ];
 
-// Explizit eingestellte / nicht mehr unterstützte Modelle (Fehler 404 / 410)
+// Explizit eingestellte, abgekündigte oder im Free-Tier gesperrte Modelle
 const SUNSET_OR_DISCONTINUED_PATTERNS = [
-  '2.5-flash',
-  '2.5-pro',
-  '1.5-flash',
-  '1.5-pro',
-  '1.0-pro',
-  '2.0-flash',
-  '2.0-pro',
+  '2.5-',
+  '1.5-',
+  '1.0-',
+  '2.0-',
+  '3.7-flash',
+  '3.1-flash-lite',
+  '3-flash-preview',
+  '3-pro-preview',
+  '3.1-pro',
+  'pro-latest',
+  'argon',
+  'carbon',
   '8b',
   'embedding',
   'aqa',
@@ -57,7 +59,16 @@ const SUNSET_OR_DISCONTINUED_PATTERNS = [
   'robotics',
   'veo',
   'lyria',
+  'omni',
+  'live',
+  'nano-banana',
+  'deep-research',
+  'antigravity',
 ];
+
+const EXACT_DEPRECATED_MODELS = new Set([
+  'gemini-3.5-flash',
+]);
 
 export interface GeminiTestResult {
   success: boolean;
@@ -177,13 +188,19 @@ class GeminiService {
   }
 
   /**
-   * Extrahiert Versionsnummern aus Modellnamen (z. B. gemini-3.8-flash -> 3.8)
+   * Extrahiert Prioritäts-Score aus Modellnamen (gemini-4-hydrogen & aktuelle Flash-Modelle zuerst)
    */
   private extractVersion(modelName: string): number {
-    const match = modelName.match(/gemini-(\d+(?:\.\d+)?)-flash/);
-    if (match) return parseFloat(match[1]);
-    if (modelName.includes('flash-latest')) return 999.0;
-    if (modelName.includes('pro-latest')) return 998.0;
+    const clean = modelName.replace(/^models\//, '').toLowerCase();
+    const preferredIdx = CANDIDATE_FLASH_MODELS.indexOf(clean);
+    if (preferredIdx !== -1) {
+      return 10000 - preferredIdx;
+    }
+    if (clean.includes('hydrogen')) return 4000;
+    const match = clean.match(/gemini-(\d+(?:\.\d+)?)/);
+    if (match) return parseFloat(match[1]) * 100;
+    if (clean.includes('flash-lite-latest')) return 999;
+    if (clean.includes('flash-latest')) return 995;
     return 0;
   }
 
@@ -204,16 +221,19 @@ class GeminiService {
         const data = await res.json();
         const rawModels: any[] = data.models || [];
 
-        // Filter: Nur Modelle mit generateContent, ohne eingestellte und ohne spezialisierte Media-Modelle
+        // Filter: Nur aktive Free-Tier-Textmodelle mit generateContent
         const supported = rawModels
           .filter((m) => {
             const name = (m.name || '').toLowerCase();
+            const shortName = name.replace(/^models\//, '');
             const methods = m.supportedGenerationMethods || [];
             if (!methods.includes('generateContent')) return false;
+            if (!shortName.startsWith('gemini-')) return false;
+            if (EXACT_DEPRECATED_MODELS.has(shortName)) return false;
 
-            // Eingestellte oder nicht passende Modell-Muster ausschließen
+            // Eingestellte, abgekündigte oder nicht passende Modell-Muster ausschließen
             for (const pattern of SUNSET_OR_DISCONTINUED_PATTERNS) {
-              if (name.includes(pattern)) return false;
+              if (shortName.includes(pattern)) return false;
             }
             return true;
           })

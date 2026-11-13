@@ -3,12 +3,12 @@
 const GEMINI_KEY = Buffer.from('QVEuQWI4Uk42SUpRQTM1V0ZScTRfLTdsUFAxQVU1Y1l5bkVTN3VmekZjdjlyZktHMjhhV2c=', 'base64').toString('utf8');
 
 const CANDIDATE_MODELS = [
-  'gemini-flash-latest',
-  'gemini-3.6-flash',
-  'gemini-3.7-flash',
+  'gemini-4-hydrogen',
+  'gemini-flash-lite-latest',
+  'gemini-3.5-flash-lite',
   'gemini-3.8-flash',
-  'gemini-3.5-flash',
-  'gemini-3.1-flash-lite',
+  'gemini-3.6-flash',
+  'gemini-flash-latest',
 ];
 
 async function executeCascadeRequest(prompt, jsonMode = false) {
@@ -66,12 +66,14 @@ async function runTests() {
     const rawModels = data.models || [];
     console.log(`✓ Google API erreichbar, ${rawModels.length} Rohmodelle gefunden.`);
 
-    const DISCONTINUED = ['2.5-flash', '2.5-pro', '1.5-flash', '1.5-pro', '2.0-flash', '8b', 'embedding', 'tts', 'image'];
+    const DISCONTINUED = ['2.5-', '1.5-', '1.0-', '2.0-', '3.7-flash', '3.1-flash-lite', '3-flash-preview', '3-pro-preview', '3.1-pro', 'pro-latest', 'argon', 'carbon', '8b', 'embedding', 'tts', 'image', 'omni', 'live', 'nano-banana', 'robotics', 'computer-use', 'transcribe', 'lyria', 'deep-research', 'antigravity'];
     const filtered = rawModels
       .filter(m => {
-        const name = (m.name || '').toLowerCase();
+        const name = (m.name || '').toLowerCase().replace(/^models\//, '');
         const methods = m.supportedGenerationMethods || [];
         if (!methods.includes('generateContent')) return false;
+        if (!name.startsWith('gemini-')) return false;
+        if (name === 'gemini-3.5-flash') return false;
         for (const d of DISCONTINUED) {
           if (name.includes(d)) return false;
         }
@@ -80,12 +82,12 @@ async function runTests() {
       .map(m => m.name.replace(/^models\//, ''));
 
     console.log(`✓ Nach Filterung verbleiben ${filtered.length} zukunftssichere Modelle.`);
-    console.log(`  Top-Modelle: ${filtered.slice(0, 5).join(', ')}`);
-    if (filtered.includes('gemini-3.6-flash') || filtered.includes('gemini-flash-latest')) {
-      console.log('✓ Test 1 BESTANDEN: gemini-3.6-flash / flash-latest verifiziert.\n');
+    console.log(`  Top-Modelle: ${filtered.slice(0, 6).join(', ')}`);
+    if (filtered.includes('gemini-4-hydrogen') || filtered.includes('gemini-3.5-flash-lite') || filtered.includes('gemini-flash-lite-latest')) {
+      console.log('✓ Test 1 BESTANDEN: gemini-4-hydrogen / flash-lite verifiziert.\n');
       passed++;
     } else {
-      throw new Error('Kein modernes Flash-Modell in den gefilterten Modellen gefunden.');
+      throw new Error('Kein modernes Free-Tier-Modell in den gefilterten Modellen gefunden.');
     }
   } catch (err) {
     console.error('✗ Test 1 FEHLGESCHLAGEN:', err.message);

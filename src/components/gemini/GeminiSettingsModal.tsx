@@ -319,16 +319,18 @@ export const GeminiSettingsModal: React.FC<GeminiSettingsModalProps> = ({
               </option>
               {availableModels.map((m) => (
                 <option key={m} value={m}>
-                  {m === 'gemini-3.6-flash'
-                    ? '✨ Gemini 3.6 Flash (Verifiziert, rasend schnell & stabil)'
-                    : m === 'gemini-flash-latest'
-                    ? '🚀 Gemini Flash Latest (Immer das aktuellste Google Flash-Modell)'
-                    : m === 'gemini-3.7-flash'
-                    ? '💎 Gemini 3.7 Flash'
+                  {m === 'gemini-4-hydrogen'
+                    ? '⚡ Gemini 4 Hydrogen (Neueste Generation, Free Tier)'
+                    : m === 'gemini-flash-lite-latest'
+                    ? '🍃 Gemini Flash-Lite Latest (Ultra-schnell & stabil)'
+                    : m === 'gemini-3.5-flash-lite'
+                    ? '💨 Gemini 3.5 Flash-Lite (Schnell & zuverlässig)'
                     : m === 'gemini-3.8-flash'
                     ? '🌟 Gemini 3.8 Flash'
-                    : m === 'gemini-3.1-flash-lite'
-                    ? '🍃 Gemini 3.1 Flash Lite (Ultra-leicht)'
+                    : m === 'gemini-3.6-flash'
+                    ? '✨ Gemini 3.6 Flash (Stabiler Fallback)'
+                    : m === 'gemini-flash-latest'
+                    ? '🚀 Gemini Flash Latest (Google Standard-Alias)'
                     : `Modell: ${m}`}
                 </option>
               ))}
@@ -337,7 +339,7 @@ export const GeminiSettingsModal: React.FC<GeminiSettingsModalProps> = ({
             <div className="p-3 rounded-2xl bg-indigo-50/50 border border-indigo-150 flex items-start gap-2.5 text-[11px] text-indigo-950">
               <Layers className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
               <div>
-                <strong>Zukunftssichere Kaskadierung:</strong> Sollte Google ein Modell einstellen oder vorübergehend überlasten, wechselt das System automatisch und ohne Unterbrechung zum nächstbesten verfügbaren Modell (z. B. von 3.6 auf Flash-Latest). Veraltete Modelle (wie 1.5, 2.0 oder 2.5) werden automatisch gefiltert.
+                <strong>Zukunftssichere Kaskadierung:</strong> Sollte Google ein Modell einstellen oder vorübergehend überlasten, wechselt das System automatisch und ohne Unterbrechung zum nächstbesten verfügbaren Free-Tier-Modell (z. B. von Gemini 4 Hydrogen auf Flash-Lite oder 3.6 Flash). Veraltete Modelle (wie 1.5, 2.0, 2.5 oder 3.5/3.7 Flash) werden automatisch gefiltert.
               </div>
             </div>
           </div>
