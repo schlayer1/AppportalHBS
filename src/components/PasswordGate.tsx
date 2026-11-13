@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
+import { formatTeacherName } from '../types/user';
 
 interface PasswordGateProps {
   onAuthenticated: () => void;
@@ -38,12 +39,15 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({
 
   // Filter active teachers by search (Schulleitung ausgeschlossen, da eigenes Admin-Feld)
   const filteredUsers = useMemo(() => {
-    return users.filter(u => 
-      u.active !== false && 
-      u.role !== 'admin' && 
-      !u.name.toLowerCase().includes('schulleitung') && 
-      u.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
-    );
+    const q = searchQuery.toLowerCase().trim();
+    return users
+      .filter(u => 
+        u.active !== false && 
+        u.role !== 'admin' && 
+        !u.name.toLowerCase().includes('schulleitung') && 
+        (u.name.toLowerCase().includes(q) || formatTeacherName(u).toLowerCase().includes(q))
+      )
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'));
   }, [users, searchQuery]);
 
   // Handle Teacher PIN Submit
@@ -225,7 +229,7 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({
                       >
                         <span className="flex items-center gap-2">
                           <User className="w-3.5 h-3.5 text-hbs-slate-light" />
-                          <span>{u.name}</span>
+                          <span>{formatTeacherName(u)}</span>
                           {u.role === 'admin' && (
                             <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
                               Admin

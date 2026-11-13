@@ -18,6 +18,7 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { formatTeacherName } from '../../types/user';
 import { KahootGame, KahootQuestion } from '../../types/kahootTypes';
 import { KahootAiModal } from './KahootAiModal';
 import { KahootWorksheetModal } from './KahootWorksheetModal';
@@ -146,7 +147,7 @@ export const KahootDashboard: React.FC<KahootDashboardProps> = ({
       subject: 'Mathematik',
       grade: 'Klasse 7',
       authorId: currentUser?.id || 'guest',
-      authorName: currentUser?.name || 'Kollege',
+      authorName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
       isShared: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -207,7 +208,7 @@ export const KahootDashboard: React.FC<KahootDashboardProps> = ({
         subject: 'Fächerübergreifend',
         grade: 'Klasse 7',
         authorId: currentUser?.id || 'guest',
-        authorName: currentUser?.name || 'Kollege',
+        authorName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
         isShared: false,
         createdAt: Date.now(),
         updatedAt: Date.now(),

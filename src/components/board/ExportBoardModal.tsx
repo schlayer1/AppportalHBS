@@ -25,6 +25,7 @@ import html2canvas from 'html2canvas';
 import { BoardScreen } from './types';
 import { PORTAL_CONFIG } from '../../config/apps';
 import { useAuth } from '../../context/AuthContext';
+import { formatTeacherName } from '../../types/user';
 import { db, PORTAL_COLLECTION } from '../../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { uploadFileToR2, getR2DownloadUrl } from '../../services/r2StorageService';
@@ -212,7 +213,7 @@ export const ExportBoardModal: React.FC<ExportBoardModalProps> = ({
       title,
       subject,
       grade,
-      teacherName: currentUser?.name || 'Fachlehrer',
+      teacherName: currentUser ? formatTeacherName(currentUser) : 'Fachlehrer',
       targetDate: `${dateStr} • ${timeStr} Uhr`,
       notes: notesList,
       tasks: tasksList,
@@ -282,7 +283,7 @@ export const ExportBoardModal: React.FC<ExportBoardModalProps> = ({
             parentId: null,
             isShared: false,
             ownerId: currentUser.id,
-            ownerName: currentUser.name || 'Fachlehrer',
+            ownerName: formatTeacherName(currentUser) || 'Fachlehrer',
             color: 'teal',
             subject
           });
@@ -294,7 +295,7 @@ export const ExportBoardModal: React.FC<ExportBoardModalProps> = ({
           folderId: tafelbilderFolder.id,
           isShared: false,
           ownerId: currentUser.id,
-          ownerName: currentUser.name || 'Fachlehrer',
+          ownerName: formatTeacherName(currentUser) || 'Fachlehrer',
           r2Key,
           fileSize: blob.size,
           mimeType: 'image/jpeg',
@@ -441,7 +442,7 @@ export const ExportBoardModal: React.FC<ExportBoardModalProps> = ({
             <div>
               <div class="school-name">Staatliche Regelschule Heimbürgeschule Kahla</div>
               <div class="title">${title} • ${grade} (${subject})</div>
-              <div class="meta">Datum & Uhrzeit: ${dateStr} um ${timeStr} Uhr • Lehrkraft: ${currentUser?.name || 'Fachlehrer'}${screens.length > 1 ? ` • Tafel ${activeScreenIndex + 1} von ${screens.length}` : ''}</div>
+              <div class="meta">Datum & Uhrzeit: ${dateStr} um ${timeStr} Uhr • Lehrkraft: ${currentUser ? formatTeacherName(currentUser) : 'Fachlehrer'}${screens.length > 1 ? ` • Tafel ${activeScreenIndex + 1} von ${screens.length}` : ''}</div>
             </div>
             <img src="/Siegel_bunt.png" class="crest" alt="Siegel" />
           </div>
@@ -586,7 +587,7 @@ export const ExportBoardModal: React.FC<ExportBoardModalProps> = ({
             <div>
               <div class="school-name">Staatliche Regelschule Heimbürgeschule Kahla</div>
               <div class="title">Stundenprotokoll: ${title}</div>
-              <div class="meta">Klasse: ${grade} • Fach: ${subject} • Datum: ${dateStr} um ${timeStr} Uhr • Lehrkraft: ${currentUser?.name || 'Fachlehrer'}</div>
+              <div class="meta">Klasse: ${grade} • Fach: ${subject} • Datum: ${dateStr} um ${timeStr} Uhr • Lehrkraft: ${currentUser ? formatTeacherName(currentUser) : 'Fachlehrer'}</div>
             </div>
             <img src="/Siegel_bunt.png" class="crest" alt="Siegel" />
           </div>
@@ -908,7 +909,7 @@ export const ExportBoardModal: React.FC<ExportBoardModalProps> = ({
                       Stundenprotokoll: {title}
                     </h4>
                     <span className="text-xs text-slate-500">
-                      Klasse: {grade} • Fach: {subject} • Datum: {dateStr} • Lehrkraft: {currentUser?.name || 'Fachlehrer'}
+                      Klasse: {grade} • Fach: {subject} • Datum: {dateStr} • Lehrkraft: {currentUser ? formatTeacherName(currentUser) : 'Fachlehrer'}
                     </span>
                   </div>
                   <div className="w-12 h-12 rounded-xl bg-slate-50 p-1 border">

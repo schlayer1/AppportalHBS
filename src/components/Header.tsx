@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
+import { formatTeacherName } from '../types/user';
 
 export type ViewMode = 'bento' | 'compact' | 'smartboard' | 'tafel' | 'menti' | 'kahoot' | 'oncoo' | 'ablage';
 
@@ -218,7 +219,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-hbs-slate-dark select-none shrink-0">
               <User className="w-3.5 h-3.5 text-hbs-blue shrink-0" />
               <span className="truncate max-w-[80px] xl:max-w-[120px]">
-                {currentUser ? currentUser.name : isGuest ? 'Gast' : 'Kollege'}
+                {currentUser ? formatTeacherName(currentUser) : isGuest ? 'Gast' : 'Kollege'}
               </span>
             </div>
 
@@ -339,7 +340,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="px-3 py-2 border-b border-slate-100 mb-1">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Angemeldet als</span>
                       <span className="text-xs font-black text-slate-800 truncate block">
-                        {currentUser ? currentUser.name : isGuest ? 'Gast' : 'Kollege'}
+                        {currentUser ? formatTeacherName(currentUser) : isGuest ? 'Gast' : 'Kollege'}
                       </span>
                     </div>
 

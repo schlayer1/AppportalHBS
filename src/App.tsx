@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { PasswordGate } from './components/PasswordGate';
 import { Header, ViewMode } from './components/Header';
-import { PortalViewMode } from './types/user';
+import { formatTeacherName, PortalViewMode } from './types/user';
 import { AppCard } from './components/AppCard';
 import { CompactAppCard } from './components/CompactAppCard';
 import { AppDetailSheet } from './components/AppDetailSheet';
@@ -696,7 +696,7 @@ export default function App() {
               </div>
               <div>
                 <h4 className="text-sm font-black text-amber-950">
-                  Sortiermodus aktiv für {currentUser ? currentUser.name : 'Kollege'}
+                  Sortiermodus aktiv für {currentUser ? formatTeacherName(currentUser) : 'Kollege'}
                 </h4>
                 <p className="text-xs text-amber-800 mt-0.5">
                   Verschieben Sie Kacheln mit den Pfeiltasten (◀ ▶). Eigene Links können Sie mit dem Papierkorb entfernen.
@@ -754,7 +754,7 @@ export default function App() {
                   <span>Staatliche Regelschule Heimbürgeschule Kahla</span>
                 </div>
                 <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-hbs-slate-dark tracking-tight leading-tight">
-                  {currentUser ? `Willkommen, ${currentUser.name}!` : 'Zentrale Anlaufstelle für Ihren Schulalltag'}
+                  {currentUser ? `Willkommen, ${formatTeacherName(currentUser)}!` : 'Zentrale Anlaufstelle für Ihren Schulalltag'}
                 </h2>
                 <p className="text-xs sm:text-sm lg:text-base text-hbs-slate-muted mt-2 leading-relaxed">
                   {currentUser 

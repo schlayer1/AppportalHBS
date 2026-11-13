@@ -18,6 +18,7 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { formatTeacherName } from '../../types/user';
 import { OncooSession, OncooToolType } from '../../types/oncooTypes';
 
 interface OncooDashboardProps {
@@ -192,7 +193,7 @@ export const OncooDashboard: React.FC<OncooDashboardProps> = ({
       subject: newSubject,
       grade: newGrade,
       authorId: currentUser?.id || 'guest',
-      authorName: currentUser?.name || 'Kollege',
+      authorName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
       isShared: false,
       pinCode: pin,
       createdAt: Date.now(),

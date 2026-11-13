@@ -1,10 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { PortalUser, CustomUserApp, SavedBoardTemplate, UserPreferences, PortalViewMode } from '../types/user';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { PortalUser, CustomUserApp, SavedBoardTemplate, UserPreferences, PortalViewMode, formatTeacherName } from '../types/user';
 import { BoardScreen } from '../components/board/types';
 import { 
   loadPortalDataFromCloud, 
   savePortalDataToCloud, 
   subscribeToPortalData,
+  loadStatistikTeachersFromCloud,
+  subscribeToStatistikTeachers,
+  mergeStatistikTeachersIntoUsers,
+  setCachedPortalData,
+  StatistikTeacherRaw,
   syncTeachersFromVertretungsstatistik, 
   MASTER_ADMIN_PIN, 
   getCachedPortalData 
@@ -118,16 +123,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [oncooSessions, setOncooSessions] = useState<OncooSession[]>(() => getCachedPortalData().oncooSessions || DEFAULT_ONCOO_TEMPLATES);
   const [activeOncooSession, setActiveOncooSession] = useState<OncooSession | null>(() => getCachedPortalData().activeOncooSession || null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const latestStatistikRef = useRef<StatistikTeacherRaw[]>([]);
+  const latestBaseUsersRef = useRef<PortalUser[]>(getCachedPortalData().users);
+  const isSyncingBackRef = useRef<boolean>(false);
 
-  // Load latest data from Cloud on mount and listen to real-time updates
+  // Sync currentUser cleanly when synced teacher list changes (gender, PIN, name, active)
+  useEffect(() => {
+    setCurrentUser(prev => {
+      if (!prev || prev.id === 'master-admin') return prev;
+      const fresh = users.find(
+        u =>
+          u.id === prev.id ||
+          (prev.sourceTeacherId && u.sourceTeacherId === prev.sourceTeacherId) ||
+          u.name.trim().toLowerCase() === prev.name.trim().toLowerCase()
+      );
+      if (!fresh) return prev;
+      const nextUser: PortalUser = {
+        ...fresh,
+        role: prev.role === 'admin' ? 'admin' : fresh.role,
+        lastLoginAt: prev.lastLoginAt
+      };
+      if (
+        nextUser.name === prev.name &&
+        (nextUser.gender || '') === (prev.gender || '') &&
+        nextUser.pin === prev.pin &&
+        nextUser.active === prev.active &&
+        nextUser.role === prev.role &&
+        nextUser.id === prev.id
+      ) {
+        return prev;
+      }
+      try {
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser));
+      } catch {
+        // ignore storage errors
+      }
+      return nextUser;
+    });
+  }, [users]);
+
+  // Load latest data from Cloud on mount and listen to real-time updates (including Vertretungsstatistik)
   useEffect(() => {
     let isMounted = true;
+
+    const applyStatistikMerge = (baseUsers: PortalUser[], statistikList: StatistikTeacherRaw[], persistDiff = false) => {
+      latestBaseUsersRef.current = baseUsers;
+      if (!statistikList || statistikList.length === 0) {
+        setUsers(baseUsers);
+        return;
+      }
+      const merged = mergeStatistikTeachersIntoUsers(baseUsers, statistikList);
+      setUsers(merged.users);
+      setCachedPortalData({ ...getCachedPortalData(), users: merged.users });
+
+      if (persistDiff && (merged.added > 0 || merged.updated > 0) && !isSyncingBackRef.current) {
+        isSyncingBackRef.current = true;
+        loadPortalDataFromCloud()
+          .then(d => savePortalDataToCloud({ ...d, users: merged.users }))
+          .catch(() => {})
+          .finally(() => {
+            isSyncingBackRef.current = false;
+          });
+      }
+    };
+
     const init = async () => {
       setIsLoading(true);
       try {
-        const cloudData = await loadPortalDataFromCloud();
+        const [cloudData, statistikTeachers] = await Promise.all([
+          loadPortalDataFromCloud(),
+          loadStatistikTeachersFromCloud()
+        ]);
         if (isMounted) {
-          setUsers(cloudData.users);
+          latestStatistikRef.current = statistikTeachers;
+          applyStatistikMerge(cloudData.users, statistikTeachers, true);
           setAllPreferences(cloudData.preferences);
           setBoardTemplates(cloudData.boardTemplates);
           if (cloudData.mentiPresentations && cloudData.mentiPresentations.length > 0) {
@@ -152,9 +221,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     init();
 
     // Real-time Firestore sync: updates from iMac immediately appear on iPhone and vice-versa
-    const unsubscribe = subscribeToPortalData((cloudData) => {
+    const unsubscribePortal = subscribeToPortalData((cloudData) => {
       if (!isMounted) return;
-      setUsers(cloudData.users);
+      applyStatistikMerge(cloudData.users, latestStatistikRef.current, false);
       setAllPreferences(cloudData.preferences);
       setBoardTemplates(cloudData.boardTemplates);
       if (cloudData.mentiPresentations && cloudData.mentiPresentations.length > 0) {
@@ -172,9 +241,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     });
 
+    // Real-time sync from authoritative Vertretungsstatistik (statistik-91f25/schools/HBS)
+    const unsubscribeStatistik = subscribeToStatistikTeachers((statistikTeachers) => {
+      if (!isMounted) return;
+      latestStatistikRef.current = statistikTeachers;
+      applyStatistikMerge(latestBaseUsersRef.current, statistikTeachers, true);
+    });
+
     return () => { 
       isMounted = false; 
-      unsubscribe();
+      unsubscribePortal();
+      unsubscribeStatistik();
     };
   }, []);
 
@@ -409,7 +486,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   ): Promise<SavedBoardTemplate> => {
     const authorId = currentUser ? currentUser.id : 'guest';
-    const authorName = currentUser ? currentUser.name : 'Gast';
+    const authorName = currentUser ? formatTeacherName(currentUser) : 'Gast';
     const templateId = `board-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     let r2DataKey: string | undefined;
@@ -522,7 +599,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...presentation,
       updatedAt: now,
       authorId: presentation.authorId || currentUser?.id || 'guest',
-      authorName: presentation.authorName || currentUser?.name || 'Kollege'
+      authorName: presentation.authorName || (currentUser ? formatTeacherName(currentUser) : 'Kollege')
     };
 
     let updatedList: MentiPresentation[];
@@ -568,7 +645,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `menti-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       title: `${orig.title} (Kopie)`,
       authorId: currentUser?.id || 'guest',
-      authorName: currentUser?.name || 'Kollege',
+      authorName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
       isShared: false,
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -576,7 +653,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `menti-${Date.now()}`,
       title: 'Neue Präsentation',
       authorId: currentUser?.id || 'guest',
-      authorName: currentUser?.name || 'Kollege',
+      authorName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
       isShared: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -604,7 +681,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const gameToSave: KahootGame = {
       ...game,
       authorId: game.authorId || currentUser?.id || 'guest',
-      authorName: game.authorName || currentUser?.name || 'Kollege',
+      authorName: game.authorName || (currentUser ? formatTeacherName(currentUser) : 'Kollege'),
       updatedAt: Date.now()
     };
 
@@ -651,7 +728,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `kahoot-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       title: `${orig.title} (Kopie)`,
       authorId: currentUser?.id || 'guest',
-      authorName: currentUser?.name || 'Kollege',
+      authorName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
       isShared: false,
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -659,7 +736,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `kahoot-${Date.now()}`,
       title: 'Neues Quiz',
       authorId: currentUser?.id || 'guest',
-      authorName: currentUser?.name || 'Kollege',
+      authorName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
       isShared: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -687,7 +764,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const sessionToSave: OncooSession = {
       ...session,
       authorId: session.authorId || currentUser?.id || 'guest',
-      authorName: session.authorName || currentUser?.name || 'Kollege',
+      authorName: session.authorName || (currentUser ? formatTeacherName(currentUser) : 'Kollege'),
       updatedAt: Date.now()
     };
 
@@ -734,7 +811,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `oncoo-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       title: `${orig.title} (Kopie)`,
       authorId: currentUser?.id || 'guest',
-      authorName: currentUser?.name || 'Kollege',
+      authorName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
       isShared: false,
       pinCode: Math.floor(100000 + Math.random() * 900000).toString(),
       createdAt: Date.now(),
@@ -745,7 +822,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toolType: 'kartenabfrage',
       title: 'Neue Oncoo-Sitzung',
       authorId: currentUser?.id || 'guest',
-      authorName: currentUser?.name || 'Kollege',
+      authorName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
       isShared: false,
       pinCode: Math.floor(100000 + Math.random() * 900000).toString(),
       createdAt: Date.now(),

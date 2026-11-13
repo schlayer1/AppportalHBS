@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { ADMIN_CREDENTIALS } from '../../data/adminPasswords';
 import { useAuth } from '../../context/AuthContext';
-import { PortalUser } from '../../types/user';
+import { formatTeacherName, PortalUser, TeacherGender } from '../../types/user';
 import { 
   DEFAULT_FIREBASE_CONFIG, 
   DEFAULT_SCHOOL_ID,
@@ -143,12 +143,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
   // New User Form State
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [newUserName, setNewUserName] = useState<string>('');
+  const [newUserGender, setNewUserGender] = useState<TeacherGender>('');
   const [newUserPin, setNewUserPin] = useState<string>('');
   const [newUserRole, setNewUserRole] = useState<'teacher' | 'admin'>('teacher');
 
   // Editing User State
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>('');
+  const [editGender, setEditGender] = useState<TeacherGender>('');
   const [editPin, setEditPin] = useState<string>('');
   const [editRole, setEditRole] = useState<'teacher' | 'admin'>('teacher');
 
@@ -234,13 +236,18 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserName.trim()) return;
-    const pin = newUserPin.trim().length === 4 
-      ? newUserPin.trim() 
-      : Math.floor(1000 + Math.random() * 9000).toString();
+    const usedPins = new Set(users.map(u => String(u.pin || '').trim()));
+    let pin = newUserPin.trim().length === 4 ? newUserPin.trim() : '';
+    if (!pin) {
+      do {
+        pin = Math.floor(1000 + Math.random() * 9000).toString();
+      } while (pin === '1234' || usedPins.has(pin));
+    }
 
     const newUser: PortalUser = {
       id: `user-${Date.now()}`,
       name: newUserName.trim(),
+      gender: newUserGender,
       pin,
       role: newUserRole,
       active: true,
@@ -250,6 +257,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
     const updated = [...users, newUser];
     await saveUsersList(updated);
     setNewUserName('');
+    setNewUserGender('');
     setNewUserPin('');
     setShowAddForm(false);
   };
@@ -258,6 +266,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
   const handleStartEdit = (user: PortalUser) => {
     setEditingUserId(user.id);
     setEditName(user.name);
+    setEditGender(user.gender || '');
     setEditPin(user.pin);
     setEditRole(user.role);
   };
@@ -275,6 +284,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
         return {
           ...u,
           name: editName.trim(),
+          gender: editGender,
           pin,
           role: editRole
         };
@@ -367,7 +377,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((u, i) => `
         <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11pt;">
-          <td style="padding: 8px 12px; font-weight: bold; color: #1e293b;">${i + 1}. ${u.name}</td>
+          <td style="padding: 8px 12px; font-weight: bold; color: #1e293b;">${i + 1}. ${formatTeacherName(u)}</td>
           <td style="padding: 8px 12px; text-align: center; color: #64748b;">${u.role === 'admin' ? 'Admin' : 'Lehrkraft'}</td>
           <td style="padding: 8px 12px; text-align: center; font-family: monospace; font-size: 14pt; font-weight: 900; color: #00766c; letter-spacing: 3px;">${u.pin}</td>
         </tr>
@@ -676,12 +686,22 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                   <span className="text-xs font-black text-hbs-slate-dark block">
                     Neue Lehrkraft anlegen:
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                    <select
+                      value={newUserGender}
+                      onChange={(e) => setNewUserGender(e.target.value as TeacherGender)}
+                      className="px-3 py-1.5 text-xs rounded-xl bg-slate-50 border border-slate-200 font-bold"
+                    >
+                      <option value="">Anrede: Keine Angabe</option>
+                      <option value="f">Frau</option>
+                      <option value="m">Herr</option>
+                      <option value="d">Divers</option>
+                    </select>
                     <input
                       type="text"
                       value={newUserName}
                       onChange={(e) => setNewUserName(e.target.value)}
-                      placeholder="Name (z. B. Fr. Müller)"
+                      placeholder="Nachname (z. B. Müller)"
                       className="px-3 py-1.5 text-xs rounded-xl bg-slate-50 border border-slate-200 font-bold"
                       required
                     />
@@ -690,7 +710,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                       maxLength={4}
                       value={newUserPin}
                       onChange={(e) => setNewUserPin(e.target.value)}
-                      placeholder="4-stellige PIN (z. B. 5821)"
+                      placeholder="PIN (leer = zufällig)"
                       className="px-3 py-1.5 text-xs rounded-xl bg-slate-50 border border-slate-200 font-mono font-bold"
                     />
                     <select
@@ -757,12 +777,25 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                           return (
                             <tr key={user.id} className="bg-hbs-blue-soft/30">
                               <td className="p-2">
-                                <input
-                                  type="text"
-                                  value={editName}
-                                  onChange={(e) => setEditName(e.target.value)}
-                                  className="px-2 py-1 bg-white border border-slate-300 rounded font-bold text-xs w-full"
-                                />
+                                <div className="flex items-center gap-1.5">
+                                  <select
+                                    value={editGender}
+                                    onChange={(e) => setEditGender(e.target.value as TeacherGender)}
+                                    className="px-1.5 py-1 bg-white border border-slate-300 rounded font-bold text-xs"
+                                    title="Anrede / Geschlecht"
+                                  >
+                                    <option value="">—</option>
+                                    <option value="f">Frau</option>
+                                    <option value="m">Herr</option>
+                                    <option value="d">Divers</option>
+                                  </select>
+                                  <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="px-2 py-1 bg-white border border-slate-300 rounded font-bold text-xs w-full"
+                                  />
+                                </div>
                               </td>
                               <td className="p-2 text-center">
                                 <select
@@ -809,7 +842,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                         return (
                           <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                             <td className="p-3 font-bold text-hbs-slate-dark flex items-center gap-2">
-                              <span>{user.name}</span>
+                              <span>{formatTeacherName(user)}</span>
+                              {user.gender === 'd' && (
+                                <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-bold">
+                                  Divers
+                                </span>
+                              )}
                             </td>
                             <td className="p-3 text-center">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
@@ -1275,7 +1313,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                 </div>
 
                 <p className="text-xs text-hbs-slate-muted leading-relaxed">
-                  Laden Sie alle Lehrkräfte und bestehende 4-stellige PINs automatisch aus dem Firebase-Projekt der <strong>Vertretungsstatistik</strong> herunter. Neue Kollegen werden sofort übernommen, bereits vergebene PINs abgeglichen.
+                  Lehrkräfte, Anreden (Frau / Herr / Divers) und neu generierte 4-stellige PINs werden automatisch in Echtzeit aus dem Firebase-Projekt der <strong>Vertretungsstatistik</strong> (<code>statistik-91f25 / schools/HBS</code>) synchronisiert. Bei Bedarf können Sie den Abgleich hier manuell anstoßen:
                 </p>
 
                 {syncResult && (

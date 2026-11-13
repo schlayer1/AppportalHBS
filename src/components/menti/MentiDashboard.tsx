@@ -19,6 +19,7 @@ import {
   Check
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { formatTeacherName } from '../../types/user';
 import { MentiPresentation, MentiSlide } from '../../types/mentiTypes';
 import { MentiAiModal } from './MentiAiModal';
 import { GeminiSettingsModal } from '../gemini/GeminiSettingsModal';
@@ -90,7 +91,7 @@ export const MentiDashboard: React.FC<MentiDashboardProps> = ({
       subject: meta?.subject || 'Fächerübergreifend',
       grade: meta?.grade || 'Alle Jahrgänge',
       authorId: currentUser?.id || 'guest',
-      authorName: currentUser?.name || 'Kollege',
+      authorName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
       isShared: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -171,7 +172,7 @@ export const MentiDashboard: React.FC<MentiDashboardProps> = ({
       subject: 'Fächerübergreifend',
       grade: 'Alle Jahrgänge',
       authorId: currentUser?.id || 'guest',
-      authorName: currentUser?.name || 'Kollege',
+      authorName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
       isShared: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),

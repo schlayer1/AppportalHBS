@@ -9,7 +9,7 @@ import {
   runTransaction,
   Firestore
 } from 'firebase/firestore';
-import { PortalUser, UserPreferences, SavedBoardTemplate } from '../types/user';
+import { PortalUser, TeacherGender, UserPreferences, SavedBoardTemplate } from '../types/user';
 import { FeatureRequest, RequestStatus } from '../types/requestTypes';
 
 // Official Firebase Project Config provided for App-Portal Integration (terminkalender-7f269)
@@ -22,6 +22,16 @@ export const DEFAULT_FIREBASE_CONFIG = {
   appId: "1:919163141331:web:12c659f5c2946e7c7e2826"
 };
 
+// Authoritative teacher/PIN source: Vertretungsstatistik (statistik-91f25)
+export const STATISTIK_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCnleowgQT4XoMK5P5b_t1uWYGsWoYxT80",
+  authDomain: "statistik-91f25.firebaseapp.com",
+  projectId: "statistik-91f25",
+  storageBucket: "statistik-91f25.firebasestorage.app",
+  messagingSenderId: "277742289737",
+  appId: "1:277742289737:web:b87043732524cc283d5098"
+};
+
 export const DEFAULT_SCHOOL_ID = "HBS";
 export const MASTER_ADMIN_PIN = "Year2003?!%";
 
@@ -31,12 +41,21 @@ export const PORTAL_DATA_DOC = "portal_data";
 export const REQUESTS_COLLECTION = "hbs_feature_requests";
 
 export let db: Firestore | null = null;
+export let statistikDb: Firestore | null = null;
 
 try {
   const app = getApps().length === 0 ? initializeApp(DEFAULT_FIREBASE_CONFIG) : getApp();
   db = getFirestore(app);
 } catch (err) {
   console.warn("Firebase Init-Warnung (Offline-Fallback wird genutzt):", err);
+}
+
+try {
+  const existingStatistikApp = getApps().find(a => a.name === 'hbs-statistik-source');
+  const statistikApp = existingStatistikApp || initializeApp(STATISTIK_FIREBASE_CONFIG, 'hbs-statistik-source');
+  statistikDb = getFirestore(statistikApp);
+} catch (err) {
+  console.warn("Statistik-Firebase Init-Warnung (Sync-Fallback):", err);
 }
 
 // Initial seed teachers matching official Heimbürgeschule Kollegiumsliste (ohne Schulleitung, da extra Login-Feld)
@@ -422,62 +441,193 @@ export const deleteFeatureRequest = async (requestId: string): Promise<void> => 
   }
 };
 
+export interface StatistikTeacherRaw {
+  id?: string;
+  name?: string;
+  pin?: string;
+  gender?: string;
+  active?: boolean;
+}
+
+export const normalizeTeacherGender = (val: unknown): TeacherGender => {
+  if (val === 'f' || val === 'm' || val === 'd') return val;
+  return '';
+};
+
+const generateUniquePin = (usedPins: Set<string>): string => {
+  for (let i = 0; i < 200; i++) {
+    const candidate = Math.floor(1000 + Math.random() * 9000).toString();
+    if (candidate !== '1234' && !usedPins.has(candidate)) {
+      usedPins.add(candidate);
+      return candidate;
+    }
+  }
+  return Math.floor(1000 + Math.random() * 9000).toString();
+};
+
 /**
- * Synchronizes / imports teacher roster directly from a Vertretungsstatistik document
+ * Merges teacher roster entries from Vertretungsstatistik (statistik-91f25/schools/HBS)
+ * into existing portal users, preserving admin roles & portal IDs while syncing PINs, gender, and new hires.
+ */
+export const mergeStatistikTeachersIntoUsers = (
+  existingUsers: PortalUser[],
+  sourceTeachers: StatistikTeacherRaw[]
+): { users: PortalUser[]; added: number; updated: number } => {
+  const nextUsers = existingUsers.map(u => ({ ...u }));
+  const usedPins = new Set(nextUsers.map(u => String(u.pin || '').trim()).filter(Boolean));
+  let added = 0;
+  let updated = 0;
+
+  sourceTeachers.forEach((st) => {
+    const rawName = (st?.name || '').trim();
+    if (!rawName || rawName.toLowerCase().includes('schulleitung')) return;
+
+    const cleanLower = rawName.toLowerCase();
+    const stId = st.id ? String(st.id).trim() : '';
+    const existingIdx = nextUsers.findIndex(u =>
+      (stId && (u.sourceTeacherId === stId || u.id === `t-${stId}` || u.id === stId)) ||
+      u.name.trim().toLowerCase() === cleanLower
+    );
+
+    const rawPin = st.pin !== undefined && st.pin !== null ? String(st.pin).trim() : '';
+    const validPin = /^\d{4,}$/.test(rawPin) ? rawPin : '';
+    const hasGenderField = st.gender !== undefined && st.gender !== null;
+    const incomingGender = normalizeTeacherGender(st.gender);
+    const incomingActive = st.active !== false;
+
+    if (existingIdx >= 0) {
+      const target = nextUsers[existingIdx];
+      let changed = false;
+
+      if (validPin && target.pin !== validPin) {
+        target.pin = validPin;
+        usedPins.add(validPin);
+        changed = true;
+      }
+      if (hasGenderField && (target.gender || '') !== incomingGender) {
+        target.gender = incomingGender;
+        changed = true;
+      }
+      if (target.name !== rawName) {
+        target.name = rawName;
+        changed = true;
+      }
+      if (stId && target.sourceTeacherId !== stId) {
+        target.sourceTeacherId = stId;
+        changed = true;
+      }
+      if (target.active !== incomingActive) {
+        target.active = incomingActive;
+        changed = true;
+      }
+      if (changed) updated++;
+    } else {
+      const pinToUse = validPin || generateUniquePin(usedPins);
+      usedPins.add(pinToUse);
+      nextUsers.push({
+        id: stId ? `t-${stId}` : `t-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        sourceTeacherId: stId || undefined,
+        name: rawName,
+        gender: incomingGender,
+        pin: pinToUse,
+        role: "teacher",
+        active: incomingActive,
+        createdAt: Date.now()
+      });
+      added++;
+    }
+  });
+
+  return { users: nextUsers, added, updated };
+};
+
+export const loadStatistikTeachersFromCloud = async (): Promise<StatistikTeacherRaw[]> => {
+  if (statistikDb) {
+    try {
+      const snap = await getDoc(doc(statistikDb, "schools", DEFAULT_SCHOOL_ID));
+      if (snap.exists()) {
+        const data = snap.data();
+        if (Array.isArray(data?.teachers)) return data.teachers;
+      }
+    } catch (err) {
+      console.warn("Statistik Firestore read error, trying REST fallback:", err);
+    }
+  }
+  try {
+    const res = await fetch(
+      `https://firestore.googleapis.com/v1/projects/statistik-91f25/databases/(default)/documents/schools/${DEFAULT_SCHOOL_ID}`
+    );
+    if (!res.ok) return [];
+    const docJson = await res.json();
+    const values = docJson?.fields?.teachers?.arrayValue?.values;
+    if (!Array.isArray(values)) return [];
+    return values.map((v: any) => {
+      const f = v?.mapValue?.fields || {};
+      return {
+        id: f.id?.stringValue ?? '',
+        name: f.name?.stringValue ?? '',
+        pin: f.pin?.stringValue ?? '',
+        gender: f.gender?.stringValue ?? '',
+        active: f.active?.booleanValue !== undefined ? Boolean(f.active.booleanValue) : true,
+      };
+    });
+  } catch (err) {
+    console.warn("Statistik REST fallback error:", err);
+    return [];
+  }
+};
+
+export const subscribeToStatistikTeachers = (callback: (teachers: StatistikTeacherRaw[]) => void): (() => void) => {
+  if (!statistikDb) {
+    loadStatistikTeachersFromCloud().then(list => {
+      if (list.length > 0) callback(list);
+    });
+    return () => {};
+  }
+  try {
+    const vertretungDocRef = doc(statistikDb, "schools", DEFAULT_SCHOOL_ID);
+    const unsubscribe = onSnapshot(
+      vertretungDocRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (Array.isArray(data?.teachers)) {
+            callback(data.teachers);
+          }
+        }
+      },
+      (err) => {
+        console.warn("Statistik onSnapshot error, using REST fallback:", err);
+        loadStatistikTeachersFromCloud().then(list => {
+          if (list.length > 0) callback(list);
+        });
+      }
+    );
+    return unsubscribe;
+  } catch (err) {
+    console.warn("Could not attach Statistik onSnapshot:", err);
+    return () => {};
+  }
+};
+
+/**
+ * Synchronizes / imports teacher roster directly from Vertretungsstatistik (statistik-91f25/schools/HBS)
  */
 export const syncTeachersFromVertretungsstatistik = async (): Promise<{ added: number; updated: number; total: number }> => {
-  if (!db) throw new Error("Keine Datenbankverbindung");
-
   try {
-    const vertretungDocRef = doc(db, "schools", "HBS");
-    const snap = await getDoc(vertretungDocRef);
-
-    if (!snap.exists()) {
-      throw new Error("Dokument 'schools/HBS' der Vertretungsstatistik nicht gefunden.");
-    }
-
-    const vData = snap.data();
-    const sourceTeachers = Array.isArray(vData.teachers) ? vData.teachers : [];
+    const sourceTeachers = await loadStatistikTeachersFromCloud();
 
     if (sourceTeachers.length === 0) {
-      throw new Error("Keine Lehrkräfte in der Vertretungsstatistik gefunden.");
+      throw new Error("Keine Lehrkräfte in der Vertretungsstatistik (schools/HBS) gefunden.");
     }
 
     const currentPortalData = await loadPortalDataFromCloud();
-    const existingUsers = [...currentPortalData.users];
-    let added = 0;
-    let updated = 0;
+    const merged = mergeStatistikTeachersIntoUsers(currentPortalData.users, sourceTeachers);
 
-    sourceTeachers.forEach((st: any) => {
-      if (!st.name || st.name.toLowerCase().includes('schulleitung')) return;
-      const existingIdx = existingUsers.findIndex(u => u.name.trim().toLowerCase() === st.name.trim().toLowerCase());
-      
-      const pinToUse = st.pin && String(st.pin).length === 4 
-        ? String(st.pin) 
-        : Math.floor(1000 + Math.random() * 9000).toString();
-
-      if (existingIdx >= 0) {
-        if (existingUsers[existingIdx].pin !== pinToUse) {
-          existingUsers[existingIdx].pin = pinToUse;
-          updated++;
-        }
-      } else {
-        existingUsers.push({
-          id: st.id ? `t-${st.id}` : `t-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          name: st.name.trim(),
-          pin: pinToUse,
-          role: "teacher",
-          active: st.active !== false,
-          createdAt: Date.now()
-        });
-        added++;
-      }
-    });
-
-    currentPortalData.users = existingUsers;
+    currentPortalData.users = merged.users;
     await savePortalDataToCloud(currentPortalData);
 
-    return { added, updated, total: existingUsers.length };
+    return { added: merged.added, updated: merged.updated, total: merged.users.length };
   } catch (err: any) {
     console.error("Sync error:", err);
     throw err;

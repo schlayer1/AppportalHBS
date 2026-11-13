@@ -5,6 +5,7 @@ import {
   BookOpen, Trash2, ShieldCheck, History, MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { formatTeacherName } from '../types/user';
 import { 
   FeatureRequest, 
   RequestCategory, 
@@ -50,7 +51,7 @@ export const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onO
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<RequestCategory>('wunsch');
-  const [authorName, setAuthorName] = useState(currentUser?.name || '');
+  const [authorName, setAuthorName] = useState(currentUser ? formatTeacherName(currentUser) : '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
@@ -72,7 +73,7 @@ export const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onO
   // Update author name if user changes
   useEffect(() => {
     if (currentUser?.name) {
-      setAuthorName(currentUser.name);
+      setAuthorName(formatTeacherName(currentUser));
     }
   }, [currentUser]);
 

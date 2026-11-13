@@ -28,6 +28,7 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { formatTeacherName } from '../../types/user';
 import { StorageFolder, StorageFile, StorageScope, StorageViewLayout } from '../../types/storageTypes';
 import { 
   subscribeToStorage, 
@@ -228,7 +229,7 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
           folderId: currentFolderId,
           isShared: isSharedScope,
           ownerId: currentUser?.id || 'guest',
-          ownerName: currentUser?.name || 'Kollege',
+          ownerName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
           r2Key: uploadResult.key,
           fileSize: uploadResult.fileSize,
           mimeType: uploadResult.mimeType,
@@ -1045,7 +1046,7 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
             parentId: currentFolderId,
             isShared: isSharedScope,
             ownerId: currentUser?.id || 'guest',
-            ownerName: currentUser?.name || 'Kollege',
+            ownerName: currentUser ? formatTeacherName(currentUser) : 'Kollege',
             color,
             subject
           });
