@@ -25,18 +25,16 @@ export const setStoredApiKey = (key: string) => {
 export const generateQuizQuestionsWithAi = async (
   request: AiQuizRequest
 ): Promise<AiGeneratedQuestionDraft[]> => {
-  const activeKey = request.apiKey?.trim() || geminiService.getApiKey();
+  const customKey = request.apiKey?.trim() || geminiService.getApiKey();
 
-  if (activeKey) {
-    try {
-      const questions = await fetchGeminiQuizQuestions(request, activeKey);
-      if (questions && questions.length > 0) {
-        return questions;
-      }
-    } catch (err) {
-      console.warn('[AiQuizGenerator] Gemini API fehlgeschlagen, nutze Fallback-Generator:', err);
-      // fallback proceeds below
+  try {
+    const questions = await fetchGeminiQuizQuestions(request, customKey);
+    if (questions && questions.length > 0) {
+      return questions;
     }
+  } catch (err) {
+    console.warn('[AiQuizGenerator] Gemini API fehlgeschlagen, nutze Fallback-Generator:', err);
+    // fallback proceeds below
   }
 
   // Fallback template generator based on topic and subject

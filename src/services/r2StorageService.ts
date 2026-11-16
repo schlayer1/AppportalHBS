@@ -28,7 +28,8 @@ export async function uploadFileToR2(
     body: JSON.stringify({
       action: 'upload',
       key: targetKey,
-      contentType: file.type || 'application/octet-stream'
+      contentType: file.type || 'application/octet-stream',
+      fileSize: file.size
     })
   });
 

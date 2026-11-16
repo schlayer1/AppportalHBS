@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { 
   geminiService, 
-  DEFAULT_SCHOOL_GEMINI_KEY, 
   GeminiTestResult, 
   CANDIDATE_FLASH_MODELS 
 } from '../../services/geminiService';
@@ -90,13 +89,13 @@ export const GeminiSettingsModal: React.FC<GeminiSettingsModalProps> = ({
 
   const handleResetDefault = () => {
     geminiService.resetToSchoolKey();
-    setApiKeyInput(DEFAULT_SCHOOL_GEMINI_KEY);
+    setApiKeyInput('');
     setSelectedModel('auto');
     setTestResult(null);
     setTestError(null);
     setIsSavedSuccess(true);
     if (onKeyUpdated) {
-      onKeyUpdated(DEFAULT_SCHOOL_GEMINI_KEY);
+      onKeyUpdated('');
     }
     setTimeout(() => {
       setIsSavedSuccess(false);
@@ -109,12 +108,9 @@ export const GeminiSettingsModal: React.FC<GeminiSettingsModalProps> = ({
     setTestError(null);
 
     try {
-      // Temporär den eingegebenen Schlüssel testen
+      // Temporär den eingegebenen Schlüssel testen (leer = sicherer Schul-Proxy)
       const result = await geminiService.testConnection(apiKeyInput.trim());
       setTestResult(result);
-      // Gleichzeitig verfügbare Modelle aktualisieren
-      const discovered = await geminiService.discoverAvailableModels(apiKeyInput.trim());
-      setAvailableModels(discovered);
     } catch (err: any) {
       setTestError(err?.message || 'Verbindung zu Google Gemini fehlgeschlagen.');
     } finally {
@@ -274,7 +270,7 @@ export const GeminiSettingsModal: React.FC<GeminiSettingsModalProps> = ({
                   setTestResult(null);
                   setTestError(null);
                 }}
-                placeholder="AQ... oder AIzaSy..."
+                placeholder="Leer lassen für sicheren Schul-Server-Key (oder eigenen AIzaSy.../AQ...-Key eingeben)"
                 className="w-full pl-3.5 pr-20 py-2.5 rounded-xl bg-slate-50 border border-slate-300 font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all"
               />
               <div className="absolute right-2 flex items-center gap-1">
@@ -290,7 +286,7 @@ export const GeminiSettingsModal: React.FC<GeminiSettingsModalProps> = ({
             </div>
 
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Der Schlüssel wird ausschließlich lokal in Ihrem Browser gespeichert und für unterrichtliche KI-Anfragen verwendet. Standardmäßig ist der offizielle Heimbürgeschule-Schlüssel hinterlegt.
+              Standardmäßig nutzt das Portal den sicher auf dem Server hinterlegten Schulschlüssel der Heimbürgeschule (kein Key im Browser). Optional können Sie hier einen persönlichen Google AI Studio Key lokal in Ihrem Browser hinterlegen.
             </p>
           </div>
 

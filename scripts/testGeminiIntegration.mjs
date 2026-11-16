@@ -1,6 +1,10 @@
 // Global fetch is built-in in Node 18+
 
-const GEMINI_KEY = Buffer.from('QVEuQWI4Uk42SUpRQTM1V0ZScTRfLTdsUFAxQVU1Y1l5bkVTN3VmekZjdjlyZktHMjhhV2c=', 'base64').toString('utf8');
+const GEMINI_KEY = (process.env.GEMINI_API_KEY || '').trim();
+if (!GEMINI_KEY) {
+  console.error('Fehler: Bitte setze GEMINI_API_KEY in der Umgebung (z. B. GEMINI_API_KEY=... node scripts/testGeminiIntegration.mjs).');
+  process.exit(1);
+}
 
 const CANDIDATE_MODELS = [
   'gemini-4-hydrogen',
