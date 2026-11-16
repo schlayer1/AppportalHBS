@@ -1,12 +1,11 @@
-import { applyOriginProtection } from './_security';
-
 /**
  * Vercel Serverless Function: /api/gemini
  * Schützt den Schul-GEMINI_API_KEY serverseitig als Vercel Secret
  * und verhindert clientseitige Offenlegung im Browser-Bundle.
+ * Bewusst eigenständig (ohne relative Imports) für maximale Vercel-ESM-Kompatibilität.
  */
 
-export const CANDIDATE_FLASH_MODELS = [
+const CANDIDATE_FLASH_MODELS = [
   'gemini-4-hydrogen',
   'gemini-flash-lite-latest',
   'gemini-3.5-flash-lite',
@@ -16,6 +15,64 @@ export const CANDIDATE_FLASH_MODELS = [
 ];
 
 const REQUEST_TIMEOUT_MS = 45000;
+
+function isOriginAllowed(urlStr: string, requestHost: string): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    const hostname = parsed.hostname.toLowerCase();
+    const host = parsed.host.toLowerCase();
+    if (requestHost && host === requestHost.toLowerCase()) return true;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+    const extraOrigins = (process.env.ALLOWED_ORIGINS || '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    return extraOrigins.includes(parsed.origin.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+function applyOriginProtection(req: any, res: any): boolean {
+  const rawHost = req.headers?.['x-forwarded-host'] || req.headers?.host || '';
+  const requestHost = (Array.isArray(rawHost) ? rawHost[0] : String(rawHost)).split(',')[0].trim();
+  const rawOrigin = req.headers?.origin;
+  const origin = Array.isArray(rawOrigin) ? rawOrigin[0] : (rawOrigin || '');
+  const rawReferer = req.headers?.referer;
+  const referer = Array.isArray(rawReferer) ? rawReferer[0] : (rawReferer || '');
+
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Vary', 'Origin');
+
+  if (origin && isOriginAllowed(origin, requestHost)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
+  if (req.method === 'OPTIONS') {
+    if (origin && !isOriginAllowed(origin, requestHost)) {
+      res.status(403).json({ error: 'CORS: Herkunft nicht erlaubt.' });
+      return false;
+    }
+    res.status(200).end();
+    return false;
+  }
+
+  if (origin) {
+    if (!isOriginAllowed(origin, requestHost)) {
+      res.status(403).json({ error: 'Zugriff verweigert: Unzulässige Herkunft (Origin).' });
+      return false;
+    }
+    return true;
+  }
+
+  if (referer && isOriginAllowed(referer, requestHost)) {
+    return true;
+  }
+
+  res.status(403).json({ error: 'Zugriff verweigert: Fehlender Origin-Header.' });
+  return false;
+}
 
 export default async function handler(req: any, res: any) {
   if (!applyOriginProtection(req, res)) return;
@@ -44,8 +101,6 @@ export default async function handler(req: any, res: any) {
       maxOutputTokens = 4096,
     } = body;
 
-    // 1. Optionaler individueller Lehrkraft-Key (BYOK) aus Request-Body
-    // 2. Serverseitiges Vercel Secret GEMINI_API_KEY
     const clientKey =
       typeof body.apiKey === 'string' && body.apiKey.trim() && body.apiKey.trim() !== 'serverless-proxy'
         ? body.apiKey.trim()

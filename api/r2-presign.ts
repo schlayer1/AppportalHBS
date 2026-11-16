@@ -1,6 +1,5 @@
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { applyOriginProtection } from './_security';
 
 const MAX_FILE_SIZE_BYTES = 30 * 1024 * 1024; // 30 MB pro Einzeldatei
 
@@ -44,6 +43,64 @@ const ALLOWED_EXACT_MIMES = new Set([
   'application/vnd.oasis.opendocument.presentation',
   'application/octet-stream',
 ]);
+
+function isOriginAllowed(urlStr: string, requestHost: string): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    const hostname = parsed.hostname.toLowerCase();
+    const host = parsed.host.toLowerCase();
+    if (requestHost && host === requestHost.toLowerCase()) return true;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+    const extraOrigins = (process.env.ALLOWED_ORIGINS || '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    return extraOrigins.includes(parsed.origin.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+function applyOriginProtection(req: any, res: any): boolean {
+  const rawHost = req.headers?.['x-forwarded-host'] || req.headers?.host || '';
+  const requestHost = (Array.isArray(rawHost) ? rawHost[0] : String(rawHost)).split(',')[0].trim();
+  const rawOrigin = req.headers?.origin;
+  const origin = Array.isArray(rawOrigin) ? rawOrigin[0] : (rawOrigin || '');
+  const rawReferer = req.headers?.referer;
+  const referer = Array.isArray(rawReferer) ? rawReferer[0] : (rawReferer || '');
+
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Vary', 'Origin');
+
+  if (origin && isOriginAllowed(origin, requestHost)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
+  if (req.method === 'OPTIONS') {
+    if (origin && !isOriginAllowed(origin, requestHost)) {
+      res.status(403).json({ error: 'CORS: Herkunft nicht erlaubt.' });
+      return false;
+    }
+    res.status(200).end();
+    return false;
+  }
+
+  if (origin) {
+    if (!isOriginAllowed(origin, requestHost)) {
+      res.status(403).json({ error: 'Zugriff verweigert: Unzulässige Herkunft (Origin).' });
+      return false;
+    }
+    return true;
+  }
+
+  if (referer && isOriginAllowed(referer, requestHost)) {
+    return true;
+  }
+
+  res.status(403).json({ error: 'Zugriff verweigert: Fehlender Origin-Header.' });
+  return false;
+}
 
 function isAllowedUploadType(key: string, contentType: string): boolean {
   const ext = key.split('.').pop()?.toLowerCase() || '';
@@ -109,7 +166,6 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'Dateischlüssel (key) fehlt oder ist ungültig.' });
     }
 
-    // Sicherheitsprüfung: Pfad-Traversal verhindern
     const sanitizedKey = key.replace(/\.\./g, '').replace(/^\/+/, '');
     if (!sanitizedKey) {
       return res.status(400).json({ error: 'Ungültiger Pfad.' });
@@ -136,7 +192,6 @@ export default async function handler(req: any, res: any) {
         ContentLength: parsedSize,
       });
 
-      // 15 Minuten Gültigkeit für den Upload
       const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
 
       return res.status(200).json({
@@ -152,7 +207,6 @@ export default async function handler(req: any, res: any) {
         Key: sanitizedKey,
       });
 
-      // 60 Minuten Gültigkeit für das Herunterladen / Anschauen
       const downloadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
 
       return res.status(200).json({
