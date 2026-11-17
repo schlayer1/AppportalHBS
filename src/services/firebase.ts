@@ -1,6 +1,9 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
-  getFirestore, 
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   doc, 
   getDoc, 
   setDoc, 
@@ -40,12 +43,24 @@ export const PORTAL_COLLECTION = "hbs_appportal";
 export const PORTAL_DATA_DOC = "portal_data";
 export const REQUESTS_COLLECTION = "hbs_feature_requests";
 
+function createPersistentFirestore(firebaseApp: FirebaseApp): Firestore {
+  try {
+    return initializeFirestore(firebaseApp, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch {
+    return getFirestore(firebaseApp);
+  }
+}
+
 export let db: Firestore | null = null;
 export let statistikDb: Firestore | null = null;
 
 try {
   const app = getApps().length === 0 ? initializeApp(DEFAULT_FIREBASE_CONFIG) : getApp();
-  db = getFirestore(app);
+  db = createPersistentFirestore(app);
 } catch (err) {
   console.warn("Firebase Init-Warnung (Offline-Fallback wird genutzt):", err);
 }
@@ -53,7 +68,7 @@ try {
 try {
   const existingStatistikApp = getApps().find(a => a.name === 'hbs-statistik-source');
   const statistikApp = existingStatistikApp || initializeApp(STATISTIK_FIREBASE_CONFIG, 'hbs-statistik-source');
-  statistikDb = getFirestore(statistikApp);
+  statistikDb = createPersistentFirestore(statistikApp);
 } catch (err) {
   console.warn("Statistik-Firebase Init-Warnung (Sync-Fallback):", err);
 }
