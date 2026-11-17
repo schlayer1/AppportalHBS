@@ -2,10 +2,54 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '3.4.0',
+    title: 'Schuljahres-Sync der Kollegenliste, Smartboard-PIN-Sperre, aufgeräumter Header & PWA-Update-Banner',
+    date: '17. November 2026',
+    isLatest: true,
+    highlight: 'Großes Qualitäts- & Bedienbarkeits-Update für den Schulalltag: Die Login-Liste synchronisiert sich ab sofort streng nach dem aktiven Schuljahr aus der Vertretungsstatistik, sodass ehemalige Kolleginnen und Kollegen automatisch ausgeblendet werden. Dazu kommen eine Smartboard-PIN-Sperre gegen versehentliches Verlassen im Unterricht, ein schnellerer Tablet-/Handy-Login mit Ziffernblock und Auto-Submit, ein entschlackter Header sowie ein kontrolliertes PWA-Update-Banner.',
+    items: [
+      {
+        id: 'cl-340-1',
+        type: 'behoben',
+        title: 'Schuljahres-Filter beim Vertretungsstatistik-Sync der Login-Liste',
+        description: 'Der Echtzeit-Abgleich mit der Vertretungsstatistik (schools/HBS) wertet nun das aktuelle Schuljahr (staffStatus, Einträge und Monatskonfigurationen in yearsJson) aus. Ehemalige oder inaktive Kolleginnen und Kollegen aus früheren Schuljahren erscheinen nicht mehr im Login-Dropdown und werden im Admin-Panel sauber als „Archiv“ getrennt (ohne gespeicherte Vorlagen oder Dateien zu verlieren).',
+        badge: 'Schuljahres-Sync'
+      },
+      {
+        id: 'cl-340-2',
+        type: 'neu',
+        title: 'Smartboard-PIN-Sperre für den Klassenraum',
+        description: 'Beim Wechsel aus dem Smartboard-/Beamer-Modus zurück in die Normalansicht oder Dateiablage verlangt das Portal ab sofort die persönliche 4-stellige Lehrkraft-PIN (bzw. Admin-Passwort). Zudem werden Menü- und Admin-Schaltflächen im Smartboard-Modus ausgeblendet.',
+        badge: 'Unterrichtsschutz'
+      },
+      {
+        id: 'cl-340-3',
+        type: 'verbessert',
+        title: 'Schnellerer Tablet- & Smartphone-Login (Ziffernblock, Vorauswahl, Auto-Submit)',
+        description: 'Das PIN-Feld öffnet auf iPads und Smartphones direkt den Ziffernblock, erhält nach Namensauswahl automatisch den Fokus und meldet nach Eingabe der 4. Ziffer ohne zusätzlichen Klick an. Die zuletzt genutzte Lehrkraft bleibt auf demselben Gerät vorausgewählt.',
+        badge: 'Login-UX'
+      },
+      {
+        id: 'cl-340-4',
+        type: 'verbessert',
+        title: 'Entschlackter Header & Browser-Zurück-Navigation',
+        description: 'Sekundäre Werkzeuge (Tour, Handbuch, KI-Studio, Tischaufsteller, Wünsche, Changelog, Guide, Sortieren und + Link) sind nun einheitlich im Menü-Dropdown gebündelt. Außerdem werden Editor- und Presenter-Ansichten von Menti, Kahoot und Oncoo in der Browser-History geführt, sodass der Zurück-Button intuitiv zurück ins Studio navigiert.',
+        badge: 'Navigation & Cockpit'
+      },
+      {
+        id: 'cl-340-5',
+        type: 'neu',
+        title: 'Automatische Service-Worker-Versionierung & Update-Banner',
+        description: 'Jeder Produktions-Build erzeugt automatisch eine neue Service-Worker-Cache-Version. Steht auf einem iPad oder Rechner ein neues Portal-Update bereit, erscheint unten ein dezentes Banner zum kontrollierten Aktualisieren per Klick.',
+        badge: 'PWA Update'
+      }
+    ]
+  },
+  {
     version: '3.3.0',
     title: 'HBS Schulalmanach im Portal integriert: 61 Volltexte, echte KI-Embeddingsuche & Themenübersicht',
     date: '17. November 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Neues Flaggschiff-Werkzeug für das Kollegium: Der HBS Schulalmanach (https://hbsschulalmanach.vercel.app/) ist ab sofort fest im App-Portal unter „Lehrerzimmer & Kollegium“ und „Schulverwaltung & Organisation“ verlinkt. Über eine echte semantische KI-Embeddingsuche (gemini-embedding-001, 768 Dimensionen) lassen sich 61 vollständige Thüringer Rechtsvorschriften und schulinterne HBS-Konzepte (3.025 Abschnitte) in natürlicher Alltagssprache durchsuchen – inklusive Doppel-Verlinkung direkt ins Dokument und ins Thüringer Landesrecht.',
     items: [
       {

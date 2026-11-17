@@ -462,7 +462,128 @@ export interface StatistikTeacherRaw {
   pin?: string;
   gender?: string;
   active?: boolean;
+  schoolYear?: string;
 }
+
+export interface StatistikSyncSummary {
+  added: number;
+  updated: number;
+  activeCount: number;
+  archivedCount: number;
+  total: number;
+  schoolYear: string;
+}
+
+export const getCurrentSchoolYear = (): string => {
+  const now = new Date();
+  const y1 = now.getMonth() + 1 >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  return `${String(y1).slice(-2)}/${String(y1 + 1).slice(-2)}`;
+};
+
+const parseStatistikYears = (rawYearsJson: unknown, rawYearsObj: unknown): Record<string, any> => {
+  if (typeof rawYearsJson === 'string' && rawYearsJson.trim()) {
+    try {
+      const parsed = JSON.parse(rawYearsJson);
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch (err) {
+      console.warn('Fehler beim Parsen von Statistik yearsJson:', err);
+    }
+  }
+  if (rawYearsObj && typeof rawYearsObj === 'object') {
+    return rawYearsObj as Record<string, any>;
+  }
+  return {};
+};
+
+const resolveTargetSchoolYear = (docSchoolYear: unknown, years: Record<string, any>): string => {
+  const calcYear = getCurrentSchoolYear();
+  if (years && years[calcYear]) return calcYear;
+  const docYearStr = typeof docSchoolYear === 'string' ? docSchoolYear.trim() : '';
+  if (docYearStr && years && years[docYearStr]) return docYearStr;
+  return calcYear || docYearStr;
+};
+
+const hasTeacherRecordsInStatistikYear = (tId: string, yearData: any): boolean => {
+  if (!yearData || !tId) return false;
+  if (yearData.records && typeof yearData.records === 'object') {
+    for (const monthKey of Object.keys(yearData.records)) {
+      const teacherRec = yearData.records[monthKey]?.[tId];
+      if (teacherRec && typeof teacherRec === 'object' && Object.keys(teacherRec).length > 0) {
+        return true;
+      }
+    }
+  }
+  if (Array.isArray(yearData.azv) && yearData.azv.some((entry: any) => entry?.tId === tId)) {
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Mirrors Vertretungsstatistik's isTeacherActiveInYear logic so only colleagues
+ * active in the current school year are marked active in the App-Portal.
+ */
+const isTeacherActiveInStatistikYear = (
+  teacher: { id?: string; active?: boolean },
+  yearData: any
+): boolean => {
+  if (!yearData || typeof yearData !== 'object') {
+    return teacher.active !== false;
+  }
+  const tId = teacher.id ? String(teacher.id).trim() : '';
+  if (!tId) return teacher.active !== false;
+
+  if (yearData.staffStatus && yearData.staffStatus[tId] !== undefined) {
+    return Boolean(yearData.staffStatus[tId]);
+  }
+
+  if (hasTeacherRecordsInStatistikYear(tId, yearData)) {
+    return true;
+  }
+
+  if (yearData.monthConfigs && typeof yearData.monthConfigs === 'object') {
+    for (const monthKey of Object.keys(yearData.monthConfigs)) {
+      if (yearData.monthConfigs[monthKey]?.[tId] !== undefined) {
+        return true;
+      }
+    }
+  }
+
+  const yearHasAnyData =
+    Object.keys(yearData.records || {}).length > 0 ||
+    Object.keys(yearData.monthConfigs || {}).length > 0 ||
+    (Array.isArray(yearData.azv) && yearData.azv.length > 0);
+
+  if (!yearHasAnyData) {
+    return teacher.active !== false;
+  }
+
+  return false;
+};
+
+const buildStatistikTeachersList = (
+  rawTeachers: any[],
+  docSchoolYear: unknown,
+  rawYearsJson: unknown,
+  rawYearsObj: unknown
+): StatistikTeacherRaw[] => {
+  if (!Array.isArray(rawTeachers)) return [];
+  const years = parseStatistikYears(rawYearsJson, rawYearsObj);
+  const targetYear = resolveTargetSchoolYear(docSchoolYear, years);
+  const yearData = years?.[targetYear];
+
+  return rawTeachers.map((t: any) => ({
+    id: t?.id ? String(t.id).trim() : '',
+    name: t?.name ? String(t.name) : '',
+    pin: t?.pin !== undefined && t?.pin !== null ? String(t.pin) : '',
+    gender: t?.gender !== undefined && t?.gender !== null ? String(t.gender) : '',
+    active: isTeacherActiveInStatistikYear(
+      { id: t?.id ? String(t.id).trim() : '', active: t?.active },
+      yearData
+    ),
+    schoolYear: targetYear
+  }));
+};
 
 export const normalizeTeacherGender = (val: unknown): TeacherGender => {
   if (val === 'f' || val === 'm' || val === 'd') return val;
@@ -482,7 +603,8 @@ const generateUniquePin = (usedPins: Set<string>): string => {
 
 /**
  * Merges teacher roster entries from Vertretungsstatistik (statistik-91f25/schools/HBS)
- * into existing portal users, preserving admin roles & portal IDs while syncing PINs, gender, and new hires.
+ * into existing portal users, preserving admin roles & portal IDs while syncing PINs,
+ * gender, current-school-year active status, and active new hires.
  */
 export const mergeStatistikTeachersIntoUsers = (
   existingUsers: PortalUser[],
@@ -536,7 +658,8 @@ export const mergeStatistikTeachersIntoUsers = (
         changed = true;
       }
       if (changed) updated++;
-    } else {
+    } else if (incomingActive) {
+      // Only import teachers who are active in the current school year
       const pinToUse = validPin || generateUniquePin(usedPins);
       usedPins.add(pinToUse);
       nextUsers.push({
@@ -546,7 +669,7 @@ export const mergeStatistikTeachersIntoUsers = (
         gender: incomingGender,
         pin: pinToUse,
         role: "teacher",
-        active: incomingActive,
+        active: true,
         createdAt: Date.now()
       });
       added++;
@@ -562,7 +685,9 @@ export const loadStatistikTeachersFromCloud = async (): Promise<StatistikTeacher
       const snap = await getDoc(doc(statistikDb, "schools", DEFAULT_SCHOOL_ID));
       if (snap.exists()) {
         const data = snap.data();
-        if (Array.isArray(data?.teachers)) return data.teachers;
+        if (Array.isArray(data?.teachers)) {
+          return buildStatistikTeachersList(data.teachers, data.schoolYear, data.yearsJson, data.years);
+        }
       }
     } catch (err) {
       console.warn("Statistik Firestore read error, trying REST fallback:", err);
@@ -574,9 +699,10 @@ export const loadStatistikTeachersFromCloud = async (): Promise<StatistikTeacher
     );
     if (!res.ok) return [];
     const docJson = await res.json();
-    const values = docJson?.fields?.teachers?.arrayValue?.values;
+    const fields = docJson?.fields || {};
+    const values = fields?.teachers?.arrayValue?.values;
     if (!Array.isArray(values)) return [];
-    return values.map((v: any) => {
+    const rawTeachers = values.map((v: any) => {
       const f = v?.mapValue?.fields || {};
       return {
         id: f.id?.stringValue ?? '',
@@ -586,6 +712,12 @@ export const loadStatistikTeachersFromCloud = async (): Promise<StatistikTeacher
         active: f.active?.booleanValue !== undefined ? Boolean(f.active.booleanValue) : true,
       };
     });
+    return buildStatistikTeachersList(
+      rawTeachers,
+      fields?.schoolYear?.stringValue,
+      fields?.yearsJson?.stringValue,
+      null
+    );
   } catch (err) {
     console.warn("Statistik REST fallback error:", err);
     return [];
@@ -607,7 +739,7 @@ export const subscribeToStatistikTeachers = (callback: (teachers: StatistikTeach
         if (snap.exists()) {
           const data = snap.data();
           if (Array.isArray(data?.teachers)) {
-            callback(data.teachers);
+            callback(buildStatistikTeachersList(data.teachers, data.schoolYear, data.yearsJson, data.years));
           }
         }
       },
@@ -627,8 +759,9 @@ export const subscribeToStatistikTeachers = (callback: (teachers: StatistikTeach
 
 /**
  * Synchronizes / imports teacher roster directly from Vertretungsstatistik (statistik-91f25/schools/HBS)
+ * scoped to the current school year.
  */
-export const syncTeachersFromVertretungsstatistik = async (): Promise<{ added: number; updated: number; total: number }> => {
+export const syncTeachersFromVertretungsstatistik = async (): Promise<StatistikSyncSummary> => {
   try {
     const sourceTeachers = await loadStatistikTeachersFromCloud();
 
@@ -642,7 +775,18 @@ export const syncTeachersFromVertretungsstatistik = async (): Promise<{ added: n
     currentPortalData.users = merged.users;
     await savePortalDataToCloud(currentPortalData);
 
-    return { added: merged.added, updated: merged.updated, total: merged.users.length };
+    const activeCount = merged.users.filter(u => u.active !== false).length;
+    const archivedCount = merged.users.length - activeCount;
+    const schoolYear = sourceTeachers.find(t => t.schoolYear)?.schoolYear || getCurrentSchoolYear();
+
+    return {
+      added: merged.added,
+      updated: merged.updated,
+      activeCount,
+      archivedCount,
+      total: merged.users.length,
+      schoolYear
+    };
   } catch (err: any) {
     console.error("Sync error:", err);
     throw err;

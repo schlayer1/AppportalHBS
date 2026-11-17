@@ -13,6 +13,15 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  /* Native <dialog> modal scroll containment (prevents page scroll behind modal) */
+  dialog:modal {
+    overscroll-behavior: contain;
+  }
+  dialog::backdrop {
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
 }
 
 /* VisionOS Glass Card Style with visible physical light edges */

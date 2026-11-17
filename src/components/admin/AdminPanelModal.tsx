@@ -40,6 +40,8 @@ import { formatTeacherName, PortalUser, TeacherGender } from '../../types/user';
 import { 
   DEFAULT_FIREBASE_CONFIG, 
   DEFAULT_SCHOOL_ID,
+  getCurrentSchoolYear,
+  StatistikSyncSummary,
   subscribeToFeatureRequests,
   updateFeatureRequestStatus,
   deleteFeatureRequest
@@ -81,8 +83,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
 
   const [activeTab, setActiveTab] = useState<'users' | 'templates' | 'requests' | 'sync' | 'passwords' | 'analytics'>('users');
   const [searchUser, setSearchUser] = useState<string>('');
+  const [showArchivedUsers, setShowArchivedUsers] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [syncResult, setSyncResult] = useState<{ added: number; updated: number; total: number } | null>(null);
+  const [syncResult, setSyncResult] = useState<StatistikSyncSummary | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
   // Cloudflare Web Analytics & Schul-Statistik State
@@ -219,8 +222,15 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
 
   if (!isOpen) return null;
 
+  const activeUsersCount = useMemo(() => users.filter(u => u.active !== false).length, [users]);
+  const archivedUsersCount = users.length - activeUsersCount;
+
   const filteredUsers = users
-    .filter(u => u.name.toLowerCase().includes(searchUser.toLowerCase().trim()))
+    .filter(u => {
+      if (!showArchivedUsers && u.active === false) return false;
+      const q = searchUser.toLowerCase().trim();
+      return !q || u.name.toLowerCase().includes(q) || formatTeacherName(u).toLowerCase().includes(q);
+    })
     .sort((a, b) => {
       if (sortUsersBy === 'storage') {
         const bytesA = teacherStatsMap[a.id]?.totalBytes || 0;
@@ -368,13 +378,15 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
     }
   };
 
-  // Print Teacher PIN List (like in Vertretungsstatistik)
+  // Print Teacher PIN List (like in Vertretungsstatistik, only active colleagues of current school year)
   const handlePrintPinList = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    const currentYear = getCurrentSchoolYear();
     const rowsHtml = users
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .filter(u => u.active !== false)
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'))
       .map((u, i) => `
         <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11pt;">
           <td style="padding: 8px 12px; font-weight: bold; color: #1e293b;">${i + 1}. ${formatTeacherName(u)}</td>
@@ -399,7 +411,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
         </head>
         <body>
           <h1>Staatliche Regelschule Heimbürgeschule Kahla</h1>
-          <p>PIN-Liste für das Kollegium – Vertraulicher Zugang zum HBS App-Portal</p>
+          <p>PIN-Liste für das Kollegium (Schuljahr ${currentYear}) – Vertraulicher Zugang zum HBS App-Portal</p>
           <table>
             <thead>
               <tr>
@@ -470,7 +482,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>Lehrkräfte & PINs ({users.length})</span>
+            <span>Lehrkräfte & PINs ({activeUsersCount})</span>
           </button>
 
           <button
@@ -644,7 +656,23 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                   />
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                  {archivedUsersCount > 0 && (
+                    <button
+                      onClick={() => setShowArchivedUsers(prev => !prev)}
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 ${
+                        showArchivedUsers
+                          ? 'bg-slate-800 border-slate-800 text-white'
+                          : 'bg-white hover:bg-slate-100 text-hbs-slate-muted border-slate-200'
+                      }`}
+                      title="Ehemalige / inaktive Lehrkräfte aus früheren Schuljahren ein- oder ausblenden"
+                    >
+                      <span>
+                        {showArchivedUsers ? `Alle (${users.length})` : `Nur SJ ${getCurrentSchoolYear()} (${activeUsersCount})`}
+                      </span>
+                    </button>
+                  )}
+
                   {/* Sortier-Umschalter */}
                   <button
                     onClick={() => setSortUsersBy((prev) => (prev === 'name' ? 'storage' : 'name'))}
@@ -840,9 +868,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                         }
 
                         return (
-                          <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                          <tr key={user.id} className={`hover:bg-slate-50 transition-colors ${user.active === false ? 'opacity-60 bg-slate-50/60' : ''}`}>
                             <td className="p-3 font-bold text-hbs-slate-dark flex items-center gap-2">
                               <span>{formatTeacherName(user)}</span>
+                              {user.active === false && (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 text-[9px] font-bold uppercase">
+                                  Archiv
+                                </span>
+                              )}
                               {user.gender === 'd' && (
                                 <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-bold">
                                   Divers
@@ -1313,14 +1346,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                 </div>
 
                 <p className="text-xs text-hbs-slate-muted leading-relaxed">
-                  Lehrkräfte, Anreden (Frau / Herr / Divers) und neu generierte 4-stellige PINs werden automatisch in Echtzeit aus dem Firebase-Projekt der <strong>Vertretungsstatistik</strong> (<code>statistik-91f25 / schools/HBS</code>) synchronisiert. Bei Bedarf können Sie den Abgleich hier manuell anstoßen:
+                  Aktive Lehrkräfte des aktuellen Schuljahres (<strong>SJ {getCurrentSchoolYear()}</strong>), Anreden (Frau / Herr / Divers) und 4-stellige PINs werden automatisch in Echtzeit aus der <strong>Vertretungsstatistik</strong> (<code>statistik-91f25 / schools/HBS</code>) synchronisiert. Kolleginnen und Kollegen aus früheren Schuljahren werden im Login-Dropdown automatisch ausgeblendet (Archiv-Status), ohne gespeicherte Vorlagen oder Dateien zu löschen.
                 </p>
 
                 {syncResult && (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
                     <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span>
-                      Synchronisation erfolgreich: {syncResult.added} neue Lehrkräfte hinzugefügt, {syncResult.updated} aktualisiert. Gesamt: {syncResult.total} Kollegen.
+                      Synchronisation für SJ {syncResult.schoolYear} erfolgreich: {syncResult.added} neu hinzugefügt, {syncResult.updated} aktualisiert. Aktives Kollegium: {syncResult.activeCount} Lehrkräfte ({syncResult.archivedCount} archiviert).
                     </span>
                   </div>
                 )}

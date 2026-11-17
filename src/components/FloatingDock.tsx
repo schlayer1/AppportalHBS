@@ -7,7 +7,8 @@ import {
   CalendarDays, 
   Smartphone,
   Sparkles,
-  LayoutGrid
+  LayoutGrid,
+  Lock
 } from 'lucide-react';
 import { SchoolApp } from '../config/apps';
 
@@ -113,9 +114,9 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
               isSmartboardMode ? 'bg-amber-100 text-amber-700 font-bold' : 'bg-slate-100'
             }`}>
-              <Projector className="w-4 h-4" />
+              {isSmartboardMode ? <Lock className="w-4 h-4" /> : <Projector className="w-4 h-4" />}
             </div>
-            <span className="text-[10px] font-bold">Beamer</span>
+            <span className="text-[10px] font-bold">{isSmartboardMode ? 'Entsperren' : 'Beamer'}</span>
           </button>
 
           {/* Quick Tools */}
@@ -143,16 +144,18 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({
             </button>
           )}
 
-          {/* PWA Guide */}
-          <button
-            onClick={onOpenInstallGuide}
-            className="flex flex-col items-center gap-1 p-1 text-slate-500 hover:text-slate-800 active:scale-95"
-          >
-            <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center">
-              <Smartphone className="w-4 h-4" />
-            </div>
-            <span className="text-[10px] font-bold">PWA</span>
-          </button>
+          {/* PWA Guide (hidden in Smartboard mode) */}
+          {!isSmartboardMode && (
+            <button
+              onClick={onOpenInstallGuide}
+              className="flex flex-col items-center gap-1 p-1 text-slate-500 hover:text-slate-800 active:scale-95"
+            >
+              <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center">
+                <Smartphone className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-bold">PWA</span>
+            </button>
+          )}
 
         </div>
       </nav>
@@ -166,8 +169,8 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({
           
           {/* Smartboard Mode Switch */}
           <DockItem
-            icon={<Projector className="w-5 h-5" />}
-            label={isSmartboardMode ? "Smartboard-Modus beenden" : "Smartboard-Modus aktivieren"}
+            icon={isSmartboardMode ? <Lock className="w-5 h-5" /> : <Projector className="w-5 h-5" />}
+            label={isSmartboardMode ? "Smartboard mit PIN entsperren" : "Smartboard-Modus aktivieren"}
             onClick={onToggleSmartboardMode}
             isActive={isSmartboardMode}
             badge={
@@ -219,12 +222,14 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({
             />
           )}
 
-          {/* PWA Guide */}
-          <DockItem
-            icon={<Smartphone className="w-5 h-5 text-hbs-slate-muted" />}
-            label="Als App auf iPad/Smartphone ablegen"
-            onClick={onOpenInstallGuide}
-          />
+          {/* PWA Guide (hidden in Smartboard mode) */}
+          {!isSmartboardMode && (
+            <DockItem
+              icon={<Smartphone className="w-5 h-5 text-hbs-slate-muted" />}
+              label="Als App auf iPad/Smartphone ablegen"
+              onClick={onOpenInstallGuide}
+            />
+          )}
 
         </div>
       </aside>

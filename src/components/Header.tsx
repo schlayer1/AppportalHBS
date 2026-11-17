@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   LogOut, 
   Smartphone, 
@@ -93,16 +93,28 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { currentUser, isAdmin, isGuest } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const isSmartboardMode = viewMode === 'smartboard';
 
-  // Close mobile menu on Escape key
+  // Close menu on Escape key and restore focus to trigger
   useEffect(() => {
     if (!isMobileMenuOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsMobileMenuOpen(false);
+      if (e.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+        requestAnimationFrame(() => menuTriggerRef.current?.focus());
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isMobileMenuOpen]);
+
+  // Ensure menu closes when entering smartboard mode
+  useEffect(() => {
+    if (isSmartboardMode && isMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
+    }
+  }, [isSmartboardMode, isMobileMenuOpen]);
 
   return (
     <header className="bg-white/95 border-b border-hbs-slate-border/70 sticky top-0 z-40 shadow-xs backdrop-blur-md pt-[env(safe-area-inset-top)] w-full max-w-full overflow-visible">
@@ -175,20 +187,8 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden xs:inline">Tools</span>
             </button>
 
-            {/* Custom Link Button (xl:flex) */}
-            {onOpenAddCustomLink && currentUser && (
-              <button
-                onClick={onOpenAddCustomLink}
-                className="hidden xl:flex h-9 px-3 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-xs font-bold shadow-xs active:scale-95 transition-all select-none items-center gap-1.5 shrink-0"
-                title="Neuen eigenen Link / App ablegen"
-              >
-                <Plus className="w-4 h-4 shrink-0" />
-                <span>+ Link</span>
-              </button>
-            )}
-
-            {/* Admin Panel Button */}
-            {isAdmin && onOpenAdminPanel && (
+            {/* Admin Panel Button (ausgeblendet im geschützten Smartboard-Modus) */}
+            {isAdmin && onOpenAdminPanel && !isSmartboardMode && (
               <button
                 onClick={onOpenAdminPanel}
                 className="h-9 px-2.5 sm:px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 border border-amber-300 text-xs font-bold shadow-xs active:scale-95 transition-all select-none flex items-center gap-1.5 shrink-0"
@@ -199,274 +199,204 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Reorder Mode Button (desktop or active) */}
-            {onToggleReorderMode && currentUser && (
+            {/* Reorder Mode Active Pill (only visible while actively reordering) */}
+            {onToggleReorderMode && currentUser && isReorderMode && !isSmartboardMode && (
               <button
                 onClick={onToggleReorderMode}
-                className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-bold shadow-xs active:scale-95 transition-all select-none items-center gap-1.5 ${
-                  isReorderMode
-                    ? 'flex bg-amber-500 text-white border-amber-600 animate-pulse shrink-0'
-                    : 'hidden 2xl:flex bg-white hover:bg-slate-50 text-hbs-slate-dark border-slate-200 shrink-0'
-                }`}
-                title="Apps frei sortieren"
+                className="h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-bold shadow-xs active:scale-95 transition-all select-none items-center gap-1.5 flex bg-amber-500 text-white border-amber-600 animate-pulse shrink-0"
+                title="Sortiermodus beenden"
               >
                 <ArrowUpDown className="w-4 h-4 shrink-0" />
-                <span>{isReorderMode ? 'Fertig' : 'Sortieren'}</span>
+                <span>Fertig</span>
               </button>
             )}
 
             {/* Logged in Teacher Badge (lg:flex) */}
             <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-hbs-slate-dark select-none shrink-0">
               <User className="w-3.5 h-3.5 text-hbs-blue shrink-0" />
-              <span className="truncate max-w-[80px] xl:max-w-[120px]">
+              <span className="truncate max-w-[90px] xl:max-w-[140px]">
                 {currentUser ? formatTeacherName(currentUser) : isGuest ? 'Gast' : 'Kollege'}
               </span>
             </div>
 
-            {/* Tour trigger (2xl:flex) */}
-            {onOpenTour && (
-              <button
-                onClick={onOpenTour}
-                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-800 border border-teal-300/40 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
-                title="Interaktive Portal-Tour starten"
-                aria-label="Portal-Tour"
-              >
-                <Compass className="w-4 h-4 text-teal-600 shrink-0" />
-                <span>Tour</span>
-              </button>
-            )}
+            {/* Unified Portal Menu Button (hidden in Smartboard mode to keep classroom view clean) */}
+            {!isSmartboardMode && (
+              <div className="relative shrink-0">
+                <button
+                  ref={menuTriggerRef}
+                  type="button"
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer touch-manipulation select-none active:scale-95 shrink-0 ${
+                    isMobileMenuOpen
+                      ? 'bg-slate-100 border-slate-300 text-hbs-blue'
+                      : 'bg-white hover:bg-slate-50 border-slate-200 text-hbs-slate-dark hover:border-slate-300'
+                  }`}
+                  title="Portal-Menü: Links, Handbuch, KI-Studio, Tour & Einstellungen"
+                  aria-label="Portal-Menü öffnen"
+                  aria-haspopup="menu"
+                  aria-expanded={isMobileMenuOpen}
+                >
+                  <MoreHorizontal className="w-4 h-4 text-slate-600 shrink-0" />
+                  <span className="hidden sm:inline">Menü</span>
+                  <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform duration-150 ${isMobileMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-            {/* Handbook trigger (2xl:flex) */}
-            {onOpenHandbook && (
-              <button
-                onClick={onOpenHandbook}
-                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-hbs-blue hover:bg-hbs-blue-soft border border-transparent hover:border-hbs-blue/20 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
-                title="Bebildertes Kollegiums-Handbuch & Dokumentation öffnen"
-                aria-label="Handbuch öffnen"
-              >
-                <BookOpen className="w-4 h-4 text-hbs-blue shrink-0" />
-                <span>Handbuch</span>
-              </button>
-            )}
-
-            {/* Gemini KI-Studio trigger (2xl:flex) */}
-            {onOpenGeminiSettings && (
-              <button
-                onClick={onOpenGeminiSettings}
-                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-900 border border-purple-300/60 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
-                title="Google Gemini KI-Optionen & Modellstatus öffnen"
-                aria-label="KI-Studio"
-              >
-                <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
-                <span>KI-Studio</span>
-              </button>
-            )}
-
-            {/* Table Tent Generator modal trigger (2xl:flex) */}
-            {onOpenTableTent && (
-              <button
-                onClick={onOpenTableTent}
-                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-teal-700 hover:bg-teal-50 border border-transparent hover:border-teal-200 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
-                title="QR-Code Tischaufsteller für Schülertische drucken"
-                aria-label="Tischaufsteller öffnen"
-              >
-                <QrCode className="w-4 h-4 text-teal-600 shrink-0" />
-                <span>Aufsteller</span>
-              </button>
-            )}
-
-            {/* Feedback / Requests trigger (2xl:flex) */}
-            {onOpenRequests && (
-              <button
-                onClick={onOpenRequests}
-                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-900 border border-purple-300/60 text-xs font-bold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
-                title="Wünsche, App-Ideen & Feedback einreichen"
-                aria-label="Wünsche & Feedback"
-              >
-                <MessageSquarePlus className="w-4 h-4 text-purple-600 shrink-0" />
-                <span>Wünsche</span>
-              </button>
-            )}
-
-            {/* Changelog trigger (2xl:flex) */}
-            {onOpenChangelog && (
-              <button
-                onClick={onOpenChangelog}
-                className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
-                title="Was ist neu? (Versions-Changelog)"
-                aria-label="Changelog"
-              >
-                <History className="w-4 h-4 text-blue-600 shrink-0" />
-                <span>Changelog</span>
-              </button>
-            )}
-
-            {/* Guide modal trigger (2xl:flex) */}
-            <button
-              onClick={onOpenInstallGuide}
-              className="hidden 2xl:flex h-9 p-2 px-3 rounded-xl text-hbs-slate-muted hover:text-hbs-blue hover:bg-hbs-blue-soft border border-transparent hover:border-hbs-blue/20 text-xs font-semibold active:scale-95 transition-all items-center justify-center gap-1.5 select-none shrink-0"
-              title="Installationsanleitung & Homescreen-Tipps"
-              aria-label="Installationsanleitung öffnen"
-            >
-              <Smartphone className="w-4 h-4 shrink-0" />
-              <span>Guide</span>
-            </button>
-
-            {/* More Menu Button (Active on all screens < 2xl) */}
-            <div className="relative 2xl:hidden shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer touch-manipulation select-none active:scale-95 shrink-0 ${
-                  isMobileMenuOpen
-                    ? 'bg-slate-100 border-slate-300 text-hbs-blue'
-                    : 'bg-white hover:bg-slate-50 border-slate-200 text-hbs-slate-dark hover:border-slate-300'
-                }`}
-                title="Weitere Apps, Hilfen & Einstellungen öffnen"
-                aria-label="Weitere Optionen"
-              >
-                <MoreHorizontal className="w-4 h-4 text-slate-600 shrink-0" />
-                <span className="hidden sm:inline">Mehr</span>
-                <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform duration-150 ${isMobileMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isMobileMenuOpen && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-40 bg-black/20" 
-                    onClick={() => setIsMobileMenuOpen(false)} 
-                  />
-                  <div className="absolute right-0 top-11 z-50 w-64 bg-white rounded-2xl border border-slate-200 shadow-2xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-100 max-h-[82vh] overflow-y-auto scrollbar-none">
-                    <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Angemeldet als</span>
-                      <span className="text-xs font-black text-slate-800 truncate block">
-                        {currentUser ? formatTeacherName(currentUser) : isGuest ? 'Gast' : 'Kollege'}
-                      </span>
-                    </div>
-
-                    {onOpenAddCustomLink && currentUser && (
-                      <button
-                        onClick={() => { onOpenAddCustomLink(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-hbs-blue" />
-                        <span>Eigener Link hinzufügen</span>
-                      </button>
-                    )}
-
-                    {isAdmin && onOpenAdminPanel && (
-                      <button
-                        onClick={() => { onOpenAdminPanel(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
-                      >
-                        <Shield className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Admin-Panel</span>
-                      </button>
-                    )}
-
-                    {onToggleReorderMode && currentUser && (
-                      <button
-                        onClick={() => { onToggleReorderMode(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                      >
-                        <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
-                        <span>{isReorderMode ? 'Sortieren beenden' : 'Apps frei sortieren'}</span>
-                      </button>
-                    )}
-
-                    {onOpenTour && (
-                      <button
-                        onClick={() => { onOpenTour(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-teal-800 hover:bg-teal-50 flex items-center gap-2"
-                      >
-                        <Compass className="w-3.5 h-3.5 text-teal-600" />
-                        <span>Portal-Tour & Einführung</span>
-                      </button>
-                    )}
-
-                    {onOpenHandbook && (
-                      <button
-                        onClick={() => { onOpenHandbook(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-hbs-blue hover:bg-hbs-blue-soft flex items-center gap-2"
-                      >
-                        <BookOpen className="w-3.5 h-3.5 text-hbs-blue" />
-                        <span>Kollegiums-Handbuch (PDF)</span>
-                      </button>
-                    )}
-
-                    {onOpenRequests && (
-                      <button
-                        onClick={() => { onOpenRequests(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-purple-900 hover:bg-purple-50 flex items-center gap-2"
-                      >
-                        <MessageSquarePlus className="w-3.5 h-3.5 text-purple-600" />
-                        <span>Wünsche & Feedback</span>
-                      </button>
-                    )}
-
-                    {onOpenChangelog && (
-                      <button
-                        onClick={() => { onOpenChangelog(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-blue-900 hover:bg-blue-50 flex items-center gap-2"
-                      >
-                        <History className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Was ist neu? (Changelog)</span>
-                      </button>
-                    )}
-
-                    {onOpenGeminiSettings && (
-                      <button
-                        onClick={() => { onOpenGeminiSettings(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-purple-900 hover:bg-purple-50 flex items-center gap-2"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                        <span>Google Gemini KI-Studio</span>
-                      </button>
-                    )}
-
-                    {onOpenTableTent && (
-                      <button
-                        onClick={() => { onOpenTableTent(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-teal-800 hover:bg-teal-50 flex items-center gap-2"
-                      >
-                        <QrCode className="w-3.5 h-3.5 text-teal-600" />
-                        <span>Tischaufsteller drucken</span>
-                      </button>
-                    )}
-
-                    {onOpenQuickTools && (
-                      <button
-                        onClick={() => { onOpenQuickTools(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                      >
-                        <Wrench className="w-3.5 h-3.5 text-hbs-blue" />
-                        <span>Unterrichts-Tools</span>
-                      </button>
-                    )}
-
-                    {onOpenInstallGuide && (
-                      <button
-                        onClick={() => { onOpenInstallGuide(); setIsMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                      >
-                        <Smartphone className="w-3.5 h-3.5 text-slate-500" />
-                        <span>Installations-Guide</span>
-                      </button>
-                    )}
-
-                    <div className="border-t border-slate-100 my-1" />
-
-                    <button
-                      onClick={() => { onLogout(); setIsMobileMenuOpen(false); }}
-                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"
+                {isMobileMenuOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40 bg-black/20" 
+                      onClick={() => setIsMobileMenuOpen(false)} 
+                    />
+                    <div
+                      role="menu"
+                      aria-label="Portal-Funktionen"
+                      className="absolute right-0 top-11 z-50 w-64 bg-white rounded-2xl border border-slate-200 shadow-2xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-100 max-h-[82vh] overflow-y-auto scrollbar-none"
                     >
-                      <LogOut className="w-3.5 h-3.5 text-red-500" />
-                      <span>Abmelden</span>
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+                      <div className="px-3 py-2 border-b border-slate-100 mb-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Angemeldet als</span>
+                        <span className="text-xs font-black text-slate-800 truncate block">
+                          {currentUser ? formatTeacherName(currentUser) : isGuest ? 'Gast' : 'Kollege'}
+                        </span>
+                      </div>
+
+                      {onOpenAddCustomLink && currentUser && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { onOpenAddCustomLink(); setIsMobileMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-hbs-blue" />
+                          <span>Eigener Link hinzufügen</span>
+                        </button>
+                      )}
+
+                      {isAdmin && onOpenAdminPanel && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { onOpenAdminPanel(); setIsMobileMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
+                        >
+                          <Shield className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Admin-Panel</span>
+                        </button>
+                      )}
+
+                      {onToggleReorderMode && currentUser && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { onToggleReorderMode(); setIsMobileMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                        >
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                          <span>{isReorderMode ? 'Sortieren beenden' : 'Apps frei sortieren'}</span>
+                        </button>
+                      )}
+
+                      {onOpenQuickTools && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { onOpenQuickTools(); setIsMobileMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                        >
+                          <Wrench className="w-3.5 h-3.5 text-hbs-blue" />
+                          <span>Unterrichts-Tools</span>
+                        </button>
+                      )}
+
+                      {onOpenGeminiSettings && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { onOpenGeminiSettings(); setIsMobileMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-purple-900 hover:bg-purple-50 flex items-center gap-2"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Google Gemini KI-Studio</span>
+                        </button>
+                      )}
+
+                      {onOpenTableTent && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { onOpenTableTent(); setIsMobileMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-teal-800 hover:bg-teal-50 flex items-center gap-2"
+                        >
+                          <QrCode className="w-3.5 h-3.5 text-teal-600" />
+                          <span>Tischaufsteller drucken</span>
+                        </button>
+                      )}
+
+                      <hr className="border-slate-100 my-1" />
+
+                      {onOpenTour && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { onOpenTour(); setIsMobileMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-teal-800 hover:bg-teal-50 flex items-center gap-2"
+                        >
+                          <Compass className="w-3.5 h-3.5 text-teal-600" />
+                          <span>Portal-Tour & Einführung</span>
+                        </button>
+                      )}
+
+                      {onOpenHandbook && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { onOpenHandbook(); setIsMobileMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-hbs-blue hover:bg-hbs-blue-soft flex items-center gap-2"
+                        >
+                          <BookOpen className="w-3.5 h-3.5 text-hbs-blue" />
+                          <span>Kollegiums-Handbuch (PDF)</span>
+                        </button>
+                      )}
+
+                      {onOpenRequests && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { onOpenRequests(); setIsMobileMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-purple-900 hover:bg-purple-50 flex items-center gap-2"
+                        >
+                          <MessageSquarePlus className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Wünsche & Feedback</span>
+                        </button>
+                      )}
+
+                      {onOpenChangelog && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { onOpenChangelog(); setIsMobileMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-blue-900 hover:bg-blue-50 flex items-center gap-2"
+                        >
+                          <History className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Was ist neu? (Changelog)</span>
+                        </button>
+                      )}
+
+                      {onOpenInstallGuide && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { onOpenInstallGuide(); setIsMobileMenuOpen(false); }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                        >
+                          <Smartphone className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Installations-Guide</span>
+                        </button>
+                      )}
+
+                      <hr className="border-slate-100 my-1" />
+
+                      <button
+                        role="menuitem"
+                        onClick={() => { onLogout(); setIsMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      >
+                        <LogOut className="w-3.5 h-3.5 text-red-500" />
+                        <span>Abmelden</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Logout button (Always visible on all screen sizes, guaranteed not to be pushed off) */}
             <button

@@ -11,6 +11,8 @@ import { FloatingDock } from './components/FloatingDock';
 import { ExternalLinks } from './components/ExternalLinks';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { SmartboardUnlockDialog } from './components/common/SmartboardUnlockDialog';
+import { SwUpdateBanner } from './components/common/SwUpdateBanner';
 
 // Lazy-loaded standalone sub-applications & heavy screens
 const ClassroomBoard = lazy(() => import('./components/board/ClassroomBoard').then(m => ({ default: m.ClassroomBoard })));
@@ -59,10 +61,31 @@ import {
   Projector, 
   Star, 
   ArrowUpDown, 
-  Plus 
+  Plus,
+  Lock
 } from 'lucide-react';
 
 const STORAGE_KEY_PORTAL_VIEW = 'hbs_portal_view_mode';
+
+const VIEW_TO_HASH: Partial<Record<ViewMode, string>> = {
+  tafel: '#tafel',
+  menti: '#menti',
+  kahoot: '#kahoot',
+  oncoo: '#oncoo',
+  ablage: '#ablage',
+};
+
+const pushPortalHash = (hash: string) => {
+  if (typeof window === 'undefined') return;
+  const normalized = hash ? (hash.startsWith('#') ? hash : `#${hash}`) : '';
+  if (window.location.hash === normalized) return;
+  const nextUrl = normalized || window.location.pathname + window.location.search;
+  try {
+    window.history.pushState(null, '', nextUrl);
+  } catch {
+    window.location.hash = normalized;
+  }
+};
 
 const getInitialPortalView = (): PortalViewMode => {
   if (typeof window !== 'undefined') {
@@ -107,9 +130,9 @@ export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash;
-      if (hash === '#menti') return 'menti';
-      if (hash === '#kahoot') return 'kahoot';
-      if (hash === '#oncoo') return 'oncoo';
+      if (hash === '#menti' || hash.startsWith('#menti/')) return 'menti';
+      if (hash === '#kahoot' || hash.startsWith('#kahoot/')) return 'kahoot';
+      if (hash === '#oncoo' || hash.startsWith('#oncoo/')) return 'oncoo';
       if (hash === '#tafel') return 'tafel';
       if (hash === '#ablage' || hash === '#files') return 'ablage';
       if (localStorage.getItem('hbs_guest_portal_mode_v1') === 'true') {
@@ -118,6 +141,7 @@ export default function App() {
     }
     return getInitialPortalView();
   });
+  const [pendingSmartboardTargetView, setPendingSmartboardTargetView] = useState<ViewMode | null>(null);
 
   // Guest mode is dedicated solely to the Digital Blackboard (ClassroomBoard)
   useEffect(() => {
@@ -155,8 +179,8 @@ export default function App() {
     }
   }, [userPreferences?.portalViewMode]);
 
-  // Handle active user switching of view modes
-  const handleViewModeChange = useCallback((newMode: ViewMode) => {
+  // Apply view mode change directly and sync URL history for full-screen tools
+  const applyViewModeChange = useCallback((newMode: ViewMode) => {
     if (newMode === 'bento' || newMode === 'compact' || newMode === 'smartboard') {
       setPreferredPortalView(newMode);
       if (newMode === 'bento' || newMode === 'compact') {
@@ -170,19 +194,36 @@ export default function App() {
       if (currentUser && updatePortalViewMode) {
         updatePortalViewMode(newMode);
       }
+      pushPortalHash('');
+    } else {
+      const targetHash = VIEW_TO_HASH[newMode];
+      if (targetHash) pushPortalHash(targetHash);
     }
     setViewMode(newMode);
   }, [currentUser, updatePortalViewMode]);
 
+  // Handle active user switching of view modes (guards exiting Smartboard mode with PIN)
+  const handleViewModeChange = useCallback((newMode: ViewMode) => {
+    const isProtectedExitFromSmartboard =
+      viewMode === 'smartboard' &&
+      currentUser &&
+      !isGuest &&
+      (newMode === 'bento' || newMode === 'compact' || newMode === 'ablage');
+
+    if (isProtectedExitFromSmartboard) {
+      setPendingSmartboardTargetView(newMode);
+      return;
+    }
+
+    applyViewModeChange(newMode);
+  }, [viewMode, currentUser, isGuest, applyViewModeChange]);
+
   // Cleanly exit an app/tool back to the user's remembered portal view
   const handleExitToPortal = useCallback(() => {
-    if (window.location.hash) {
-      try {
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      } catch {
-        window.location.hash = '';
-      }
-    }
+    setMentiSubView('dashboard');
+    setKahootSubView('dashboard');
+    setOncooSubView('dashboard');
+    pushPortalHash('');
     setViewMode(preferredPortalView);
   }, [preferredPortalView]);
 
@@ -242,19 +283,43 @@ export default function App() {
     }
   }, [isAuthenticated, isGuest]);
 
-  // Listen to #menti, #kahoot, #oncoo, #tafel, #handbuch and #gemini hashes in URL
+  // Listen to URL hashes & browser Back/Forward (popstate) for tools and sub-views
   useEffect(() => {
     const checkHash = () => {
       const hash = window.location.hash;
-      if (hash === '#menti') {
+      if (hash === '#menti' || hash.startsWith('#menti/')) {
         setViewMode('menti');
-      } else if (hash === '#kahoot') {
+        if (hash === '#menti/editor' && activeMentiPresentation) {
+          setMentiSubView('editor');
+        } else if (hash === '#menti/presenter' && activeMentiPresentation) {
+          setMentiSubView('presenter');
+        } else {
+          setMentiSubView('dashboard');
+        }
+      } else if (hash === '#kahoot' || hash.startsWith('#kahoot/')) {
         setViewMode('kahoot');
-      } else if (hash === '#oncoo') {
+        if (hash === '#kahoot/editor' && activeKahootGame) {
+          setKahootSubView('editor');
+        } else if (hash === '#kahoot/presenter' && activeKahootGame) {
+          setKahootSubView('presenter');
+        } else {
+          setKahootSubView('dashboard');
+        }
+      } else if (hash === '#oncoo' || hash.startsWith('#oncoo/')) {
         setViewMode('oncoo');
+        if (hash === '#oncoo/presenter' && activeOncooPresentationSession) {
+          setOncooSubView('presenter');
+        } else {
+          setOncooSubView('dashboard');
+        }
       } else if (hash === '#tafel') {
         setViewMode('tafel');
       } else if (hash === '#ablage' || hash === '#files') {
+        if (preferredPortalView === 'smartboard' && currentUser && !isGuest) {
+          setPendingSmartboardTargetView('ablage');
+          pushPortalHash('');
+          return;
+        }
         setViewMode('ablage');
       } else if (hash === '#handbuch') {
         setIsHandbookOpen(true);
@@ -285,6 +350,9 @@ export default function App() {
           window.location.hash = '';
         }
       } else if (!hash) {
+        setMentiSubView('dashboard');
+        setKahootSubView('dashboard');
+        setOncooSubView('dashboard');
         setViewMode((prev) => {
           if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo' || prev === 'tafel' || prev === 'ablage') {
             return preferredPortalView;
@@ -294,9 +362,13 @@ export default function App() {
       }
     };
     window.addEventListener('hashchange', checkHash);
+    window.addEventListener('popstate', checkHash);
     checkHash();
-    return () => window.removeEventListener('hashchange', checkHash);
-  }, [preferredPortalView]);
+    return () => {
+      window.removeEventListener('hashchange', checkHash);
+      window.removeEventListener('popstate', checkHash);
+    };
+  }, [preferredPortalView, currentUser, isGuest, activeMentiPresentation, activeKahootGame, activeOncooPresentationSession]);
 
   // Auto-scroll to top when category or view mode changes
   useEffect(() => {
@@ -496,12 +568,15 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <PasswordGate 
-        onAuthenticated={() => {}} 
-        onStartGuestBoard={() => {
-          setViewMode('tafel');
-        }}
-      />
+      <>
+        <PasswordGate 
+          onAuthenticated={() => {}} 
+          onStartGuestBoard={() => {
+            setViewMode('tafel');
+          }}
+        />
+        <SwUpdateBanner />
+      </>
     );
   }
 
@@ -533,10 +608,14 @@ export default function App() {
           <Suspense fallback={<LoadingSpinner message="Menti Editor wird geladen..." />}>
             <MentiEditor
               initialPresentation={activeMentiPresentation}
-              onClose={() => setMentiSubView('dashboard')}
+              onClose={() => {
+                setMentiSubView('dashboard');
+                pushPortalHash('#menti');
+              }}
               onStartPresenter={(pres) => {
                 setActiveMentiPresentation(pres);
                 setMentiSubView('presenter');
+                pushPortalHash('#menti/presenter');
               }}
             />
           </Suspense>
@@ -544,7 +623,10 @@ export default function App() {
           <Suspense fallback={<LoadingSpinner message="Menti Präsentation wird geladen..." />}>
             <MentiPresenter
               presentation={activeMentiPresentation}
-              onExit={() => setMentiSubView('dashboard')}
+              onExit={() => {
+                setMentiSubView('dashboard');
+                pushPortalHash('#menti');
+              }}
             />
           </Suspense>
         ) : (
@@ -554,10 +636,12 @@ export default function App() {
               onEditPresentation={(pres) => {
                 setActiveMentiPresentation(pres);
                 setMentiSubView('editor');
+                pushPortalHash('#menti/editor');
               }}
               onStartPresenter={(pres) => {
                 setActiveMentiPresentation(pres);
                 setMentiSubView('presenter');
+                pushPortalHash('#menti/presenter');
               }}
             />
           </Suspense>
@@ -574,10 +658,14 @@ export default function App() {
           <Suspense fallback={<LoadingSpinner message="Quiz Editor wird geladen..." />}>
             <KahootEditor
               initialGame={activeKahootGame}
-              onClose={() => setKahootSubView('dashboard')}
+              onClose={() => {
+                setKahootSubView('dashboard');
+                pushPortalHash('#kahoot');
+              }}
               onStartPresenter={(game) => {
                 setActiveKahootGame(game);
                 setKahootSubView('presenter');
+                pushPortalHash('#kahoot/presenter');
               }}
             />
           </Suspense>
@@ -585,7 +673,10 @@ export default function App() {
           <Suspense fallback={<LoadingSpinner message="Live-Quiz Arena wird gestartet..." />}>
             <KahootPresenter
               game={activeKahootGame}
-              onExit={() => setKahootSubView('dashboard')}
+              onExit={() => {
+                setKahootSubView('dashboard');
+                pushPortalHash('#kahoot');
+              }}
             />
           </Suspense>
         ) : (
@@ -596,10 +687,12 @@ export default function App() {
               onEditGame={(game) => {
                 setActiveKahootGame(game);
                 setKahootSubView('editor');
+                pushPortalHash('#kahoot/editor');
               }}
               onStartGame={(game) => {
                 setActiveKahootGame(game);
                 setKahootSubView('presenter');
+                pushPortalHash('#kahoot/presenter');
               }}
             />
           </Suspense>
@@ -616,7 +709,10 @@ export default function App() {
           <Suspense fallback={<LoadingSpinner message="Oncoo Sitzung wird vorbereitet..." />}>
             <OncooPresenter
               session={activeOncooPresentationSession}
-              onExit={() => setOncooSubView('dashboard')}
+              onExit={() => {
+                setOncooSubView('dashboard');
+                pushPortalHash('#oncoo');
+              }}
             />
           </Suspense>
         ) : (
@@ -626,6 +722,7 @@ export default function App() {
               onStartSession={(session) => {
                 setActiveOncooPresentationSession(session);
                 setOncooSubView('presenter');
+                pushPortalHash('#oncoo/presenter');
               }}
             />
           </Suspense>
@@ -645,11 +742,11 @@ export default function App() {
               const topic = file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
               const contextText = `[Material: ${file.name} (Fach: ${file.subject || 'Allgemein'})]\nBitte erstelle passende Fragen zum Thema dieses Dokuments.`;
               setPreloadedKahootMaterial({ topic, contextText });
-              setViewMode('kahoot');
               setKahootSubView('dashboard');
+              applyViewModeChange('kahoot');
             }}
             onOpenInBoard={() => {
-              setViewMode('tafel');
+              applyViewModeChange('tafel');
             }}
           />
         </Suspense>
@@ -660,7 +757,7 @@ export default function App() {
   return (
     <AuroraBackground>
       
-      {/* Sticky Header with SchoolClock and ViewMode Segmented Switcher */}
+      {/* Sticky Header with ViewMode Segmented Switcher */}
       <Header
         onLogout={logout}
         onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
@@ -734,9 +831,10 @@ export default function App() {
 
             <button
               onClick={() => handleViewModeChange(normalPortalView)}
-              className="min-h-[44px] px-5 py-2 rounded-xl bg-white hover:bg-hbs-amber text-hbs-slate-dark hover:text-white border border-hbs-amber/30 text-xs font-bold shadow-xs transition-all duration-150 active:scale-95 shrink-0"
+              className="min-h-[44px] px-5 py-2 rounded-xl bg-white hover:bg-hbs-amber text-hbs-slate-dark hover:text-white border border-hbs-amber/30 text-xs font-bold shadow-xs transition-all duration-150 active:scale-95 shrink-0 flex items-center gap-2"
             >
-              Normalansicht wiederherstellen
+              {currentUser && !isGuest && <Lock className="w-3.5 h-3.5" />}
+              <span>{currentUser && !isGuest ? 'Mit PIN entsperren' : 'Normalansicht wiederherstellen'}</span>
             </button>
           </div>
         )}
@@ -1069,6 +1167,23 @@ export default function App() {
         onOpenTableTent={() => setIsTableTentOpen(true)}
         onOpenGeminiSettings={() => setIsGeminiSettingsOpen(true)}
       />
+
+      {/* Smartboard PIN Unlock Dialog */}
+      <SmartboardUnlockDialog
+        isOpen={pendingSmartboardTargetView !== null}
+        currentUser={currentUser}
+        onUnlock={() => {
+          const target = pendingSmartboardTargetView;
+          setPendingSmartboardTargetView(null);
+          if (target) {
+            applyViewModeChange(target);
+          }
+        }}
+        onCancel={() => setPendingSmartboardTargetView(null)}
+      />
+
+      {/* PWA Service Worker Update Banner */}
+      <SwUpdateBanner />
     </AuroraBackground>
   );
 }

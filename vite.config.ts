@@ -1,5 +1,7 @@
 import { defineConfig, loadEnv, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import fs from 'node:fs';
+import path from 'node:path';
 import youtubeSearchHandler from './api/youtube-search';
 import geminiHandler from './api/gemini';
 import r2PresignHandler from './api/r2-presign';
@@ -94,6 +96,26 @@ function localApiProxyPlugin(): Plugin {
   };
 }
 
+function swVersionPlugin(): Plugin {
+  let outDir = 'dist';
+  return {
+    name: 'hbs-sw-version',
+    configResolved(resolved) {
+      outDir = resolved.build.outDir || 'dist';
+    },
+    closeBundle() {
+      const swPath = path.resolve(process.cwd(), outDir, 'sw.js');
+      if (!fs.existsSync(swPath)) return;
+      const content = fs.readFileSync(swPath, 'utf8');
+      const stamped = content.replace(
+        /'hbs-app-portal-v1'/,
+        `'hbs-app-portal-${Date.now()}'`
+      );
+      fs.writeFileSync(swPath, stamped, 'utf8');
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   // Lädt auch nicht-VITE_ Secrets aus .env für lokale API-Middlewares (GEMINI_API_KEY, R2_*, CLOUDFLARE_*)
   const env = loadEnv(mode, process.cwd(), '');
@@ -104,7 +126,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), localApiProxyPlugin()],
+    plugins: [react(), localApiProxyPlugin(), swVersionPlugin()],
     build: {
       rollupOptions: {
         output: {

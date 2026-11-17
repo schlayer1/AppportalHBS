@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { 
   Lock, 
   KeyRound, 
@@ -16,11 +16,14 @@ import {
 import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
 import { formatTeacherName } from '../types/user';
+import { getCurrentSchoolYear } from '../services/firebase';
 
 interface PasswordGateProps {
   onAuthenticated: () => void;
   onStartGuestBoard?: () => void;
 }
+
+const LAST_TEACHER_STORAGE_KEY = 'hbs_last_selected_teacher_id_v1';
 
 export const PasswordGate: React.FC<PasswordGateProps> = ({ 
   onAuthenticated,
@@ -29,49 +32,93 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({
   const { users, loginWithUser, loginWithAdminMaster, loginAsGuest } = useAuth();
 
   const [mode, setMode] = useState<'teacher' | 'admin' | 'guest'>('teacher');
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [selectedUserId, setSelectedUserId] = useState<string>(() => {
+    try {
+      return localStorage.getItem(LAST_TEACHER_STORAGE_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [pin, setPin] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [adminPin, setAdminPin] = useState<string>('');
   const [showAdminPin, setShowAdminPin] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const pinInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Filter active teachers by search (Schulleitung ausgeschlossen, da eigenes Admin-Feld)
-  const filteredUsers = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
+  // Active teachers in current school year (excluding Schulleitung)
+  const activeTeachers = useMemo(() => {
     return users
-      .filter(u => 
-        u.active !== false && 
-        u.role !== 'admin' && 
-        !u.name.toLowerCase().includes('schulleitung') && 
-        (u.name.toLowerCase().includes(q) || formatTeacherName(u).toLowerCase().includes(q))
+      .filter(u =>
+        u.active !== false &&
+        u.role !== 'admin' &&
+        !u.name.toLowerCase().includes('schulleitung')
       )
       .sort((a, b) => a.name.localeCompare(b.name, 'de'));
-  }, [users, searchQuery]);
+  }, [users]);
 
-  // Handle Teacher PIN Submit
-  const handleTeacherSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUserId) {
+  // Clear stale remembered teacher if no longer active in current school year
+  useEffect(() => {
+    if (!selectedUserId) return;
+    if (activeTeachers.length > 0 && !activeTeachers.some(u => u.id === selectedUserId)) {
+      setSelectedUserId('');
+      try {
+        localStorage.removeItem(LAST_TEACHER_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeTeachers, selectedUserId]);
+
+  // Filter active teachers by search
+  const filteredUsers = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return activeTeachers;
+    return activeTeachers.filter(u =>
+      u.name.toLowerCase().includes(q) || formatTeacherName(u).toLowerCase().includes(q)
+    );
+  }, [activeTeachers, searchQuery]);
+
+  const attemptTeacherLogin = useCallback(async (userId: string, enteredPin: string) => {
+    if (isSubmitting) return;
+    if (!userId) {
       setHasError(true);
       setErrorMessage('Bitte wählen Sie Ihren Namen aus der Liste aus.');
       return;
     }
-    if (!pin.trim()) {
+    if (enteredPin.trim().length < 4) {
       setHasError(true);
       setErrorMessage('Bitte geben Sie Ihre 4-stellige PIN ein.');
       return;
     }
 
-    const success = await loginWithUser(selectedUserId, pin);
-    if (success) {
-      onAuthenticated();
-    } else {
-      setHasError(true);
-      setErrorMessage('Falsche PIN. Bitte prüfen Sie Ihre 4-stellige Eingabe.');
-      setPin('');
+    setIsSubmitting(true);
+    try {
+      const success = await loginWithUser(userId, enteredPin);
+      if (success) {
+        try {
+          localStorage.setItem(LAST_TEACHER_STORAGE_KEY, userId);
+        } catch {
+          // ignore
+        }
+        onAuthenticated();
+      } else {
+        setHasError(true);
+        setErrorMessage('Falsche PIN. Bitte prüfen Sie Ihre 4-stellige Eingabe.');
+        setPin('');
+        requestAnimationFrame(() => pinInputRef.current?.focus());
+      }
+    } finally {
+      setIsSubmitting(false);
     }
+  }, [isSubmitting, loginWithUser, onAuthenticated]);
+
+  // Handle Teacher PIN Submit
+  const handleTeacherSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await attemptTeacherLogin(selectedUserId, pin);
   };
 
   // Handle Admin Master PIN Submit
@@ -190,9 +237,14 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({
             <form onSubmit={handleTeacherSubmit} className="space-y-4">
               {/* Teacher Selector */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-hbs-slate-muted mb-1.5">
-                  1. Name der Lehrkraft auswählen:
-                </label>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-hbs-slate-muted">
+                    1. Name der Lehrkraft auswählen:
+                  </label>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-hbs-blue-soft text-hbs-blue-deep border border-hbs-blue/20 shrink-0">
+                    SJ {getCurrentSchoolYear()}
+                  </span>
+                </div>
 
                 {/* Search / Filter */}
                 <div className="relative mb-2">
@@ -220,6 +272,12 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({
                         onClick={() => {
                           setSelectedUserId(u.id);
                           setHasError(false);
+                          try {
+                            localStorage.setItem(LAST_TEACHER_STORAGE_KEY, u.id);
+                          } catch {
+                            // ignore
+                          }
+                          requestAnimationFrame(() => pinInputRef.current?.focus());
                         }}
                         className={`w-full px-3 py-2 text-xs font-bold text-left flex items-center justify-between transition-colors ${
                           selectedUserId === u.id
@@ -255,19 +313,27 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({
                     <KeyRound className="w-4 h-4" />
                   </div>
                   <input
+                    ref={pinInputRef}
                     type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="one-time-code"
                     maxLength={4}
                     value={pin}
                     onChange={(e) => {
-                      setPin(e.target.value);
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setPin(digits);
                       if (hasError) setHasError(false);
+                      if (digits.length === 4 && selectedUserId) {
+                        void attemptTeacherLogin(selectedUserId, digits);
+                      }
                     }}
                     placeholder="••••"
                     className="w-full pl-10 pr-3 py-2.5 text-center tracking-[0.5em] text-xl font-mono font-black bg-slate-50 rounded-xl border border-slate-200 text-hbs-slate-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-hbs-blue/30 focus:border-hbs-blue"
                   />
                 </div>
                 <span className="text-[10px] text-hbs-slate-muted mt-1 block">
-                  Persönliche 4-stellige PIN wie in der Vertretungsstatistik.
+                  Persönliche 4-stellige PIN wie in der Vertretungsstatistik. PIN vergessen? Bitte bei der Schulleitung nachfragen.
                 </span>
               </div>
 
@@ -363,7 +429,7 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({
             <span>•</span>
             <span className="flex items-center gap-1">
               <Users className="w-3.5 h-3.5 text-hbs-blue" />
-              <span>{users.length} Lehrkräfte</span>
+              <span>{activeTeachers.length} aktive Lehrkräfte</span>
             </span>
           </div>
 

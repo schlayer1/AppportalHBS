@@ -10,6 +10,7 @@ import {
   mergeStatistikTeachersIntoUsers,
   setCachedPortalData,
   StatistikTeacherRaw,
+  StatistikSyncSummary,
   syncTeachersFromVertretungsstatistik, 
   MASTER_ADMIN_PIN, 
   getCachedPortalData 
@@ -41,7 +42,7 @@ interface AuthContextType {
   
   // User Management actions (Admin)
   saveUsersList: (newUsers: PortalUser[]) => Promise<void>;
-  syncWithVertretungsstatistik: () => Promise<{ added: number; updated: number; total: number }>;
+  syncWithVertretungsstatistik: () => Promise<StatistikSyncSummary>;
   
   // Custom Apps & Reordering & Preferences & Favorites
   updateAppOrder: (newOrder: string[]) => Promise<void>;
@@ -179,7 +180,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (persistDiff && (merged.added > 0 || merged.updated > 0) && !isSyncingBackRef.current) {
         isSyncingBackRef.current = true;
         loadPortalDataFromCloud()
-          .then(d => savePortalDataToCloud({ ...d, users: merged.users }))
+          .then(d => {
+            const freshMerged = mergeStatistikTeachersIntoUsers(d.users, statistikList);
+            if (freshMerged.added > 0 || freshMerged.updated > 0) {
+              return savePortalDataToCloud({ ...d, users: freshMerged.users });
+            }
+            return true;
+          })
           .catch(() => {})
           .finally(() => {
             isSyncingBackRef.current = false;
