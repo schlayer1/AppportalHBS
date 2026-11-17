@@ -1,0 +1,837 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model (Firebase Project: terminkalender-7f269)
+// ===============================================================
+//
+// Note: These school applications use teacher/admin PINs and session
+// PINs in the client without Firebase Authentication (request.auth == null).
+// Rules strictly replace the legacy wildcard with explicit scoping
+// to ONLY the 7 active collections (retiring all old calendar paths
+// via root default-deny), enforcing strict schema allowlists on
+// create, legacy-safe diff().affectedKeys() allowlists on update
+// (so existing documents with legacy fields never hit PERMISSION_DENIED),
+// type/enum/range checks, and anti-spam size limits while preserving
+// partial setDoc(..., { merge: true }), arrayUnion, increment(1),
+// dot-notation literal fields, and deleteDoc flows.
+//
+// Collection: hbs_appportal/{docId}
+//   Allowed docIds:
+//     - 'portal_data': PortalCloudData (users, preferences, boardTemplates,
+//       mentiPresentations, activeMentiSession, kahootGames,
+//       activeKahootSession, oncooSessions, activeOncooSession, updatedAt)
+//     - 'hbs_feature_requests': { items: list<FeatureRequest>, updatedAt: number }
+//     - 'shared_board': { sharedBoard: SharedBoardPayload }
+//     - 'live_poll': { livePoll?, 'livePoll.votes'?, 'livePoll.updatedAt'?,
+//       'livePoll.lastVoteAt'?, 'livePoll.votes.*'? }
+//     - 'kahoot_*': KahootLiveSession
+//     - 'menti_*': MentiLiveSession
+//     - 'oncoo_*': OncooSession
+//
+// Collection: schools/{schoolId}
+//   Allowed schoolId:
+//     - 'HBS_portal': mirror doc containing sharedBoard, livePoll (+ dotted
+//       livePoll.* keys), activeKahootSession, activeMentiSession (+ dotted
+//       activeMentiSession.* keys), activeOncooSession
+//
+// Collection: hbs_feature_requests/{requestId}
+//   - id (optional), title, description, category, authorName, authorId,
+//     createdAt, votes, status, adminComment (optional)
+//
+// Collection: hbs_storage_folders/{folderId}
+//   - id (immutable), name, parentId (string | null), isShared, ownerId,
+//     ownerName, color?, subject?, grade?, createdAt (immutable), updatedAt
+//
+// Collection: hbs_storage_files/{fileId}
+//   - id (immutable), name, folderId (string | null), isShared, ownerId,
+//     ownerName, r2Key (immutable), fileSize, mimeType, fileExtension,
+//     subject?, grade?, description?, tags?, createdAt (immutable), updatedAt
+//
+// Collection: hbs_prompt_library/{promptId}
+//   - id (immutable), title, description, category, tags, subject?,
+//     gradeLevels?, afbLevels?, systemInstruction?, templateText, variables,
+//     visibility, authorId, authorName, source?, forkedFromId?,
+//     recommendedModel?, favoriteCount, colleagueTips?, createdAt (immutable),
+//     updatedAt
+//
+// Collection: hbs_promptbaukasten_materials/{materialId}
+//   - id (immutable), title, format, subjectId, subjectName, gradeLevel,
+//     doubleGrade, topicTitle, customTopicDetail?, worksheetMarkdown,
+//     rubricMarkdown, vocabulary, gameHtml, giftExport, promptText,
+//     authorId, authorName, createdAt (immutable), updatedAt?, sharedWithSchool
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function validDocId(docId) {
+      return docId is string && docId.size() >= 1 && docId.size() <= 128;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasOnlyAllowedUpdatedFields(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    function isValidNestedUpdateMap(parentField, subMap, allowedKeys) {
+      return (!((parentField in resource.data) && (resource.data[parentField] is map)))
+        ? subMap.keys().hasOnly(allowedKeys)
+        : subMap.diff(resource.data[parentField]).affectedKeys().hasOnly(allowedKeys);
+    }
+
+    function reqStr(data, field, minLen, maxLen) {
+      return (field in data) &&
+             data[field] is string &&
+             data[field].size() >= minLen &&
+             data[field].size() <= maxLen;
+    }
+
+    function optStr(data, field, maxLen) {
+      return !(field in data) ||
+             data[field] == null ||
+             (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function optBool(data, field) {
+      return !(field in data) || data[field] == null || data[field] is bool;
+    }
+
+    function optNum(data, field) {
+      return !(field in data) || data[field] == null || data[field] is number;
+    }
+
+    function optNumRange(data, field, minVal, maxVal) {
+      return !(field in data) ||
+             data[field] == null ||
+             (data[field] is number && data[field] >= minVal && data[field] <= maxVal);
+    }
+
+    function optList(data, field, maxSize) {
+      return !(field in data) ||
+             data[field] == null ||
+             (data[field] is list && data[field].size() <= maxSize);
+    }
+
+    function optMap(data, field, maxSize) {
+      return !(field in data) ||
+             data[field] == null ||
+             (data[field] is map && data[field].size() <= maxSize);
+    }
+
+    // ===============================================================
+    // Domain Validators: Classroom Live Sessions & Portal
+    // ===============================================================
+
+    function kahootAllowedFields() {
+      return [
+        'gameId', 'gameTitle', 'sessionCode', 'stage', 'gameMode',
+        'currentQuestionIndex', 'totalQuestions', 'activeQuestion',
+        'timeLeft', 'isAnswerOpen', 'participants', 'playerProfiles',
+        'responses', 'answersReceived', 'teacherSeq', 'updatedAt'
+      ];
+    }
+
+    function isValidKahootFields(k) {
+      return k is map &&
+             optStr(k, 'gameId', 128) &&
+             optStr(k, 'gameTitle', 300) &&
+             optStr(k, 'sessionCode', 40) &&
+             (!('stage' in k) || k.stage == null || k.stage in ['lobby', 'get_ready', 'question', 'reveal', 'scoreboard', 'podium']) &&
+             (!('gameMode' in k) || k.gameMode == null || k.gameMode in ['individual', 'team']) &&
+             optNumRange(k, 'currentQuestionIndex', 0, 500) &&
+             optNumRange(k, 'totalQuestions', 0, 500) &&
+             optMap(k, 'activeQuestion', 20) &&
+             optNumRange(k, 'timeLeft', 0, 3600) &&
+             optBool(k, 'isAnswerOpen') &&
+             optList(k, 'participants', 200) &&
+             optMap(k, 'playerProfiles', 200) &&
+             optMap(k, 'responses', 200) &&
+             optNumRange(k, 'answersReceived', 0, 500) &&
+             optNumRange(k, 'teacherSeq', 0, 1000000) &&
+             optNum(k, 'updatedAt');
+    }
+
+    function isValidKahootSessionCreate(k) {
+      return k is map &&
+             k.keys().size() >= 1 &&
+             k.keys().size() <= 16 &&
+             k.keys().hasOnly(kahootAllowedFields()) &&
+             isValidKahootFields(k);
+    }
+
+    function isValidKahootSessionUpdateDoc(k) {
+      return k is map &&
+             hasOnlyAllowedUpdatedFields(kahootAllowedFields()) &&
+             isValidKahootFields(k);
+    }
+
+    function isValidKahootSessionNestedUpdate(parentField, k) {
+      return k is map &&
+             isValidNestedUpdateMap(parentField, k, kahootAllowedFields()) &&
+             isValidKahootFields(k);
+    }
+
+    function mentiAllowedFields() {
+      return [
+        'presentationId', 'presentationTitle', 'sessionCode',
+        'currentSlideIndex', 'isVotingOpen', 'showResults',
+        'activeSlide', 'totalSlides', 'participantsCount',
+        'responses', 'quizLeaderboard', 'recentReactions',
+        'updatedAt', 'isSurveyMode', 'slides', 'expiresAt',
+        'isClosed', 'allowViewResults', 'authorName', 'authorId'
+      ];
+    }
+
+    function isValidMentiFields(m) {
+      return m is map &&
+             optStr(m, 'presentationId', 128) &&
+             optStr(m, 'presentationTitle', 300) &&
+             optStr(m, 'sessionCode', 60) &&
+             optNumRange(m, 'currentSlideIndex', 0, 200) &&
+             optBool(m, 'isVotingOpen') &&
+             optBool(m, 'showResults') &&
+             optMap(m, 'activeSlide', 30) &&
+             optNumRange(m, 'totalSlides', 0, 200) &&
+             optNumRange(m, 'participantsCount', 0, 10000) &&
+             optMap(m, 'responses', 500) &&
+             optList(m, 'quizLeaderboard', 200) &&
+             optList(m, 'recentReactions', 500) &&
+             optNum(m, 'updatedAt') &&
+             optBool(m, 'isSurveyMode') &&
+             optList(m, 'slides', 200) &&
+             optNum(m, 'expiresAt') &&
+             optBool(m, 'isClosed') &&
+             optBool(m, 'allowViewResults') &&
+             optStr(m, 'authorName', 150) &&
+             optStr(m, 'authorId', 128);
+    }
+
+    function isValidMentiSessionCreate(m) {
+      return m is map &&
+             m.keys().size() >= 1 &&
+             m.keys().size() <= 20 &&
+             m.keys().hasOnly(mentiAllowedFields()) &&
+             isValidMentiFields(m);
+    }
+
+    function isValidMentiSessionUpdateDoc(m) {
+      return m is map &&
+             hasOnlyAllowedUpdatedFields(mentiAllowedFields()) &&
+             isValidMentiFields(m);
+    }
+
+    function isValidMentiSessionNestedUpdate(parentField, m) {
+      return m is map &&
+             isValidNestedUpdateMap(parentField, m, mentiAllowedFields()) &&
+             isValidMentiFields(m);
+    }
+
+    function oncooAllowedFields() {
+      return [
+        'id', 'toolType', 'title', 'description', 'subject', 'grade',
+        'authorId', 'authorName', 'isShared', 'createdAt', 'updatedAt',
+        'pinCode', 'isActive', 'isLocked', 'kartenabfrage',
+        'zielscheibe', 'lerntempoduett', 'helfersystem', 'placemat'
+      ];
+    }
+
+    function isValidOncooFields(o) {
+      return o is map &&
+             optStr(o, 'id', 128) &&
+             (!('toolType' in o) || o.toolType == null || o.toolType in ['kartenabfrage', 'zielscheibe', 'lerntempoduett', 'helfersystem', 'placemat']) &&
+             optStr(o, 'title', 300) &&
+             optStr(o, 'description', 2000) &&
+             optStr(o, 'subject', 100) &&
+             optStr(o, 'grade', 50) &&
+             optStr(o, 'authorId', 128) &&
+             optStr(o, 'authorName', 150) &&
+             optBool(o, 'isShared') &&
+             optNum(o, 'createdAt') &&
+             optNum(o, 'updatedAt') &&
+             optStr(o, 'pinCode', 40) &&
+             optBool(o, 'isActive') &&
+             optBool(o, 'isLocked') &&
+             optMap(o, 'kartenabfrage', 20) &&
+             optMap(o, 'zielscheibe', 20) &&
+             optMap(o, 'lerntempoduett', 20) &&
+             optMap(o, 'helfersystem', 20) &&
+             optMap(o, 'placemat', 20);
+    }
+
+    function isValidOncooSessionCreate(o) {
+      return o is map &&
+             o.keys().size() >= 1 &&
+             o.keys().size() <= 19 &&
+             o.keys().hasOnly(oncooAllowedFields()) &&
+             isValidOncooFields(o);
+    }
+
+    function isValidOncooSessionUpdateDoc(o) {
+      return o is map &&
+             hasOnlyAllowedUpdatedFields(oncooAllowedFields()) &&
+             isValidOncooFields(o);
+    }
+
+    function isValidOncooSessionNestedUpdate(parentField, o) {
+      return o is map &&
+             isValidNestedUpdateMap(parentField, o, oncooAllowedFields()) &&
+             isValidOncooFields(o);
+    }
+
+    function sharedBoardAllowedFields() {
+      return [
+        'title', 'subject', 'grade', 'teacherName', 'targetDate',
+        'notes', 'tasks', 'mediaLinks', 'snapshotUrl', 'updatedAt'
+      ];
+    }
+
+    function isValidSharedBoardFields(sb) {
+      return sb is map &&
+             optStr(sb, 'title', 300) &&
+             optStr(sb, 'subject', 100) &&
+             optStr(sb, 'grade', 50) &&
+             optStr(sb, 'teacherName', 150) &&
+             optStr(sb, 'targetDate', 100) &&
+             optList(sb, 'notes', 100) &&
+             optList(sb, 'tasks', 200) &&
+             optList(sb, 'mediaLinks', 100) &&
+             optStr(sb, 'snapshotUrl', 950000) &&
+             optNum(sb, 'updatedAt');
+    }
+
+    function isValidSharedBoardCreate(sb) {
+      return sb is map &&
+             sb.keys().size() >= 1 &&
+             sb.keys().size() <= 10 &&
+             sb.keys().hasOnly(sharedBoardAllowedFields()) &&
+             isValidSharedBoardFields(sb);
+    }
+
+    function isValidSharedBoardNestedUpdate(parentField, sb) {
+      return sb is map &&
+             isValidNestedUpdateMap(parentField, sb, sharedBoardAllowedFields()) &&
+             isValidSharedBoardFields(sb);
+    }
+
+    function livePollAllowedFields() {
+      return ['title', 'type', 'active', 'updatedAt', 'votes', 'lastVoteAt'];
+    }
+
+    function isValidLivePollMapFields(lp) {
+      return lp is map &&
+             optStr(lp, 'title', 300) &&
+             (!('type' in lp) || lp.type == null || lp.type in ['choice', 'smiley', 'stars']) &&
+             optBool(lp, 'active') &&
+             optNum(lp, 'updatedAt') &&
+             optNum(lp, 'lastVoteAt') &&
+             optMap(lp, 'votes', 20);
+    }
+
+    function isValidLivePollMapCreate(lp) {
+      return lp is map &&
+             lp.keys().size() >= 1 &&
+             lp.keys().size() <= 6 &&
+             lp.keys().hasOnly(livePollAllowedFields()) &&
+             isValidLivePollMapFields(lp);
+    }
+
+    function isValidLivePollMapNestedUpdate(parentField, lp) {
+      return lp is map &&
+             isValidNestedUpdateMap(parentField, lp, livePollAllowedFields()) &&
+             isValidLivePollMapFields(lp);
+    }
+
+    function isValidLivePollVoteKeys(data) {
+      return optNumRange(data, 'livePoll.votes.A', 0, 100000) &&
+             optNumRange(data, 'livePoll.votes.B', 0, 100000) &&
+             optNumRange(data, 'livePoll.votes.C', 0, 100000) &&
+             optNumRange(data, 'livePoll.votes.D', 0, 100000) &&
+             optNumRange(data, 'livePoll.votes.E', 0, 100000) &&
+             optNumRange(data, 'livePoll.votes.F', 0, 100000) &&
+             optNumRange(data, 'livePoll.votes.1', 0, 100000) &&
+             optNumRange(data, 'livePoll.votes.2', 0, 100000) &&
+             optNumRange(data, 'livePoll.votes.3', 0, 100000) &&
+             optNumRange(data, 'livePoll.votes.4', 0, 100000) &&
+             optNumRange(data, 'livePoll.votes.5', 0, 100000);
+    }
+
+    function portalDataAllowedFields() {
+      return [
+        'users', 'preferences', 'boardTemplates', 'mentiPresentations',
+        'activeMentiSession', 'kahootGames', 'activeKahootSession',
+        'oncooSessions', 'activeOncooSession', 'updatedAt'
+      ];
+    }
+
+    function isValidPortalDataCreate(data) {
+      return data.keys().size() >= 1 &&
+             data.keys().size() <= 10 &&
+             hasOnlyAllowedFields(portalDataAllowedFields()) &&
+             optList(data, 'users', 300) &&
+             optMap(data, 'preferences', 300) &&
+             optList(data, 'boardTemplates', 300) &&
+             optList(data, 'mentiPresentations', 300) &&
+             (!('activeMentiSession' in data) || data.activeMentiSession == null || isValidMentiSessionCreate(data.activeMentiSession)) &&
+             optList(data, 'kahootGames', 300) &&
+             (!('activeKahootSession' in data) || data.activeKahootSession == null || isValidKahootSessionCreate(data.activeKahootSession)) &&
+             optList(data, 'oncooSessions', 300) &&
+             (!('activeOncooSession' in data) || data.activeOncooSession == null || isValidOncooSessionCreate(data.activeOncooSession)) &&
+             optNum(data, 'updatedAt');
+    }
+
+    function isValidPortalDataUpdate(data) {
+      let affected = data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(portalDataAllowedFields()) &&
+             (!('users' in affected) || optList(data, 'users', 300)) &&
+             (!('preferences' in affected) || optMap(data, 'preferences', 300)) &&
+             (!('boardTemplates' in affected) || optList(data, 'boardTemplates', 300)) &&
+             (!('mentiPresentations' in affected) || optList(data, 'mentiPresentations', 300)) &&
+             (!('activeMentiSession' in affected) || data.activeMentiSession == null || isValidMentiSessionNestedUpdate('activeMentiSession', data.activeMentiSession)) &&
+             (!('kahootGames' in affected) || optList(data, 'kahootGames', 300)) &&
+             (!('activeKahootSession' in affected) || data.activeKahootSession == null || isValidKahootSessionNestedUpdate('activeKahootSession', data.activeKahootSession)) &&
+             (!('oncooSessions' in affected) || optList(data, 'oncooSessions', 300)) &&
+             (!('activeOncooSession' in affected) || data.activeOncooSession == null || isValidOncooSessionNestedUpdate('activeOncooSession', data.activeOncooSession)) &&
+             (!('updatedAt' in affected) || optNum(data, 'updatedAt'));
+    }
+
+    function isValidFeatureRequestsDocCreate(data) {
+      return data.keys().size() <= 2 &&
+             hasOnlyAllowedFields(['items', 'updatedAt']) &&
+             hasRequiredFields(['items', 'updatedAt']) &&
+             (data.items is list && data.items.size() <= 500) &&
+             (data.updatedAt is number);
+    }
+
+    function isValidFeatureRequestsDocUpdate(data) {
+      return hasOnlyAllowedUpdatedFields(['items', 'updatedAt']) &&
+             (!('items' in data) || (data.items is list && data.items.size() <= 500)) &&
+             (!('updatedAt' in data) || data.updatedAt is number);
+    }
+
+    function isValidSharedBoardDocCreate(data) {
+      return data.keys().size() == 1 &&
+             hasOnlyAllowedFields(['sharedBoard']) &&
+             isValidSharedBoardCreate(data.sharedBoard);
+    }
+
+    function isValidSharedBoardDocUpdate(data) {
+      return hasOnlyAllowedUpdatedFields(['sharedBoard']) &&
+             (!('sharedBoard' in data.diff(resource.data).affectedKeys()) ||
+              data.sharedBoard == null ||
+              isValidSharedBoardNestedUpdate('sharedBoard', data.sharedBoard));
+    }
+
+    function livePollDocAllowedFields() {
+      return [
+        'livePoll',
+        'livePoll.votes',
+        'livePoll.updatedAt',
+        'livePoll.lastVoteAt',
+        'livePoll.votes.A', 'livePoll.votes.B', 'livePoll.votes.C', 'livePoll.votes.D',
+        'livePoll.votes.E', 'livePoll.votes.F',
+        'livePoll.votes.1', 'livePoll.votes.2', 'livePoll.votes.3',
+        'livePoll.votes.4', 'livePoll.votes.5'
+      ];
+    }
+
+    function isValidLivePollDocCreate(data) {
+      return data.keys().size() >= 1 &&
+             data.keys().size() <= 15 &&
+             hasOnlyAllowedFields(livePollDocAllowedFields()) &&
+             (!('livePoll' in data) || data.livePoll == null || isValidLivePollMapCreate(data.livePoll)) &&
+             optMap(data, 'livePoll.votes', 20) &&
+             optNum(data, 'livePoll.updatedAt') &&
+             optNum(data, 'livePoll.lastVoteAt') &&
+             isValidLivePollVoteKeys(data);
+    }
+
+    function isValidLivePollDocUpdate(data) {
+      return hasOnlyAllowedUpdatedFields(livePollDocAllowedFields()) &&
+             (!('livePoll' in data.diff(resource.data).affectedKeys()) ||
+              data.livePoll == null ||
+              isValidLivePollMapNestedUpdate('livePoll', data.livePoll)) &&
+             optMap(data, 'livePoll.votes', 20) &&
+             optNum(data, 'livePoll.updatedAt') &&
+             optNum(data, 'livePoll.lastVoteAt') &&
+             isValidLivePollVoteKeys(data);
+    }
+
+    function hbsPortalSchoolAllowedFields() {
+      return [
+        'sharedBoard',
+        'livePoll',
+        'livePoll.votes',
+        'livePoll.updatedAt',
+        'livePoll.lastVoteAt',
+        'livePoll.votes.A', 'livePoll.votes.B', 'livePoll.votes.C', 'livePoll.votes.D',
+        'livePoll.votes.E', 'livePoll.votes.F',
+        'livePoll.votes.1', 'livePoll.votes.2', 'livePoll.votes.3',
+        'livePoll.votes.4', 'livePoll.votes.5',
+        'activeKahootSession',
+        'activeMentiSession',
+        'activeMentiSession.responses',
+        'activeMentiSession.participantsCount',
+        'activeMentiSession.recentReactions',
+        'activeOncooSession'
+      ];
+    }
+
+    function isValidHbsPortalSchoolDocCreate(data) {
+      return data.keys().size() >= 1 &&
+             data.keys().size() <= 22 &&
+             hasOnlyAllowedFields(hbsPortalSchoolAllowedFields()) &&
+             (!('sharedBoard' in data) || data.sharedBoard == null || isValidSharedBoardCreate(data.sharedBoard)) &&
+             (!('livePoll' in data) || data.livePoll == null || isValidLivePollMapCreate(data.livePoll)) &&
+             optMap(data, 'livePoll.votes', 20) &&
+             optNum(data, 'livePoll.updatedAt') &&
+             optNum(data, 'livePoll.lastVoteAt') &&
+             isValidLivePollVoteKeys(data) &&
+             (!('activeKahootSession' in data) || data.activeKahootSession == null || isValidKahootSessionCreate(data.activeKahootSession)) &&
+             (!('activeMentiSession' in data) || data.activeMentiSession == null || isValidMentiSessionCreate(data.activeMentiSession)) &&
+             optMap(data, 'activeMentiSession.responses', 500) &&
+             optNumRange(data, 'activeMentiSession.participantsCount', 0, 10000) &&
+             optList(data, 'activeMentiSession.recentReactions', 500) &&
+             (!('activeOncooSession' in data) || data.activeOncooSession == null || isValidOncooSessionCreate(data.activeOncooSession));
+    }
+
+    function isValidHbsPortalSchoolDocUpdate(data) {
+      let affected = data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(hbsPortalSchoolAllowedFields()) &&
+             (!('sharedBoard' in affected) || data.sharedBoard == null || isValidSharedBoardNestedUpdate('sharedBoard', data.sharedBoard)) &&
+             (!('livePoll' in affected) || data.livePoll == null || isValidLivePollMapNestedUpdate('livePoll', data.livePoll)) &&
+             (!('livePoll.votes' in affected) || optMap(data, 'livePoll.votes', 20)) &&
+             (!('livePoll.updatedAt' in affected) || optNum(data, 'livePoll.updatedAt')) &&
+             (!('livePoll.lastVoteAt' in affected) || optNum(data, 'livePoll.lastVoteAt')) &&
+             isValidLivePollVoteKeys(data) &&
+             (!('activeKahootSession' in affected) || data.activeKahootSession == null || isValidKahootSessionNestedUpdate('activeKahootSession', data.activeKahootSession)) &&
+             (!('activeMentiSession' in affected) || data.activeMentiSession == null || isValidMentiSessionNestedUpdate('activeMentiSession', data.activeMentiSession)) &&
+             (!('activeMentiSession.responses' in affected) || optMap(data, 'activeMentiSession.responses', 500)) &&
+             (!('activeMentiSession.participantsCount' in affected) || optNumRange(data, 'activeMentiSession.participantsCount', 0, 10000)) &&
+             (!('activeMentiSession.recentReactions' in affected) || optList(data, 'activeMentiSession.recentReactions', 500)) &&
+             (!('activeOncooSession' in affected) || data.activeOncooSession == null || isValidOncooSessionNestedUpdate('activeOncooSession', data.activeOncooSession));
+    }
+
+    // ===============================================================
+    // Domain Validators: Feature Requests, Storage, Prompts, Materials
+    // ===============================================================
+
+    function featureRequestAllowedFields() {
+      return [
+        'id', 'title', 'description', 'category', 'authorName',
+        'authorId', 'createdAt', 'votes', 'status', 'adminComment'
+      ];
+    }
+
+    function isValidFeatureRequestFields(data) {
+      return optStr(data, 'id', 128) &&
+             optStr(data, 'title', 250) &&
+             optStr(data, 'description', 4000) &&
+             (!('category' in data) || data.category in ['wunsch', 'app_idee', 'problem', 'unterricht']) &&
+             optStr(data, 'authorName', 150) &&
+             optStr(data, 'authorId', 128) &&
+             optNum(data, 'createdAt') &&
+             optList(data, 'votes', 500) &&
+             (!('status' in data) || data.status in ['eingereicht', 'in_pruefung', 'in_planung', 'umgesetzt', 'geschlossen']) &&
+             optStr(data, 'adminComment', 2000);
+    }
+
+    function storageFolderAllowedFields() {
+      return [
+        'id', 'name', 'parentId', 'isShared', 'ownerId', 'ownerName',
+        'color', 'subject', 'grade', 'createdAt', 'updatedAt'
+      ];
+    }
+
+    function isValidStorageFolderFields(data, folderId) {
+      return (!('id' in data) || (reqStr(data, 'id', 1, 128) && data.id == folderId)) &&
+             optStr(data, 'name', 200) &&
+             optStr(data, 'parentId', 128) &&
+             optBool(data, 'isShared') &&
+             optStr(data, 'ownerId', 100) &&
+             optStr(data, 'ownerName', 150) &&
+             optStr(data, 'color', 40) &&
+             optStr(data, 'subject', 100) &&
+             optStr(data, 'grade', 50) &&
+             optNum(data, 'createdAt') &&
+             optNum(data, 'updatedAt');
+    }
+
+    function storageFileAllowedFields() {
+      return [
+        'id', 'name', 'folderId', 'isShared', 'ownerId', 'ownerName',
+        'r2Key', 'fileSize', 'mimeType', 'fileExtension', 'subject',
+        'grade', 'description', 'tags', 'createdAt', 'updatedAt'
+      ];
+    }
+
+    function isValidStorageFileFields(data, fileId) {
+      return (!('id' in data) || (reqStr(data, 'id', 1, 128) && data.id == fileId)) &&
+             optStr(data, 'name', 300) &&
+             optStr(data, 'folderId', 128) &&
+             optBool(data, 'isShared') &&
+             optStr(data, 'ownerId', 100) &&
+             optStr(data, 'ownerName', 150) &&
+             optStr(data, 'r2Key', 500) &&
+             optNumRange(data, 'fileSize', 0, 5368709120) &&
+             optStr(data, 'mimeType', 150) &&
+             optStr(data, 'fileExtension', 30) &&
+             optStr(data, 'subject', 100) &&
+             optStr(data, 'grade', 50) &&
+             optStr(data, 'description', 2000) &&
+             optList(data, 'tags', 30) &&
+             optNum(data, 'createdAt') &&
+             optNum(data, 'updatedAt');
+    }
+
+    function promptAllowedFields() {
+      return [
+        'id', 'title', 'description', 'category', 'tags', 'subject',
+        'gradeLevels', 'afbLevels', 'systemInstruction', 'templateText',
+        'variables', 'visibility', 'authorId', 'authorName', 'source',
+        'forkedFromId', 'recommendedModel', 'favoriteCount',
+        'colleagueTips', 'createdAt', 'updatedAt'
+      ];
+    }
+
+    function isValidPromptFields(data, promptId) {
+      return (!('id' in data) || (reqStr(data, 'id', 1, 128) && data.id == promptId)) &&
+             optStr(data, 'title', 300) &&
+             optStr(data, 'description', 5000) &&
+             (!('category' in data) || data.category in ['unterricht', 'differenzierung', 'orga', 'eltern', 'bewertung', 'sonderpaedagogik', 'methoden']) &&
+             optList(data, 'tags', 30) &&
+             optStr(data, 'subject', 100) &&
+             optList(data, 'gradeLevels', 20) &&
+             optList(data, 'afbLevels', 10) &&
+             optStr(data, 'systemInstruction', 10000) &&
+             optStr(data, 'templateText', 30000) &&
+             optList(data, 'variables', 50) &&
+             (!('visibility' in data) || data.visibility in ['school', 'private']) &&
+             optStr(data, 'authorId', 128) &&
+             optStr(data, 'authorName', 150) &&
+             optStr(data, 'source', 200) &&
+             optStr(data, 'forkedFromId', 128) &&
+             optStr(data, 'recommendedModel', 150) &&
+             optNumRange(data, 'favoriteCount', 0, 100000) &&
+             optList(data, 'colleagueTips', 200) &&
+             optNum(data, 'createdAt') &&
+             optNum(data, 'updatedAt');
+    }
+
+    function materialAllowedFields() {
+      return [
+        'id', 'title', 'format', 'subjectId', 'subjectName',
+        'gradeLevel', 'doubleGrade', 'topicTitle', 'customTopicDetail',
+        'worksheetMarkdown', 'rubricMarkdown', 'vocabulary',
+        'gameHtml', 'giftExport', 'promptText', 'authorId',
+        'authorName', 'createdAt', 'updatedAt', 'sharedWithSchool'
+      ];
+    }
+
+    function isValidCloudMaterialFields(data, materialId) {
+      return (!('id' in data) || (reqStr(data, 'id', 1, 128) && data.id == materialId)) &&
+             optStr(data, 'title', 300) &&
+             (!('format' in data) || data.format in ['lernstation', 'arbeitsblatt', 'lernspiel', 'test', 'einstieg']) &&
+             optStr(data, 'subjectId', 100) &&
+             optStr(data, 'subjectName', 150) &&
+             (!('gradeLevel' in data) || data.gradeLevel is number || (data.gradeLevel is string && data.gradeLevel.size() <= 30)) &&
+             optStr(data, 'doubleGrade', 50) &&
+             optStr(data, 'topicTitle', 300) &&
+             optStr(data, 'customTopicDetail', 2000) &&
+             optStr(data, 'worksheetMarkdown', 200000) &&
+             optStr(data, 'rubricMarkdown', 100000) &&
+             optList(data, 'vocabulary', 200) &&
+             optStr(data, 'gameHtml', 600000) &&
+             optStr(data, 'giftExport', 150000) &&
+             optStr(data, 'promptText', 100000) &&
+             optStr(data, 'authorId', 128) &&
+             optStr(data, 'authorName', 150) &&
+             optNum(data, 'createdAt') &&
+             optNum(data, 'updatedAt') &&
+             optBool(data, 'sharedWithSchool');
+    }
+
+    function isValidAppPortalDocCreate(docId, data) {
+      return (docId == 'portal_data' && isValidPortalDataCreate(data)) ||
+             (docId == 'hbs_feature_requests' && isValidFeatureRequestsDocCreate(data)) ||
+             (docId == 'shared_board' && isValidSharedBoardDocCreate(data)) ||
+             (docId == 'live_poll' && isValidLivePollDocCreate(data)) ||
+             (docId.matches('^kahoot_.{1,60}$') && isValidKahootSessionCreate(data)) ||
+             (docId.matches('^menti_.{1,60}$') && isValidMentiSessionCreate(data)) ||
+             (docId.matches('^oncoo_.{1,60}$') && isValidOncooSessionCreate(data));
+    }
+
+    function isValidAppPortalDocUpdate(docId, data) {
+      return (docId == 'portal_data' && isValidPortalDataUpdate(data)) ||
+             (docId == 'hbs_feature_requests' && isValidFeatureRequestsDocUpdate(data)) ||
+             (docId == 'shared_board' && isValidSharedBoardDocUpdate(data)) ||
+             (docId == 'live_poll' && isValidLivePollDocUpdate(data)) ||
+             (docId.matches('^kahoot_.{1,60}$') && isValidKahootSessionUpdateDoc(data)) ||
+             (docId.matches('^menti_.{1,60}$') && isValidMentiSessionUpdateDoc(data)) ||
+             (docId.matches('^oncoo_.{1,60}$') && isValidOncooSessionUpdateDoc(data));
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // HBS App-Portal, Digitale Tafel, Kahoot, Menti, Oncoo & Feature-Requests
+    match /hbs_appportal/{docId} {
+      allow read: if true;
+      allow create: if isValidAppPortalDocCreate(docId, request.resource.data);
+      allow update: if isValidAppPortalDocUpdate(docId, request.resource.data);
+      allow delete: if false;
+    }
+
+    // Fallback- & Spiegel-Dokument für Live-Board, Poll, Kahoot, Menti, Oncoo
+    match /schools/{schoolId} {
+      allow read: if schoolId == 'HBS_portal';
+      allow create: if schoolId == 'HBS_portal' &&
+                       isValidHbsPortalSchoolDocCreate(request.resource.data);
+      allow update: if schoolId == 'HBS_portal' &&
+                       isValidHbsPortalSchoolDocUpdate(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Kollegiums-Wünsche & Feature-Requests (Einzeldokument-Pfad)
+    match /hbs_feature_requests/{requestId} {
+      allow read: if true;
+      allow create: if validDocId(requestId) &&
+                       request.resource.data.keys().size() <= 10 &&
+                       hasOnlyAllowedFields(featureRequestAllowedFields()) &&
+                       hasRequiredFields([
+                         'title', 'description', 'category', 'authorName',
+                         'authorId', 'createdAt', 'votes', 'status'
+                       ]) &&
+                       reqStr(request.resource.data, 'title', 1, 250) &&
+                       reqStr(request.resource.data, 'authorId', 1, 128) &&
+                       (request.resource.data.createdAt is number) &&
+                       (request.resource.data.votes is list) &&
+                       isValidFeatureRequestFields(request.resource.data);
+      allow update: if hasOnlyAllowedUpdatedFields(featureRequestAllowedFields()) &&
+                       (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
+                       isValidFeatureRequestFields(request.resource.data);
+      allow delete: if true;
+    }
+
+    // Dateiablage: Ordner (Landingpage Schulapps)
+    match /hbs_storage_folders/{folderId} {
+      allow read: if true;
+      allow create: if validDocId(folderId) &&
+                       request.resource.data.keys().size() <= 11 &&
+                       hasOnlyAllowedFields(storageFolderAllowedFields()) &&
+                       hasRequiredFields([
+                         'id', 'name', 'isShared', 'ownerId', 'ownerName',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       reqStr(request.resource.data, 'name', 1, 200) &&
+                       (request.resource.data.isShared is bool) &&
+                       reqStr(request.resource.data, 'ownerId', 1, 100) &&
+                       (request.resource.data.createdAt is number) &&
+                       (request.resource.data.updatedAt is number) &&
+                       isValidStorageFolderFields(request.resource.data, folderId);
+      allow update: if hasOnlyAllowedUpdatedFields(storageFolderAllowedFields()) &&
+                       (!('id' in resource.data) || request.resource.data.id == resource.data.id) &&
+                       (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
+                       isValidStorageFolderFields(request.resource.data, folderId);
+      allow delete: if true;
+    }
+
+    // Dateiablage: Dateimetadaten (Landingpage Schulapps)
+    match /hbs_storage_files/{fileId} {
+      allow read: if true;
+      allow create: if validDocId(fileId) &&
+                       request.resource.data.keys().size() <= 16 &&
+                       hasOnlyAllowedFields(storageFileAllowedFields()) &&
+                       hasRequiredFields([
+                         'id', 'name', 'isShared', 'ownerId', 'ownerName',
+                         'r2Key', 'fileSize', 'mimeType', 'fileExtension',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       reqStr(request.resource.data, 'name', 1, 300) &&
+                       (request.resource.data.isShared is bool) &&
+                       reqStr(request.resource.data, 'ownerId', 1, 100) &&
+                       reqStr(request.resource.data, 'r2Key', 1, 500) &&
+                       (request.resource.data.fileSize is number) &&
+                       (request.resource.data.createdAt is number) &&
+                       (request.resource.data.updatedAt is number) &&
+                       isValidStorageFileFields(request.resource.data, fileId);
+      allow update: if hasOnlyAllowedUpdatedFields(storageFileAllowedFields()) &&
+                       (!('id' in resource.data) || request.resource.data.id == resource.data.id) &&
+                       (!('r2Key' in resource.data) || request.resource.data.r2Key == resource.data.r2Key) &&
+                       (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
+                       isValidStorageFileFields(request.resource.data, fileId);
+      allow delete: if true;
+    }
+
+    // Promptbibliothek
+    match /hbs_prompt_library/{promptId} {
+      allow read: if true;
+      allow create: if validDocId(promptId) &&
+                       request.resource.data.keys().size() <= 21 &&
+                       hasOnlyAllowedFields(promptAllowedFields()) &&
+                       hasRequiredFields([
+                         'id', 'title', 'description', 'category', 'tags',
+                         'templateText', 'variables', 'visibility', 'authorId',
+                         'authorName', 'favoriteCount', 'createdAt', 'updatedAt'
+                       ]) &&
+                       reqStr(request.resource.data, 'title', 1, 300) &&
+                       (request.resource.data.tags is list) &&
+                       (request.resource.data.variables is list) &&
+                       reqStr(request.resource.data, 'authorId', 1, 128) &&
+                       (request.resource.data.favoriteCount is number) &&
+                       (request.resource.data.createdAt is number) &&
+                       (request.resource.data.updatedAt is number) &&
+                       isValidPromptFields(request.resource.data, promptId);
+      allow update: if hasOnlyAllowedUpdatedFields(promptAllowedFields()) &&
+                       (!('id' in resource.data) || request.resource.data.id == resource.data.id) &&
+                       (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
+                       isValidPromptFields(request.resource.data, promptId);
+      allow delete: if true;
+    }
+
+    // Promptbaukasten: Gespeicherte Unterrichtsmaterialien
+    match /hbs_promptbaukasten_materials/{materialId} {
+      allow read: if true;
+      allow create: if validDocId(materialId) &&
+                       request.resource.data.keys().size() <= 20 &&
+                       hasOnlyAllowedFields(materialAllowedFields()) &&
+                       hasRequiredFields([
+                         'id', 'title', 'format', 'subjectId', 'subjectName',
+                         'gradeLevel', 'doubleGrade', 'topicTitle',
+                         'worksheetMarkdown', 'rubricMarkdown', 'vocabulary',
+                         'gameHtml', 'giftExport', 'promptText', 'authorId',
+                         'authorName', 'createdAt', 'sharedWithSchool'
+                       ]) &&
+                       reqStr(request.resource.data, 'title', 1, 300) &&
+                       reqStr(request.resource.data, 'subjectId', 1, 100) &&
+                       reqStr(request.resource.data, 'subjectName', 1, 150) &&
+                       (request.resource.data.vocabulary is list) &&
+                       reqStr(request.resource.data, 'authorId', 1, 128) &&
+                       (request.resource.data.createdAt is number) &&
+                       (request.resource.data.sharedWithSchool is bool) &&
+                       isValidCloudMaterialFields(request.resource.data, materialId);
+      allow update: if hasOnlyAllowedUpdatedFields(materialAllowedFields()) &&
+                       (!('id' in resource.data) || request.resource.data.id == resource.data.id) &&
+                       (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
+                       isValidCloudMaterialFields(request.resource.data, materialId);
+      allow delete: if true;
+    }
+
+    // Default Deny: alle nicht gelisteten & eingestellten Collections (z. B. alter Kalender) sperren
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
