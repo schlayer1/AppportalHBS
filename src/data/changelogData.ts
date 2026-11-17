@@ -2,10 +2,40 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '3.4.1',
+    title: 'Dateiablage 2.0: Rekursive Ordner-Zählung, Finder-Listenansicht mit Sortierung & sicheres Übernehmen',
+    date: '17. November 2026',
+    isLatest: true,
+    highlight: 'Upgrade für die Dateiablage & den Materialpool: Oberordner zählen ab sofort alle Dateien in beliebig tief verschachtelten Unterordnern mit, das Verschieben bzw. Übernehmen aus dem Kollegiums-Austausch in „Mein Speicher“ ordnet die Datei zuverlässig der angemeldeten Lehrkraft zu, und die neue Finder-/Explorer-Listenansicht sortiert Ordner und Dateien gemeinsam nach Name, Typ/Fach, Größe, Ersteller und Datum.',
+    items: [
+      {
+        id: 'cl-341-1',
+        type: 'behoben',
+        title: 'Rekursive Dateizählung über alle Unterordner hinweg',
+        description: 'Übergeordnete Ordner (z. B. Organisation oder Fachschaften) zeigen nun die Gesamtanzahl aller Dateien inklusive verschachtelter Unterordner sowie die Unterordner-Anzahl und Gesamtgröße an.',
+        badge: 'Ordner-Baum'
+      },
+      {
+        id: 'cl-341-2',
+        type: 'behoben',
+        title: 'Zuverlässiges Übernehmen/Verschieben in „Mein Speicher“',
+        description: 'Beim Übernehmen einer Datei aus dem Kollegiums-Austausch in den persönlichen Bereich wird nun immer die eigene Nutzer-ID gesetzt (bei Dateien anderer Kollegen wird eine sichere persönliche Kopie erzeugt, ohne das Original im Austausch zu löschen) – inkl. 1-Klick-Sprung in „Mein Speicher“.',
+        badge: 'Mein Speicher'
+      },
+      {
+        id: 'cl-341-3',
+        type: 'neu',
+        title: 'Finder-/Explorer-Listenansicht mit Spalten-Sortierung',
+        description: 'Die Listenansicht vereint Ordner und Dateien in einer sortierbaren Tabelle (Name, Typ/Fach, Größe/Inhalt, Erstellt von, Geändert) mit auf-/absteigender Sortierung, „Ordner oben“-Option und direkter Umbenennen- sowie Teilen-/Übernehmen-Aktion in beiden Ansichten.',
+        badge: 'Finder-Liste'
+      }
+    ]
+  },
+  {
     version: '3.4.0',
     title: 'Schuljahres-Sync der Kollegenliste, Smartboard-PIN-Sperre, aufgeräumter Header & PWA-Update-Banner',
     date: '17. November 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Großes Qualitäts- & Bedienbarkeits-Update für den Schulalltag: Die Login-Liste synchronisiert sich ab sofort streng nach dem aktiven Schuljahr aus der Vertretungsstatistik, sodass ehemalige Kolleginnen und Kollegen automatisch ausgeblendet werden. Dazu kommen eine Smartboard-PIN-Sperre gegen versehentliches Verlassen im Unterricht, ein schnellerer Tablet-/Handy-Login mit Ziffernblock und Auto-Submit, ein entschlackter Header sowie ein kontrolliertes PWA-Update-Banner.',
     items: [
       {

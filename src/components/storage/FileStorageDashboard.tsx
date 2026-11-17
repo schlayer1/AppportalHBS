@@ -25,7 +25,11 @@ import {
   X,
   AlertTriangle,
   RefreshCw,
-  FolderOpen
+  FolderOpen,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  FolderInput
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { formatTeacherName } from '../../types/user';
@@ -58,6 +62,16 @@ interface FileStorageDashboardProps {
   onOpenInBoard?: (file: StorageFile, signedUrl: string) => void;
 }
 
+type StorageSortKey = 'name' | 'type' | 'size' | 'owner' | 'date';
+type StorageSortDirection = 'asc' | 'desc';
+
+const STORAGE_LAYOUT_KEY = 'hbs_storage_view_layout_v1';
+const STORAGE_SORT_KEY = 'hbs_storage_sort_key_v1';
+const STORAGE_SORT_DIR_KEY = 'hbs_storage_sort_dir_v1';
+const STORAGE_FOLDERS_FIRST_KEY = 'hbs_storage_folders_first_v1';
+
+const germanCollator = new Intl.Collator('de', { numeric: true, sensitivity: 'base' });
+
 export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
   onBackToPortal,
   onOpenInKahoot,
@@ -73,7 +87,35 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
   const [files, setFiles] = useState<StorageFile[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('all');
-  const [viewLayout, setViewLayout] = useState<StorageViewLayout>('grid');
+  const [viewLayout, setViewLayout] = useState<StorageViewLayout>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_LAYOUT_KEY);
+      if (saved === 'grid' || saved === 'table') return saved;
+    } catch {}
+    return 'grid';
+  });
+  const [sortKey, setSortKey] = useState<StorageSortKey>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_SORT_KEY) as StorageSortKey | null;
+      if (saved && ['name', 'type', 'size', 'owner', 'date'].includes(saved)) return saved;
+    } catch {}
+    return 'name';
+  });
+  const [sortDirection, setSortDirection] = useState<StorageSortDirection>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_SORT_DIR_KEY);
+      if (saved === 'asc' || saved === 'desc') return saved;
+    } catch {}
+    return 'asc';
+  });
+  const [foldersFirst, setFoldersFirst] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_FOLDERS_FIRST_KEY);
+      if (saved !== null) return saved === 'true';
+    } catch {}
+    return true;
+  });
+  const [sortAnnouncement, setSortAnnouncement] = useState<string>('');
 
   // Modals & Overlays
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
@@ -84,7 +126,17 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
   const [activeUploads, setActiveUploads] = useState<{ id: string; name: string; progress: number }[]>([]);
   const [renameTarget, setRenameTarget] = useState<{ id: string; type: 'folder' | 'file'; name: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'folder' | 'file'; name: string; r2Key?: string } | null>(null);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string; actionLabel?: string; onAction?: () => void } | null>(null);
+
+  // Persist Finder layout & sort settings
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_LAYOUT_KEY, viewLayout);
+      localStorage.setItem(STORAGE_SORT_KEY, sortKey);
+      localStorage.setItem(STORAGE_SORT_DIR_KEY, sortDirection);
+      localStorage.setItem(STORAGE_FOLDERS_FIRST_KEY, String(foldersFirst));
+    } catch {}
+  }, [viewLayout, sortKey, sortDirection, foldersFirst]);
 
   // Auto-hide notifications
   useEffect(() => {
@@ -104,11 +156,60 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
 
   // Filter folders & files according to current scope, current folder, and search query
   const isSharedScope = activeScope === 'shared';
+  const currentOwnerId = currentUser?.id || 'guest';
+  const currentOwnerName = currentUser ? formatTeacherName(currentUser) : 'Kollege';
 
   const currentFolder = useMemo(() => {
     if (!currentFolderId) return null;
     return folders.find((f) => f.id === currentFolderId) || null;
   }, [folders, currentFolderId]);
+
+  // Recursive folder stats (counts files & bytes across all nested subfolders)
+  const folderStatsMap = useMemo(() => {
+    const map = new Map<string, { fileCount: number; subFolderCount: number; totalBytes: number }>();
+
+    const computeStats = (
+      folderId: string,
+      visited: Set<string> = new Set()
+    ): { fileCount: number; subFolderCount: number; totalBytes: number } => {
+      if (map.has(folderId)) return map.get(folderId)!;
+      if (visited.has(folderId)) return { fileCount: 0, subFolderCount: 0, totalBytes: 0 };
+      visited.add(folderId);
+
+      const directFiles = files.filter((f) => {
+        if (f.folderId !== folderId) return false;
+        return isSharedScope ? f.isShared : (!f.isShared && f.ownerId === currentOwnerId);
+      });
+
+      const directSubFolders = folders.filter((sub) => {
+        if (sub.parentId !== folderId) return false;
+        return isSharedScope ? sub.isShared : (!sub.isShared && sub.ownerId === currentOwnerId);
+      });
+
+      let fileCount = directFiles.length;
+      let subFolderCount = directSubFolders.length;
+      let totalBytes = directFiles.reduce((acc, f) => acc + (f.fileSize || 0), 0);
+
+      for (const sub of directSubFolders) {
+        const subStats = computeStats(sub.id, visited);
+        fileCount += subStats.fileCount;
+        subFolderCount += subStats.subFolderCount;
+        totalBytes += subStats.totalBytes;
+      }
+
+      const result = { fileCount, subFolderCount, totalBytes };
+      map.set(folderId, result);
+      return result;
+    };
+
+    for (const folder of folders) {
+      const matchesScope = isSharedScope ? folder.isShared : (!folder.isShared && folder.ownerId === currentOwnerId);
+      if (matchesScope) {
+        computeStats(folder.id);
+      }
+    }
+    return map;
+  }, [folders, files, isSharedScope, currentOwnerId]);
 
   // Build breadcrumb trail
   const breadcrumbs = useMemo(() => {
@@ -124,38 +225,71 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
     return [...crumbs, ...trail];
   }, [currentFolder, folders, isSharedScope]);
 
-  // Filter folders for current view
+  const handleSortColumn = (key: StorageSortKey) => {
+    const nextDir: StorageSortDirection =
+      sortKey === key ? (sortDirection === 'asc' ? 'desc' : 'asc') : 'asc';
+    setSortKey(key);
+    setSortDirection(nextDir);
+    const labelMap: Record<StorageSortKey, string> = {
+      name: 'Name',
+      type: 'Typ / Fach',
+      size: 'Größe',
+      owner: 'Erstellt von',
+      date: 'Datum'
+    };
+    setSortAnnouncement(
+      `Sortiert nach ${labelMap[key]}, ${nextDir === 'asc' ? 'aufsteigend' : 'absteigend'}`
+    );
+  };
+
+  // Filter & sort folders for current view
   const visibleFolders = useMemo(() => {
-    return folders.filter((folder) => {
+    const filtered = folders.filter((folder) => {
+      const matchesScope = isSharedScope
+        ? folder.isShared
+        : (!folder.isShared && folder.ownerId === currentOwnerId);
+      if (!matchesScope) return false;
       if (searchQuery.trim()) {
-        const matchesScope = isSharedScope ? folder.isShared : (!folder.isShared && folder.ownerId === currentUser?.id);
-        const matchesSearch = folder.name.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesScope && matchesSearch;
+        return folder.name.toLowerCase().includes(searchQuery.toLowerCase());
       }
-      if (isSharedScope) {
-        return folder.isShared && folder.parentId === currentFolderId;
-      } else {
-        const isOwner = folder.ownerId === (currentUser?.id || 'guest');
-        return !folder.isShared && isOwner && folder.parentId === currentFolderId;
+      return folder.parentId === currentFolderId;
+    });
+
+    const factor = sortDirection === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return factor * germanCollator.compare(a.name, b.name);
+        case 'type':
+          return factor * germanCollator.compare(a.subject || 'Ordner', b.subject || 'Ordner');
+        case 'size': {
+          const sizeA = folderStatsMap.get(a.id)?.totalBytes || 0;
+          const sizeB = folderStatsMap.get(b.id)?.totalBytes || 0;
+          return factor * (sizeA - sizeB) || germanCollator.compare(a.name, b.name);
+        }
+        case 'owner':
+          return factor * germanCollator.compare(a.ownerName || '', b.ownerName || '');
+        case 'date': {
+          const dateA = a.updatedAt || a.createdAt || 0;
+          const dateB = b.updatedAt || b.createdAt || 0;
+          return factor * (dateA - dateB);
+        }
       }
     });
-  }, [folders, isSharedScope, currentFolderId, searchQuery, currentUser]);
+  }, [folders, isSharedScope, currentFolderId, searchQuery, currentOwnerId, sortKey, sortDirection, folderStatsMap]);
 
-  // Filter files for current view
+  // Filter & sort files for current view
   const visibleFiles = useMemo(() => {
-    return files.filter((file) => {
-      // Scope Check
-      const matchesScope = isSharedScope 
-        ? file.isShared 
-        : (!file.isShared && file.ownerId === (currentUser?.id || 'guest'));
+    const filtered = files.filter((file) => {
+      const matchesScope = isSharedScope
+        ? file.isShared
+        : (!file.isShared && file.ownerId === currentOwnerId);
       if (!matchesScope) return false;
 
-      // Subject filter
       if (subjectFilter !== 'all' && file.subject !== subjectFilter) {
         return false;
       }
 
-      // Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         return (
@@ -165,10 +299,85 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
         );
       }
 
-      // Hierarchy (only show files inside the current folder)
       return file.folderId === currentFolderId;
     });
-  }, [files, isSharedScope, currentFolderId, searchQuery, subjectFilter, currentUser]);
+
+    const factor = sortDirection === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return factor * germanCollator.compare(a.name, b.name);
+        case 'type': {
+          const typeA = `${a.fileExtension || ''} ${a.subject || ''}`.trim();
+          const typeB = `${b.fileExtension || ''} ${b.subject || ''}`.trim();
+          return factor * germanCollator.compare(typeA, typeB) || germanCollator.compare(a.name, b.name);
+        }
+        case 'size':
+          return factor * ((a.fileSize || 0) - (b.fileSize || 0)) || germanCollator.compare(a.name, b.name);
+        case 'owner':
+          return factor * germanCollator.compare(a.ownerName || '', b.ownerName || '');
+        case 'date': {
+          const dateA = a.updatedAt || a.createdAt || 0;
+          const dateB = b.updatedAt || b.createdAt || 0;
+          return factor * (dateA - dateB);
+        }
+      }
+    });
+  }, [files, isSharedScope, currentFolderId, searchQuery, subjectFilter, currentOwnerId, sortKey, sortDirection]);
+
+  // Combined Finder/Explorer list rows (either folders-first or mixed sorted together)
+  const finderListRows = useMemo(() => {
+    type ListRow =
+      | { kind: 'folder'; id: string; folder: StorageFolder; stats: { fileCount: number; subFolderCount: number; totalBytes: number } }
+      | { kind: 'file'; id: string; file: StorageFile };
+
+    const folderRows: ListRow[] = visibleFolders.map((folder) => ({
+      kind: 'folder',
+      id: `folder:${folder.id}`,
+      folder,
+      stats: folderStatsMap.get(folder.id) || { fileCount: 0, subFolderCount: 0, totalBytes: 0 }
+    }));
+
+    const fileRows: ListRow[] = visibleFiles.map((file) => ({
+      kind: 'file',
+      id: `file:${file.id}`,
+      file
+    }));
+
+    if (foldersFirst) {
+      return [...folderRows, ...fileRows];
+    }
+
+    const factor = sortDirection === 'asc' ? 1 : -1;
+    return [...folderRows, ...fileRows].sort((a, b) => {
+      const nameA = a.kind === 'folder' ? a.folder.name : a.file.name;
+      const nameB = b.kind === 'folder' ? b.folder.name : b.file.name;
+      switch (sortKey) {
+        case 'name':
+          return factor * germanCollator.compare(nameA, nameB);
+        case 'type': {
+          const tA = a.kind === 'folder' ? `Ordner ${a.folder.subject || ''}` : `${a.file.fileExtension} ${a.file.subject || ''}`;
+          const tB = b.kind === 'folder' ? `Ordner ${b.folder.subject || ''}` : `${b.file.fileExtension} ${b.file.subject || ''}`;
+          return factor * germanCollator.compare(tA, tB) || germanCollator.compare(nameA, nameB);
+        }
+        case 'size': {
+          const sA = a.kind === 'folder' ? a.stats.totalBytes : a.file.fileSize || 0;
+          const sB = b.kind === 'folder' ? b.stats.totalBytes : b.file.fileSize || 0;
+          return factor * (sA - sB) || germanCollator.compare(nameA, nameB);
+        }
+        case 'owner': {
+          const oA = a.kind === 'folder' ? a.folder.ownerName : a.file.ownerName;
+          const oB = b.kind === 'folder' ? b.folder.ownerName : b.file.ownerName;
+          return factor * germanCollator.compare(oA || '', oB || '');
+        }
+        case 'date': {
+          const dA = a.kind === 'folder' ? (a.folder.updatedAt || a.folder.createdAt) : (a.file.updatedAt || a.file.createdAt);
+          const dB = b.kind === 'folder' ? (b.folder.updatedAt || b.folder.createdAt) : (b.file.updatedAt || b.file.createdAt);
+          return factor * ((dA || 0) - (dB || 0));
+        }
+      }
+    });
+  }, [visibleFolders, visibleFiles, folderStatsMap, foldersFirst, sortKey, sortDirection]);
 
   // Quota Calculation (Total files across R2)
   const quotaInfo = useMemo(() => {
@@ -355,20 +564,74 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
     }
   };
 
-  // Share toggle (move between private and shared)
+  // Move / copy between personal storage and shared collegium area
   const handleToggleShare = async (file: StorageFile) => {
     try {
-      const newSharedState = !file.isShared;
-      await updateStorageFileRecord(file.id, {
-        isShared: newSharedState,
-        folderId: null // Reset to root of that scope
-      });
-      setNotification({
-        type: 'success',
-        message: newSharedState
-          ? `„${file.name}“ wurde in den Austauschbereich für alle freigegeben!`
-          : `„${file.name}“ wurde in Ihren persönlichen Bereich verschoben.`
-      });
+      if (file.isShared) {
+        const isOwnFile = file.ownerId === currentOwnerId;
+        if (isOwnFile) {
+          await updateStorageFileRecord(file.id, {
+            isShared: false,
+            folderId: null,
+            ownerId: currentOwnerId,
+            ownerName: currentOwnerName
+          });
+          setNotification({
+            type: 'success',
+            message: `„${file.name}“ wurde in Ihren persönlichen Bereich verschoben.`,
+            actionLabel: 'Zu Mein Speicher',
+            onAction: () => {
+              setActiveScope('personal');
+              setCurrentFolderId(null);
+              setNotification(null);
+            }
+          });
+        } else {
+          // Fremde/Admin-Datei aus dem Austausch -> Kopie unter eigener userId in Mein Speicher anlegen
+          await addStorageFileRecord({
+            name: file.name,
+            folderId: null,
+            isShared: false,
+            ownerId: currentOwnerId,
+            ownerName: currentOwnerName,
+            r2Key: file.r2Key,
+            fileSize: file.fileSize,
+            mimeType: file.mimeType,
+            fileExtension: file.fileExtension,
+            subject: file.subject,
+            grade: file.grade,
+            description: file.description,
+            tags: file.tags
+          });
+          setNotification({
+            type: 'success',
+            message: `„${file.name}“ in Ihren persönlichen Bereich übernommen (Original bleibt im Austausch).`,
+            actionLabel: 'Zu Mein Speicher',
+            onAction: () => {
+              setActiveScope('personal');
+              setCurrentFolderId(null);
+              setNotification(null);
+            }
+          });
+        }
+      } else {
+        await updateStorageFileRecord(file.id, {
+          isShared: true,
+          folderId: null,
+          ownerId: currentOwnerId,
+          ownerName: currentOwnerName
+        });
+        setNotification({
+          type: 'success',
+          message: `„${file.name}“ wurde in den Austauschbereich für alle freigegeben!`,
+          actionLabel: 'Zum Austausch',
+          onAction: () => {
+            setActiveScope('shared');
+            setCurrentFolderId(null);
+            setNotification(null);
+          }
+        });
+      }
     } catch (err: any) {
       setNotification({
         type: 'error',
@@ -377,12 +640,16 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
     }
   };
 
-  // Delete execution
+  // Delete execution (protects shared R2 blobs if another metadata record still references the key)
   const executeDelete = async () => {
     if (!deleteTarget) return;
     try {
       if (deleteTarget.type === 'file') {
-        if (deleteTarget.r2Key) {
+        const isR2KeyStillUsed = Boolean(
+          deleteTarget.r2Key &&
+          files.some((f) => f.id !== deleteTarget.id && f.r2Key === deleteTarget.r2Key)
+        );
+        if (deleteTarget.r2Key && !isR2KeyStillUsed) {
           await deleteFileFromR2(deleteTarget.r2Key);
         }
         await deleteStorageFileRecord(deleteTarget.id);
@@ -495,15 +762,24 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
       {/* Notification Toast */}
       {notification && (
         <div 
-          className={`fixed top-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-xl border text-sm font-bold flex items-center gap-2.5 animate-slideDown ${
+          className={`fixed top-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-xl border text-sm font-bold flex items-center gap-2.5 animate-slideDown max-w-md ${
             notification.type === 'success' 
               ? 'bg-emerald-600 text-white border-emerald-500' 
               : 'bg-rose-600 text-white border-rose-500'
           }`}
         >
-          {notification.type === 'success' ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-          <span>{notification.message}</span>
-          <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-75">
+          {notification.type === 'success' ? <Check className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
+          <span className="leading-snug">{notification.message}</span>
+          {notification.actionLabel && notification.onAction && (
+            <button
+              type="button"
+              onClick={notification.onAction}
+              className="px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-black whitespace-nowrap transition-colors shrink-0"
+            >
+              {notification.actionLabel}
+            </button>
+          )}
+          <button onClick={() => setNotification(null)} className="ml-1 hover:opacity-75 shrink-0" aria-label="Hinweis schließen">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -621,21 +897,22 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
             </div>
           </div>
 
-          {/* Search & Layout Toggle */}
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
+          {/* Search, Filter, Sort & Layout Toggle */}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+            <div className="relative flex-1 min-w-[180px] md:w-56">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Dateien durchsuchen..."
-                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-hbs-blue text-xs font-bold text-hbs-slate-dark placeholder-slate-400 bg-white"
+                className="w-full pl-9 pr-7 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-hbs-blue text-xs font-bold text-hbs-slate-dark placeholder-slate-400 bg-white"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  aria-label="Suche leeren"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -646,6 +923,7 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
             <select
               value={subjectFilter}
               onChange={(e) => setSubjectFilter(e.target.value)}
+              aria-label="Nach Fach filtern"
               className="px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-hbs-slate-dark bg-white focus:outline-none focus:ring-2 focus:ring-hbs-blue hidden sm:block"
             >
               <option value="all">Alle Fächer</option>
@@ -658,22 +936,74 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
               <option value="Allgemein">Allgemein</option>
             </select>
 
+            {/* Sortierung (auch in Kachelansicht nutzbar) */}
+            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-0.5">
+              <select
+                value={sortKey}
+                onChange={(e) => {
+                  const nextKey = e.target.value as StorageSortKey;
+                  setSortKey(nextKey);
+                  setSortAnnouncement(`Sortiert nach ${nextKey}`);
+                }}
+                aria-label="Sortierkriterium"
+                className="px-2 py-1 text-xs font-bold text-hbs-slate-dark bg-transparent focus:outline-none cursor-pointer"
+              >
+                <option value="name">Sortieren: Name</option>
+                <option value="date">Sortieren: Datum</option>
+                <option value="size">Sortieren: Größe</option>
+                <option value="type">Sortieren: Typ / Fach</option>
+                <option value="owner">Sortieren: Ersteller</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+                title={sortDirection === 'asc' ? 'Aufsteigend (klicken für absteigend)' : 'Absteigend (klicken für aufsteigend)'}
+                aria-label={sortDirection === 'asc' ? 'Sortierreihenfolge: aufsteigend' : 'Sortierreihenfolge: absteigend'}
+              >
+                {sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            {viewLayout === 'table' && (
+              <button
+                type="button"
+                onClick={() => setFoldersFirst((prev) => !prev)}
+                className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-colors flex items-center gap-1.5 ${
+                  foldersFirst
+                    ? 'bg-amber-50 border-amber-200 text-amber-800'
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+                title="Ordner in der Listenansicht immer oben halten (wie im Finder)"
+                aria-pressed={foldersFirst}
+              >
+                <Folder className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">Ordner oben</span>
+              </button>
+            )}
+
             <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
               <button
+                type="button"
                 onClick={() => setViewLayout('grid')}
                 className={`p-1.5 rounded-lg transition-all ${
                   viewLayout === 'grid' ? 'bg-white text-hbs-blue shadow-xs' : 'text-slate-500 hover:text-slate-700'
                 }`}
                 title="Kachelansicht"
+                aria-label="Kachelansicht"
+                aria-pressed={viewLayout === 'grid'}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
+                type="button"
                 onClick={() => setViewLayout('table')}
                 className={`p-1.5 rounded-lg transition-all ${
                   viewLayout === 'table' ? 'bg-white text-hbs-blue shadow-xs' : 'text-slate-500 hover:text-slate-700'
                 }`}
-                title="Listenansicht"
+                title="Finder-Listenansicht mit Sortierung"
+                aria-label="Finder-Listenansicht"
+                aria-pressed={viewLayout === 'table'}
               >
                 <List className="w-4 h-4" />
               </button>
@@ -734,304 +1064,590 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
           })}
         </div>
 
-        {/* 1. SECTION: FOLDERS */}
-        {visibleFolders.length > 0 && (
-          <div className="mb-8">
-            <h3 className="text-xs font-black uppercase tracking-wider text-hbs-slate-muted mb-3 flex items-center gap-2">
-              <FolderOpen className="w-3.5 h-3.5 text-hbs-blue" />
-              <span>Ordner ({visibleFolders.length})</span>
-            </h3>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
-              {visibleFolders.map((folder) => {
-                const childFileCount = files.filter((f) => f.folderId === folder.id).length;
-                return (
-                  <div
-                    key={folder.id}
-                    onClick={() => setCurrentFolderId(folder.id)}
-                    className="group relative p-4 rounded-2xl bg-white hover:bg-blue-50/50 border border-slate-200/80 hover:border-hbs-blue/40 shadow-xs hover:shadow-md transition-all duration-150 cursor-pointer flex flex-col justify-between"
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="w-10 h-10 rounded-xl bg-amber-50 group-hover:bg-amber-100 text-amber-500 flex items-center justify-center transition-all">
-                        <Folder className="w-5 h-5 fill-amber-500 text-amber-600" />
-                      </div>
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRenameTarget({ id: folder.id, type: 'folder', name: folder.name });
-                          }}
-                          className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700"
-                          title="Umbenennen"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteTarget({ id: folder.id, type: 'folder', name: folder.name });
-                          }}
-                          className="p-1 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600"
-                          title="Löschen"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-black text-hbs-slate-dark group-hover:text-hbs-blue truncate">
-                        {folder.name}
-                      </h4>
-                      <p className="text-[11px] text-hbs-slate-muted mt-0.5">
-                        {childFileCount} {childFileCount === 1 ? 'Datei' : 'Dateien'}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+        {viewLayout === 'table' ? (
+          /* UNIFIED FINDER / EXPLORER LIST VIEW (Folders + Files in one sortable table) */
+          <div>
+            <div role="status" className="sr-only">
+              {sortAnnouncement}
             </div>
-          </div>
-        )}
 
-        {/* 2. SECTION: FILES */}
-        <div>
-          <div className="flex items-center justify-between gap-4 mb-3">
-            <h3 className="text-xs font-black uppercase tracking-wider text-hbs-slate-muted flex items-center gap-2">
-              <FileText className="w-3.5 h-3.5 text-hbs-blue" />
-              <span>Dateien ({visibleFiles.length})</span>
-            </h3>
+            {finderListRows.length === 0 ? (
+              <div className="p-10 rounded-3xl bg-white/70 border border-dashed border-slate-300 text-center flex flex-col items-center justify-center">
+                <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+                  <Upload className="w-8 h-8" />
+                </div>
+                <h4 className="text-base font-black text-hbs-slate-dark">
+                  Noch keine Ordner oder Dateien in diesem Verzeichnis
+                </h4>
+                <p className="text-xs text-hbs-slate-muted mt-1 max-w-sm leading-relaxed">
+                  Ziehen Sie Arbeitsblätter, PDFs oder Unterrichtsmaterialien einfach per Drag & Drop hierher oder klicken Sie auf „Hochladen“.
+                </p>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-4 px-4 py-2 rounded-xl bg-hbs-blue text-white text-xs font-black shadow-xs hover:bg-hbs-blue-deep transition-all active:scale-95"
+                >
+                  Erste Datei hochladen
+                </button>
+              </div>
+            ) : (
+              <div
+                role="region"
+                aria-labelledby="finder-table-caption"
+                tabIndex={0}
+                className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-x-auto focus:outline-none focus:ring-2 focus:ring-hbs-blue/30"
+              >
+                <table className="w-full min-w-[680px] text-left text-xs border-collapse">
+                  <caption id="finder-table-caption" className="sr-only">
+                    Dateien und Ordner im aktuellen Verzeichnis ({finderListRows.length} Einträge)
+                  </caption>
+                  <thead className="bg-slate-50 border-b border-slate-200 text-hbs-slate-muted font-black uppercase tracking-wider sticky top-0 z-10">
+                    <tr>
+                      <th
+                        scope="col"
+                        aria-sort={sortKey === 'name' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                        className="p-0"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSortColumn('name')}
+                          className="w-full py-3 px-4 flex items-center gap-1.5 text-left hover:text-hbs-blue hover:bg-slate-100/70 transition-colors focus-visible:outline-2 focus-visible:outline-hbs-blue"
+                        >
+                          <span>Name</span>
+                          <span aria-hidden="true" className="text-slate-400">
+                            {sortKey === 'name' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-hbs-blue" /> : <ArrowDown className="w-3.5 h-3.5 text-hbs-blue" />
+                            ) : (
+                              <ArrowUpDown className="w-3.5 h-3.5 opacity-60" />
+                            )}
+                          </span>
+                        </button>
+                      </th>
+                      <th
+                        scope="col"
+                        aria-sort={sortKey === 'type' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                        className="p-0 hidden sm:table-cell"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSortColumn('type')}
+                          className="w-full py-3 px-4 flex items-center gap-1.5 text-left hover:text-hbs-blue hover:bg-slate-100/70 transition-colors focus-visible:outline-2 focus-visible:outline-hbs-blue"
+                        >
+                          <span>Typ / Fach</span>
+                          <span aria-hidden="true" className="text-slate-400">
+                            {sortKey === 'type' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-hbs-blue" /> : <ArrowDown className="w-3.5 h-3.5 text-hbs-blue" />
+                            ) : (
+                              <ArrowUpDown className="w-3.5 h-3.5 opacity-60" />
+                            )}
+                          </span>
+                        </button>
+                      </th>
+                      <th
+                        scope="col"
+                        aria-sort={sortKey === 'size' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                        className="p-0 hidden sm:table-cell"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSortColumn('size')}
+                          className="w-full py-3 px-4 flex items-center gap-1.5 text-left hover:text-hbs-blue hover:bg-slate-100/70 transition-colors focus-visible:outline-2 focus-visible:outline-hbs-blue"
+                        >
+                          <span>Größe / Inhalt</span>
+                          <span aria-hidden="true" className="text-slate-400">
+                            {sortKey === 'size' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-hbs-blue" /> : <ArrowDown className="w-3.5 h-3.5 text-hbs-blue" />
+                            ) : (
+                              <ArrowUpDown className="w-3.5 h-3.5 opacity-60" />
+                            )}
+                          </span>
+                        </button>
+                      </th>
+                      <th
+                        scope="col"
+                        aria-sort={sortKey === 'owner' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                        className="p-0 hidden md:table-cell"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSortColumn('owner')}
+                          className="w-full py-3 px-4 flex items-center gap-1.5 text-left hover:text-hbs-blue hover:bg-slate-100/70 transition-colors focus-visible:outline-2 focus-visible:outline-hbs-blue"
+                        >
+                          <span>Erstellt von</span>
+                          <span aria-hidden="true" className="text-slate-400">
+                            {sortKey === 'owner' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-hbs-blue" /> : <ArrowDown className="w-3.5 h-3.5 text-hbs-blue" />
+                            ) : (
+                              <ArrowUpDown className="w-3.5 h-3.5 opacity-60" />
+                            )}
+                          </span>
+                        </button>
+                      </th>
+                      <th
+                        scope="col"
+                        aria-sort={sortKey === 'date' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                        className="p-0 hidden lg:table-cell"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSortColumn('date')}
+                          className="w-full py-3 px-4 flex items-center gap-1.5 text-left hover:text-hbs-blue hover:bg-slate-100/70 transition-colors focus-visible:outline-2 focus-visible:outline-hbs-blue"
+                        >
+                          <span>Geändert</span>
+                          <span aria-hidden="true" className="text-slate-400">
+                            {sortKey === 'date' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-hbs-blue" /> : <ArrowDown className="w-3.5 h-3.5 text-hbs-blue" />
+                            ) : (
+                              <ArrowUpDown className="w-3.5 h-3.5 opacity-60" />
+                            )}
+                          </span>
+                        </button>
+                      </th>
+                      <th scope="col" className="py-3 px-4 text-right">
+                        Aktionen
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-bold">
+                    {finderListRows.map((row) => {
+                      if (row.kind === 'folder') {
+                        const { folder, stats } = row;
+                        return (
+                          <tr
+                            key={row.id}
+                            className="hover:bg-amber-50/40 transition-colors group"
+                          >
+                            <td className="py-2.5 px-4">
+                              <button
+                                type="button"
+                                onClick={() => setCurrentFolderId(folder.id)}
+                                className="flex items-center gap-3 text-left w-full group-hover:text-hbs-blue focus-visible:outline-2 focus-visible:outline-hbs-blue rounded-lg"
+                              >
+                                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0 border border-amber-200/70">
+                                  <Folder className="w-4.5 h-4.5 fill-amber-500 text-amber-600" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-black text-hbs-slate-dark group-hover:text-hbs-blue truncate max-w-[220px] sm:max-w-md">
+                                    {folder.name}
+                                  </p>
+                                  <span className="sm:hidden text-[10px] text-hbs-slate-muted block">
+                                    Ordner • {stats.fileCount} {stats.fileCount === 1 ? 'Datei' : 'Dateien'}
+                                    {stats.subFolderCount > 0 ? ` • ${stats.subFolderCount} Ordner` : ''}
+                                  </span>
+                                </div>
+                              </button>
+                            </td>
+                            <td className="py-2.5 px-4 text-hbs-slate-muted hidden sm:table-cell">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/70 text-[10px] font-black">
+                                Ordner{folder.subject ? ` • ${folder.subject}` : ''}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-4 text-hbs-slate-muted hidden sm:table-cell tabular-nums">
+                              <span>
+                                {stats.fileCount} {stats.fileCount === 1 ? 'Datei' : 'Dateien'}
+                                {stats.subFolderCount > 0 ? ` (${stats.subFolderCount} Unterordner)` : ''}
+                              </span>
+                              {stats.totalBytes > 0 && (
+                                <span className="block text-[10px] text-slate-400">
+                                  {formatFileSize(stats.totalBytes)}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-4 text-hbs-slate-muted hidden md:table-cell">
+                              {folder.ownerName}
+                            </td>
+                            <td className="py-2.5 px-4 text-hbs-slate-muted hidden lg:table-cell tabular-nums">
+                              {formatDate(folder.updatedAt || folder.createdAt)}
+                            </td>
+                            <td className="py-2.5 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setCurrentFolderId(folder.id)}
+                                  className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-hbs-blue-soft text-slate-700 hover:text-hbs-blue text-[11px] font-bold transition-colors"
+                                  title="Ordner öffnen"
+                                >
+                                  Öffnen
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setRenameTarget({ id: folder.id, type: 'folder', name: folder.name })}
+                                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+                                  title="Ordner umbenennen"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteTarget({ id: folder.id, type: 'folder', name: folder.name })}
+                                  className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600"
+                                  title="Ordner löschen"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
 
-            {visibleFiles.length > 0 && (
-              <span className="text-[11px] text-hbs-slate-muted">
-                Tipp: Mit ⚡ direkt als Quiz für den Kahoot-Nachbau nutzen
-              </span>
+                      const { file } = row;
+                      const isOwnShared = file.isShared && file.ownerId === currentOwnerId;
+                      return (
+                        <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-2.5 px-4">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPreview(file)}
+                              className="flex items-center gap-3 text-left w-full group focus-visible:outline-2 focus-visible:outline-hbs-blue rounded-lg"
+                            >
+                              {renderFileIcon(file.fileExtension)}
+                              <div className="min-w-0">
+                                <p className="text-sm font-black text-hbs-slate-dark group-hover:text-hbs-blue truncate max-w-[220px] sm:max-w-md">
+                                  {file.name}
+                                </p>
+                                <span className="sm:hidden text-[10px] text-hbs-slate-muted block">
+                                  {file.fileExtension.toUpperCase()} • {formatFileSize(file.fileSize)} • {file.ownerName}
+                                </span>
+                              </div>
+                            </button>
+                          </td>
+                          <td className="py-2.5 px-4 text-hbs-slate-muted hidden sm:table-cell">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black uppercase">
+                                {file.fileExtension}
+                              </span>
+                              {file.subject && (
+                                <span className="text-[11px] font-semibold text-hbs-slate-muted">
+                                  {file.subject}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-4 text-hbs-slate-muted hidden sm:table-cell tabular-nums">
+                            {formatFileSize(file.fileSize)}
+                          </td>
+                          <td className="py-2.5 px-4 text-hbs-slate-muted hidden md:table-cell">
+                            {file.ownerName}
+                          </td>
+                          <td className="py-2.5 px-4 text-hbs-slate-muted hidden lg:table-cell tabular-nums">
+                            {formatDate(file.updatedAt || file.createdAt)}
+                          </td>
+                          <td className="py-2.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPreview(file)}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-hbs-blue"
+                                title="Vorschau / Öffnen"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDownload(file)}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-hbs-blue"
+                                title="Herunterladen"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                              {onOpenInKahoot && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCreateKahootFromMaterial(file)}
+                                  className="p-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100"
+                                  title="Als Kahoot-Quiz erstellen"
+                                >
+                                  <Sparkles className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenInUnterrichtsbaukasten(file)}
+                                className="p-1.5 rounded-lg bg-blue-50 text-hbs-blue hover:bg-blue-100"
+                                title="Im Unterrichtsbaukasten nutzen"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </button>
+                              {onOpenInBoard && ['pdf', 'png', 'jpg', 'jpeg'].includes(file.fileExtension.toLowerCase()) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDisplayOnBoard(file)}
+                                  className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                                  title="Auf der Schultafel anzeigen"
+                                >
+                                  <Presentation className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleToggleShare(file)}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-purple-600"
+                                title={
+                                  file.isShared
+                                    ? (isOwnShared ? 'Zurück in Mein Speicher verschieben' : 'In Mein Speicher übernehmen')
+                                    : 'In Kollegiums-Austausch teilen'
+                                }
+                              >
+                                {file.isShared ? <FolderInput className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRenameTarget({ id: file.id, type: 'file', name: file.name })}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+                                title="Umbenennen"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteTarget({ id: file.id, type: 'file', name: file.name, r2Key: file.r2Key })}
+                                className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600"
+                                title="Löschen"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
+        ) : (
+          /* GRID VIEW (Folders section + Files section) */
+          <>
+            {/* 1. SECTION: FOLDERS */}
+            {visibleFolders.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-xs font-black uppercase tracking-wider text-hbs-slate-muted mb-3 flex items-center gap-2">
+                  <FolderOpen className="w-3.5 h-3.5 text-hbs-blue" />
+                  <span>Ordner ({visibleFolders.length})</span>
+                </h3>
 
-          {visibleFiles.length === 0 ? (
-            <div className="p-10 rounded-3xl bg-white/70 border border-dashed border-slate-300 text-center flex flex-col items-center justify-center">
-              <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
-                <Upload className="w-8 h-8" />
-              </div>
-              <h4 className="text-base font-black text-hbs-slate-dark">
-                Noch keine Dateien in diesem Verzeichnis
-              </h4>
-              <p className="text-xs text-hbs-slate-muted mt-1 max-w-sm leading-relaxed">
-                Ziehen Sie Arbeitsblätter, PDFs oder Unterrichtsmaterialien einfach per Drag & Drop hierher oder klicken Sie auf „Hochladen“.
-              </p>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-4 px-4 py-2 rounded-xl bg-hbs-blue text-white text-xs font-black shadow-xs hover:bg-hbs-blue-deep transition-all active:scale-95"
-              >
-                Erste Datei hochladen
-              </button>
-            </div>
-          ) : viewLayout === 'grid' ? (
-            /* GRID VIEW */
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {visibleFiles.map((file) => (
-                <div
-                  key={file.id}
-                  className="group relative p-4 rounded-3xl bg-white border border-slate-200/80 hover:border-hbs-blue/40 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between"
-                >
-                  {/* Top Header of Card */}
-                  <div>
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      {renderFileIcon(file.fileExtension)}
-                      
-                      {/* Badge: Shared vs Personal */}
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                        file.isShared 
-                          ? 'bg-purple-100 text-purple-700' 
-                          : 'bg-blue-100 text-hbs-blue'
-                      }`}>
-                        {file.isShared ? 'Austausch' : 'Mein'}
-                      </span>
-                    </div>
-
-                    <h4 
-                      onClick={() => handleOpenPreview(file)}
-                      className="text-sm font-black text-hbs-slate-dark group-hover:text-hbs-blue cursor-pointer truncate transition-colors"
-                      title={file.name}
-                    >
-                      {file.name}
-                    </h4>
-
-                    <div className="flex items-center gap-2 mt-1 text-[11px] text-hbs-slate-muted">
-                      <span>{formatFileSize(file.fileSize)}</span>
-                      <span>•</span>
-                      <span>{file.ownerName}</span>
-                    </div>
-                  </div>
-
-                  {/* Quick Action Dock on File Card */}
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-1">
-                    
-                    <div className="flex items-center gap-1">
-                      {/* Preview Button */}
-                      <button
-                        onClick={() => handleOpenPreview(file)}
-                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-hbs-blue transition-all"
-                        title="Vorschau / Öffnen"
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+                  {visibleFolders.map((folder) => {
+                    const stats = folderStatsMap.get(folder.id) || { fileCount: 0, subFolderCount: 0, totalBytes: 0 };
+                    return (
+                      <div
+                        key={folder.id}
+                        onClick={() => setCurrentFolderId(folder.id)}
+                        className="group relative p-4 rounded-2xl bg-white hover:bg-blue-50/50 border border-slate-200/80 hover:border-hbs-blue/40 shadow-xs hover:shadow-md transition-all duration-150 cursor-pointer flex flex-col justify-between"
                       >
-                        <Eye className="w-4 h-4" />
-                      </button>
-
-                      {/* Download Button */}
-                      <button
-                        onClick={() => handleDownload(file)}
-                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-hbs-blue transition-all"
-                        title="Herunterladen"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
-
-                      {/* Direct to Kahoot AI Generator */}
-                      {onOpenInKahoot && (
-                        <button
-                          onClick={() => handleCreateKahootFromMaterial(file)}
-                          className="p-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 transition-all active:scale-95"
-                          title="Als Kahoot-Quiz erstellen"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                        </button>
-                      )}
-
-                      {/* Direct to Unterrichtsbaukasten */}
-                      <button
-                        onClick={() => handleOpenInUnterrichtsbaukasten(file)}
-                        className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-hbs-blue transition-all active:scale-95"
-                        title="Im Unterrichtsbaukasten nutzen"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </button>
-
-                      {/* Direct to Blackboard */}
-                      {onOpenInBoard && ['pdf', 'png', 'jpg', 'jpeg'].includes(file.fileExtension.toLowerCase()) && (
-                        <button
-                          onClick={() => handleDisplayOnBoard(file)}
-                          className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-all active:scale-95"
-                          title="Auf der Schultafel anzeigen"
-                        >
-                          <Presentation className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      {/* Share toggle */}
-                      <button
-                        onClick={() => handleToggleShare(file)}
-                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-purple-600 transition-all"
-                        title={file.isShared ? 'Zurück in persönlichen Bereich' : 'In Austauschbereich teilen'}
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </button>
-
-                      {/* Delete */}
-                      <button
-                        onClick={() => setDeleteTarget({ id: file.id, type: 'file', name: file.name, r2Key: file.r2Key })}
-                        className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all"
-                        title="Löschen"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            /* TABLE / LIST VIEW */
-            <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-hbs-slate-muted font-black uppercase tracking-wider">
-                  <tr>
-                    <th className="py-3 px-4">Name</th>
-                    <th className="py-3 px-4 hidden sm:table-cell">Größe</th>
-                    <th className="py-3 px-4 hidden md:table-cell">Erstellt von</th>
-                    <th className="py-3 px-4 hidden lg:table-cell">Datum</th>
-                    <th className="py-3 px-4 text-right">Aktionen</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-bold">
-                  {visibleFiles.map((file) => (
-                    <tr key={file.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-4">
-                        <div 
-                          onClick={() => handleOpenPreview(file)}
-                          className="flex items-center gap-3 cursor-pointer group"
-                        >
-                          {renderFileIcon(file.fileExtension)}
-                          <div>
-                            <p className="text-sm font-black text-hbs-slate-dark group-hover:text-hbs-blue truncate max-w-xs sm:max-w-md">
-                              {file.name}
-                            </p>
-                            <span className="sm:hidden text-[10px] text-hbs-slate-muted">
-                              {formatFileSize(file.fileSize)} • {file.ownerName}
-                            </span>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="w-10 h-10 rounded-xl bg-amber-50 group-hover:bg-amber-100 text-amber-500 flex items-center justify-center transition-all">
+                            <Folder className="w-5 h-5 fill-amber-500 text-amber-600" />
+                          </div>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenameTarget({ id: folder.id, type: 'folder', name: folder.name });
+                              }}
+                              className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+                              title="Umbenennen"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteTarget({ id: folder.id, type: 'folder', name: folder.name });
+                              }}
+                              className="p-1 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600"
+                              title="Löschen"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
-                      </td>
-                      <td className="py-3 px-4 text-hbs-slate-muted hidden sm:table-cell">
-                        {formatFileSize(file.fileSize)}
-                      </td>
-                      <td className="py-3 px-4 text-hbs-slate-muted hidden md:table-cell">
-                        {file.ownerName}
-                      </td>
-                      <td className="py-3 px-4 text-hbs-slate-muted hidden lg:table-cell">
-                        {formatDate(file.createdAt)}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => handleOpenPreview(file)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-hbs-blue"
-                            title="Vorschau"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDownload(file)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-hbs-blue"
-                            title="Download"
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
-                          {onOpenInKahoot && (
-                            <button
-                              onClick={() => handleCreateKahootFromMaterial(file)}
-                              className="p-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100"
-                              title="Als Kahoot-Quiz"
-                            >
-                              <Sparkles className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleOpenInUnterrichtsbaukasten(file)}
-                            className="p-1.5 rounded-lg bg-blue-50 text-hbs-blue hover:bg-blue-100"
-                            title="Im Baukasten"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget({ id: file.id, type: 'file', name: file.name, r2Key: file.r2Key })}
-                            className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600"
-                            title="Löschen"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+
+                        <div>
+                          <h4 className="text-sm font-black text-hbs-slate-dark group-hover:text-hbs-blue truncate">
+                            {folder.name}
+                          </h4>
+                          <p className="text-[11px] text-hbs-slate-muted mt-0.5">
+                            {stats.fileCount} {stats.fileCount === 1 ? 'Datei' : 'Dateien'}
+                            {stats.subFolderCount > 0 ? ` • ${stats.subFolderCount} Ordner` : ''}
+                          </p>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 2. SECTION: FILES */}
+            <div>
+              <div className="flex items-center justify-between gap-4 mb-3">
+                <h3 className="text-xs font-black uppercase tracking-wider text-hbs-slate-muted flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 text-hbs-blue" />
+                  <span>Dateien ({visibleFiles.length})</span>
+                </h3>
+
+                {visibleFiles.length > 0 && (
+                  <span className="text-[11px] text-hbs-slate-muted">
+                    Tipp: Mit ✨ direkt als Quiz für den Kahoot-Nachbau nutzen
+                  </span>
+                )}
+              </div>
+
+              {visibleFiles.length === 0 ? (
+                <div className="p-10 rounded-3xl bg-white/70 border border-dashed border-slate-300 text-center flex flex-col items-center justify-center">
+                  <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+                    <Upload className="w-8 h-8" />
+                  </div>
+                  <h4 className="text-base font-black text-hbs-slate-dark">
+                    Noch keine Dateien in diesem Verzeichnis
+                  </h4>
+                  <p className="text-xs text-hbs-slate-muted mt-1 max-w-sm leading-relaxed">
+                    Ziehen Sie Arbeitsblätter, PDFs oder Unterrichtsmaterialien einfach per Drag & Drop hierher oder klicken Sie auf „Hochladen“.
+                  </p>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mt-4 px-4 py-2 rounded-xl bg-hbs-blue text-white text-xs font-black shadow-xs hover:bg-hbs-blue-deep transition-all active:scale-95"
+                  >
+                    Erste Datei hochladen
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {visibleFiles.map((file) => {
+                    const isOwnShared = file.isShared && file.ownerId === currentOwnerId;
+                    return (
+                      <div
+                        key={file.id}
+                        className="group relative p-4 rounded-3xl bg-white border border-slate-200/80 hover:border-hbs-blue/40 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between"
+                      >
+                        {/* Top Header of Card */}
+                        <div>
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            {renderFileIcon(file.fileExtension)}
+                            
+                            {/* Badge: Shared vs Personal */}
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                              file.isShared 
+                                ? 'bg-purple-100 text-purple-700' 
+                                : 'bg-blue-100 text-hbs-blue'
+                            }`}>
+                              {file.isShared ? 'Austausch' : 'Mein'}
+                            </span>
+                          </div>
+
+                          <h4 
+                            onClick={() => handleOpenPreview(file)}
+                            className="text-sm font-black text-hbs-slate-dark group-hover:text-hbs-blue cursor-pointer truncate transition-colors"
+                            title={file.name}
+                          >
+                            {file.name}
+                          </h4>
+
+                          <div className="flex items-center gap-2 mt-1 text-[11px] text-hbs-slate-muted">
+                            <span>{formatFileSize(file.fileSize)}</span>
+                            <span>•</span>
+                            <span className="truncate">{file.ownerName}</span>
+                          </div>
+                        </div>
+
+                        {/* Quick Action Dock on File Card */}
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-1">
+                          
+                          <div className="flex items-center gap-1">
+                            {/* Preview Button */}
+                            <button
+                              onClick={() => handleOpenPreview(file)}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-hbs-blue transition-all"
+                              title="Vorschau / Öffnen"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+
+                            {/* Download Button */}
+                            <button
+                              onClick={() => handleDownload(file)}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-hbs-blue transition-all"
+                              title="Herunterladen"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+
+                            {/* Direct to Kahoot AI Generator */}
+                            {onOpenInKahoot && (
+                              <button
+                                onClick={() => handleCreateKahootFromMaterial(file)}
+                                className="p-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 transition-all active:scale-95"
+                                title="Als Kahoot-Quiz erstellen"
+                              >
+                                <Sparkles className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            {/* Direct to Unterrichtsbaukasten */}
+                            <button
+                              onClick={() => handleOpenInUnterrichtsbaukasten(file)}
+                              className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-hbs-blue transition-all active:scale-95"
+                              title="Im Unterrichtsbaukasten nutzen"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </button>
+
+                            {/* Direct to Blackboard */}
+                            {onOpenInBoard && ['pdf', 'png', 'jpg', 'jpeg'].includes(file.fileExtension.toLowerCase()) && (
+                              <button
+                                onClick={() => handleDisplayOnBoard(file)}
+                                className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-all active:scale-95"
+                                title="Auf der Schultafel anzeigen"
+                              >
+                                <Presentation className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {/* Share / Move to personal toggle */}
+                            <button
+                              onClick={() => handleToggleShare(file)}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-purple-600 transition-all"
+                              title={
+                                file.isShared
+                                  ? (isOwnShared ? 'Zurück in Mein Speicher verschieben' : 'In Mein Speicher übernehmen')
+                                  : 'In Austauschbereich teilen'
+                              }
+                            >
+                              {file.isShared ? <FolderInput className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                            </button>
+
+                            {/* Rename */}
+                            <button
+                              onClick={() => setRenameTarget({ id: file.id, type: 'file', name: file.name })}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"
+                              title="Umbenennen"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+
+                            {/* Delete */}
+                            <button
+                              onClick={() => setDeleteTarget({ id: file.id, type: 'file', name: file.name, r2Key: file.r2Key })}
+                              className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all"
+                              title="Löschen"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
 
       </main>
 
@@ -1077,6 +1693,16 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
             <p className="text-xs text-hbs-slate-muted mt-1 leading-relaxed">
               Möchten Sie „{deleteTarget.name}“ wirklich unwiderruflich aus Cloudflare R2 und der Ablage entfernen?
             </p>
+            {deleteTarget.type === 'folder' && (() => {
+              const stats = folderStatsMap.get(deleteTarget.id);
+              if (!stats || (stats.fileCount === 0 && stats.subFolderCount === 0)) return null;
+              return (
+                <p className="mt-2.5 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-900">
+                  Hinweis: Dieser Ordner enthält noch {stats.fileCount} {stats.fileCount === 1 ? 'Datei' : 'Dateien'}
+                  {stats.subFolderCount > 0 ? ` und ${stats.subFolderCount} Unterordner` : ''}.
+                </p>
+              );
+            })()}
             <div className="mt-5 flex items-center justify-center gap-2">
               <button
                 onClick={() => setDeleteTarget(null)}

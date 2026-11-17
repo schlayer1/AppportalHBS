@@ -331,7 +331,7 @@ export async function addStorageFileRecord(
  */
 export async function updateStorageFileRecord(
   id: string,
-  updates: Partial<Pick<StorageFile, 'name' | 'folderId' | 'isShared' | 'subject' | 'grade' | 'description' | 'tags'>>
+  updates: Partial<Pick<StorageFile, 'name' | 'folderId' | 'isShared' | 'ownerId' | 'ownerName' | 'subject' | 'grade' | 'description' | 'tags'>>
 ): Promise<void> {
   if (db) {
     const docRef = doc(db, FILES_COLLECTION, id);
