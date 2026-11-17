@@ -23,7 +23,8 @@ import {
   Crown,
   Users,
   Wrench,
-  Brain
+  Brain,
+  Scale
 } from 'lucide-react';
 
 interface AnimatedAppIconProps {
@@ -224,6 +225,14 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
       <div className="relative flex items-center justify-center group/icon">
         <Brain className={`${className} transition-transform duration-500 group-hover/icon:scale-115`} size={size} />
         <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-300 animate-ping" />
+      </div>
+    );
+  }
+
+  if (iconName === 'Scale') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Scale className={`${className} transition-transform duration-300 group-hover/icon:scale-110 group-hover/icon:-rotate-6 text-sky-600`} size={size} />
       </div>
     );
   }

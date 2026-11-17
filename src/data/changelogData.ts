@@ -2,10 +2,40 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '3.3.0',
+    title: 'HBS Schulalmanach im Portal integriert: 61 Volltexte, echte KI-Embeddingsuche & Themenübersicht',
+    date: '17. November 2026',
+    isLatest: true,
+    highlight: 'Neues Flaggschiff-Werkzeug für das Kollegium: Der HBS Schulalmanach (https://hbsschulalmanach.vercel.app/) ist ab sofort fest im App-Portal unter „Lehrerzimmer & Kollegium“ und „Schulverwaltung & Organisation“ verlinkt. Über eine echte semantische KI-Embeddingsuche (gemini-embedding-001, 768 Dimensionen) lassen sich 61 vollständige Thüringer Rechtsvorschriften und schulinterne HBS-Konzepte (3.025 Abschnitte) in natürlicher Alltagssprache durchsuchen – inklusive Doppel-Verlinkung direkt ins Dokument und ins Thüringer Landesrecht.',
+    items: [
+      {
+        id: 'cl-330-1',
+        type: 'neu',
+        title: 'HBS Schulalmanach im App-Portal verankert (Kollegium & Verwaltung)',
+        description: 'Direktstart des HBS Schulalmanachs unter https://hbsschulalmanach.vercel.app/ mit komplettem Volltext-Korpus aus ThürSchulG, ThürSchulO (ab 01.08.2025), DienstO-L, VVOrg 2026/27, RiSU (KMK), VV Wandertage & Klassenfahrten, Dienstanweisung Gewalt & Kinderschutz, Nachteilsausgleich, Schulkonten sowie HBS-Schutzkonzept, Konzeptpapier und Hausordnung.',
+        badge: 'Neue App'
+      },
+      {
+        id: 'cl-330-2',
+        type: 'neu',
+        title: 'Echte Alltagssprache-Embeddingsuche (gemini-embedding-001) + Sofort-Modus',
+        description: 'Kolleginnen und Kollegen können Fragen völlig frei in Alltagssprache formulieren, ohne Paragraphennummern zu kennen. Neben der 3-Stufen-KI-Auswertung steht der Modus „Nur Embeddingsuche (Sofort)“ bereit, der die Top-10-Originalfundstellen mit Relevanzwert in Sekundenbruchteilen anzeigt.',
+        badge: 'KI-Embeddingsuche'
+      },
+      {
+        id: 'cl-330-3',
+        type: 'neu',
+        title: 'Doppel-Verlinkung (Im Dokument & Online-Referenz) + Kompakte Themenübersicht',
+        description: 'Jeder Treffer bietet einen Klick in den In-App-Reader (mit Vorheriger-/Nächster-Abschnittsnavigation und Seitenzahl) sowie den direkten Deep-Link ins Thüringer Landesrecht bzw. offizielle Portal. Eine neue Startseiten-Übersicht und der nach 8 Themen gruppierte Gesetzeskatalog machen alle 61 Dokumente sofort transparent.',
+        badge: 'Verlinkung & Katalog'
+      }
+    ]
+  },
+  {
     version: '3.2.0',
     title: 'HBS Oncoo 2.0: Placemat-Gruppenkonsens, Smartboard Touch-Kartenabfrage, dynamische Zielscheiben (2–10) & Helfersystem',
     date: '9. November 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Großes Interaktions-Update für das kooperative Lernmethoden-Modul HBS Oncoo: Schülerinnen und Schüler können den Gruppenkonsens in der Placemat-Methode ab sofort direkt vom Handy/Tablet formulieren und an die Tafel übertragen. Die Kartenabfrage startet nun standardmäßig als offene, touch-optimierte Pinnwand (Pointer Events) mit automatischer Einrast-Funktion für frei definierbare Spalten. Die Zielscheibe unterstützt flexible Skalen von 2 bis 10 Ringen mit bis zu 6 frei benennbaren Kriterien, das Helfersystem erlaubt konkrete Aufgabenstellungen/Stationen und die Teilnehmerzählung wurde präzisiert.',
     items: [
       {

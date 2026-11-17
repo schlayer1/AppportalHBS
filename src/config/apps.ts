@@ -241,6 +241,29 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
+    id: "hbs-schulalmanach",
+    title: "HBS Schulalmanach (Schulrecht & KI-Suche)",
+    shortTitle: "Schulalmanach",
+    subtitle: "61 Volltexte, KI-Embeddingsuche & Online-Referenzen",
+    description: "Die digitale Rechts- und Wissensdatenbank für das Kollegium der Heimbürgeschule Kahla: Durchsucht 61 vollständige Thüringer Rechtsvorschriften und schulinterne Dokumente (3.025 Abschnitte – u. a. ThürSchulG, ThürSchulO, DienstO-L, VVOrg 2026/27, RiSU, VV Wandertage & Klassenfahrten, Dienstanweisung Gewalt/Kinderschutz, Nachteilsausgleich, Schulkonten sowie HBS-Schutzkonzept & Hausordnung) in natürlicher Alltagssprache per gemini-embedding-001. Mit 3-Stufen-KI-Antwort, sofortiger Dokument-Embeddingsuche, In-App-Reader (Vorheriger/Nächster Abschnitt) und direkten Deep-Links ins Thüringer Landesrecht.",
+    url: "https://hbsschulalmanach.vercel.app/",
+    category: "kollegium",
+    categories: ["kollegium", "verwaltung"],
+    badge: "Neu: 61 Dokumente & KI",
+    badgeColor: "blue",
+    icon: "Scale",
+    tags: ["Schulrecht", "ThürSchulG", "ThürSchulO", "VVOrg", "RiSU", "Kinderschutz", "DienstO-L", "Embeddingsuche", "HBS Intern", "Offline-PWA"],
+    isFeaturedStudentQr: false,
+    offlineReady: true,
+    privacyBadge: "100% DSGVO & Ohne Login",
+    pedagogicalValue: "Gibt Lehrkräften und Schulleitung im Schulalltag sofortige rechtliche Handlungssicherheit – mit verifizierten Originalzitaten, Seitenangaben und direkten Landesrecht-Links ohne Suchen in PDF-Ordnern.",
+    quickGuide: [
+      "Frage in normaler Alltagssprache stellen (z. B. 'Schüler schlägt auf Schulhof' oder 'Nachteilsausgleich LRS') – Paragraphennummern müssen nicht bekannt sein.",
+      "Zwischen 'KI-Antwort + Fundstellen' (3-Stufen-Auswertung) und 'Nur Embeddingsuche (Sofort)' für sekundenschnelle Treffer wählen.",
+      "Bei jedem Treffer per 'Im Dokument öffnen' direkt im Volltext blättern oder über 'Online-Referenz' ins Thüringer Landesrecht springen."
+    ]
+  },
+  {
     id: "denk-kern",
     title: "Denk-Kern • KI-Didaktik",
     shortTitle: "Denk-Kern",
