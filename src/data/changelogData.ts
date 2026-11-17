@@ -28,6 +28,13 @@ export const CHANGELOG_RELEASES: ChangelogRelease[] = [
         title: 'Finder-/Explorer-Listenansicht mit Spalten-Sortierung',
         description: 'Die Listenansicht vereint Ordner und Dateien in einer sortierbaren Tabelle (Name, Typ/Fach, Größe/Inhalt, Erstellt von, Geändert) mit auf-/absteigender Sortierung, „Ordner oben“-Option und direkter Umbenennen- sowie Teilen-/Übernehmen-Aktion in beiden Ansichten.',
         badge: 'Finder-Liste'
+      },
+      {
+        id: 'cl-341-4',
+        type: 'neu',
+        title: 'Drag & Drop sowie Kopieren, Ausschneiden & Einfügen',
+        description: 'Dateien und ganze Ordner (inkl. Unterordner) lassen sich ab sofort per Drag & Drop auf Zielordner, Pfad-Breadcrumbs oder die Bereiche „Mein Speicher“ / „Kollegiums-Austausch“ ziehen. Alternativ stehen an jeder Datei und jedem Ordner „Kopieren“ und „Ausschneiden“ mit einer „Hier einfügen“-Leiste bereit (inkl. Zyklusschutz).',
+        badge: 'Drag & Drop / Clipboard'
       }
     ]
   },

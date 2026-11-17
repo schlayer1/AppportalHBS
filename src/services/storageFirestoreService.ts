@@ -269,11 +269,11 @@ export async function createStorageFolder(
 }
 
 /**
- * Benennt einen Ordner um
+ * Aktualisiert Ordnereigenschaften (z.B. Umbenennen, Verschieben, Bereichswechsel)
  */
 export async function updateStorageFolder(
   id: string,
-  updates: Partial<Pick<StorageFolder, 'name' | 'color' | 'subject' | 'grade'>>
+  updates: Partial<Pick<StorageFolder, 'name' | 'parentId' | 'isShared' | 'ownerId' | 'ownerName' | 'color' | 'subject' | 'grade'>>
 ): Promise<void> {
   if (db) {
     const docRef = doc(db, FOLDERS_COLLECTION, id);

@@ -29,7 +29,11 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  FolderInput
+  FolderInput,
+  Copy,
+  Scissors,
+  ClipboardPaste,
+  GripVertical
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { formatTeacherName } from '../../types/user';
@@ -64,6 +68,20 @@ interface FileStorageDashboardProps {
 
 type StorageSortKey = 'name' | 'type' | 'size' | 'owner' | 'date';
 type StorageSortDirection = 'asc' | 'desc';
+
+interface StorageDragItem {
+  type: 'file' | 'folder';
+  id: string;
+  name: string;
+}
+
+interface StorageClipboardItem {
+  mode: 'copy' | 'cut';
+  type: 'file' | 'folder';
+  id: string;
+  name: string;
+  sourceScope: StorageScope;
+}
 
 const STORAGE_LAYOUT_KEY = 'hbs_storage_view_layout_v1';
 const STORAGE_SORT_KEY = 'hbs_storage_sort_key_v1';
@@ -116,6 +134,10 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
     return true;
   });
   const [sortAnnouncement, setSortAnnouncement] = useState<string>('');
+  const [draggedItem, setDraggedItem] = useState<StorageDragItem | null>(null);
+  const [dropTargetKey, setDropTargetKey] = useState<string | null>(null);
+  const [clipboard, setClipboard] = useState<StorageClipboardItem | null>(null);
+  const [isPasting, setIsPasting] = useState<boolean>(false);
 
   // Modals & Overlays
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
@@ -144,6 +166,18 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
     const t = setTimeout(() => setNotification(null), 4000);
     return () => clearTimeout(t);
   }, [notification]);
+
+  // Escape clears clipboard when no modal is open
+  useEffect(() => {
+    if (!clipboard) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isNewFolderOpen && !previewFile && !renameTarget && !deleteTarget) {
+        setClipboard(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [clipboard, isNewFolderOpen, previewFile, renameTarget, deleteTarget]);
 
   // Subscribe to storage in Firestore
   useEffect(() => {
@@ -462,22 +496,386 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
     }
   };
 
-  // Drag & drop handlers
+  // External file upload drag & drop handlers (ignored while dragging internal items)
+  const isExternalFileDrag = (e: React.DragEvent) =>
+    !draggedItem && Array.from(e.dataTransfer?.types || []).includes('Files');
+
   const handleDragOver = (e: React.DragEvent) => {
+    if (!isExternalFileDrag(e)) return;
     e.preventDefault();
     setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
+    if (!isExternalFileDrag(e)) return;
     e.preventDefault();
     setIsDragOver(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    if (!isExternalFileDrag(e)) return;
     e.preventDefault();
     setIsDragOver(false);
-    if (e.dataTransfer.files) {
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFileUpload(e.dataTransfer.files);
+    }
+  };
+
+  // Cycle check: prevents moving/copying a folder into itself or any descendant folder
+  const isDescendantOrSelfFolder = (sourceFolderId: string, targetFolderId: string | null): boolean => {
+    if (!targetFolderId) return false;
+    let cursor: string | null = targetFolderId;
+    const visited = new Set<string>();
+    while (cursor) {
+      if (cursor === sourceFolderId) return true;
+      if (visited.has(cursor)) break;
+      visited.add(cursor);
+      const found = folders.find((f) => f.id === cursor);
+      cursor = found?.parentId || null;
+    }
+    return false;
+  };
+
+  const buildCopyName = (originalName: string, existingNames: Set<string>, isFolder: boolean): string => {
+    if (!existingNames.has(originalName.toLowerCase())) return originalName;
+    const dotIdx = !isFolder ? originalName.lastIndexOf('.') : -1;
+    const base = dotIdx > 0 ? originalName.slice(0, dotIdx) : originalName;
+    const ext = dotIdx > 0 ? originalName.slice(dotIdx) : '';
+    let candidate = `${base} (Kopie)${ext}`;
+    let counter = 2;
+    while (existingNames.has(candidate.toLowerCase())) {
+      candidate = `${base} (Kopie ${counter})${ext}`;
+      counter++;
+    }
+    return candidate;
+  };
+
+  const collectFolderSubtree = (rootFolderId: string) => {
+    const subFolderIds: string[] = [];
+    const queue = [rootFolderId];
+    const visited = new Set<string>([rootFolderId]);
+    while (queue.length > 0) {
+      const currId = queue.shift()!;
+      subFolderIds.push(currId);
+      folders
+        .filter((f) => f.parentId === currId)
+        .forEach((child) => {
+          if (!visited.has(child.id)) {
+            visited.add(child.id);
+            queue.push(child.id);
+          }
+        });
+    }
+    return subFolderIds;
+  };
+
+  const moveItemToTarget = async (
+    item: { type: 'file' | 'folder'; id: string },
+    targetScope: StorageScope,
+    targetFolderId: string | null
+  ): Promise<boolean> => {
+    const targetShared = targetScope === 'shared';
+
+    if (item.type === 'file') {
+      const file = files.find((f) => f.id === item.id);
+      if (!file) return false;
+      if (file.folderId === targetFolderId && file.isShared === targetShared) {
+        return false;
+      }
+
+      // Fremde Datei aus Austausch -> beim Ziehen/Verschieben nach Mein Speicher sicher kopieren statt für alle zu entfernen
+      if (file.isShared && !targetShared && file.ownerId !== currentOwnerId) {
+        await addStorageFileRecord({
+          name: file.name,
+          folderId: targetFolderId,
+          isShared: false,
+          ownerId: currentOwnerId,
+          ownerName: currentOwnerName,
+          r2Key: file.r2Key,
+          fileSize: file.fileSize,
+          mimeType: file.mimeType,
+          fileExtension: file.fileExtension,
+          subject: file.subject,
+          grade: file.grade,
+          description: file.description,
+          tags: file.tags
+        });
+        setNotification({
+          type: 'success',
+          message: `„${file.name}“ in Ihren persönlichen Bereich übernommen.`
+        });
+        return true;
+      }
+
+      await updateStorageFileRecord(file.id, {
+        folderId: targetFolderId,
+        isShared: targetShared,
+        ...(targetShared ? {} : { ownerId: currentOwnerId, ownerName: currentOwnerName })
+      });
+      setNotification({
+        type: 'success',
+        message: `„${file.name}“ verschoben.`
+      });
+      return true;
+    }
+
+    const folder = folders.find((f) => f.id === item.id);
+    if (!folder) return false;
+    if (isDescendantOrSelfFolder(folder.id, targetFolderId)) {
+      setNotification({
+        type: 'error',
+        message: 'Ein Ordner kann nicht in sich selbst oder einen Unterordner verschoben werden.'
+      });
+      return false;
+    }
+    if (folder.parentId === targetFolderId && folder.isShared === targetShared) {
+      return false;
+    }
+
+    await updateStorageFolder(folder.id, {
+      parentId: targetFolderId,
+      isShared: targetShared,
+      ...(!targetShared ? { ownerId: currentOwnerId, ownerName: currentOwnerName } : {})
+    });
+
+    if (folder.isShared !== targetShared) {
+      const subtreeIds = collectFolderSubtree(folder.id);
+      const childFolderIds = subtreeIds.filter((fid) => fid !== folder.id);
+      const subtreeSet = new Set(subtreeIds);
+
+      await Promise.all([
+        ...childFolderIds.map((fid) =>
+          updateStorageFolder(fid, {
+            isShared: targetShared,
+            ...(!targetShared ? { ownerId: currentOwnerId, ownerName: currentOwnerName } : {})
+          })
+        ),
+        ...files
+          .filter((f) => f.folderId && subtreeSet.has(f.folderId))
+          .map((f) =>
+            updateStorageFileRecord(f.id, {
+              isShared: targetShared,
+              ...(!targetShared ? { ownerId: currentOwnerId, ownerName: currentOwnerName } : {})
+            })
+          )
+      ]);
+    }
+
+    setNotification({
+      type: 'success',
+      message: `Ordner „${folder.name}“ verschoben.`
+    });
+    return true;
+  };
+
+  const copyItemToTarget = async (
+    item: { type: 'file' | 'folder'; id: string },
+    targetScope: StorageScope,
+    targetFolderId: string | null
+  ): Promise<boolean> => {
+    const targetShared = targetScope === 'shared';
+
+    if (item.type === 'file') {
+      const file = files.find((f) => f.id === item.id);
+      if (!file) return false;
+
+      const existingFileNames = new Set(
+        files
+          .filter((f) =>
+            f.folderId === targetFolderId &&
+            (targetShared ? f.isShared : (!f.isShared && f.ownerId === currentOwnerId))
+          )
+          .map((f) => f.name.toLowerCase())
+      );
+
+      const newName = buildCopyName(file.name, existingFileNames, false);
+      await addStorageFileRecord({
+        name: newName,
+        folderId: targetFolderId,
+        isShared: targetShared,
+        ownerId: currentOwnerId,
+        ownerName: currentOwnerName,
+        r2Key: file.r2Key,
+        fileSize: file.fileSize,
+        mimeType: file.mimeType,
+        fileExtension: file.fileExtension,
+        subject: file.subject,
+        grade: file.grade,
+        description: file.description,
+        tags: file.tags
+      });
+      setNotification({
+        type: 'success',
+        message: `„${newName}“ hier eingefügt.`
+      });
+      return true;
+    }
+
+    const rootFolder = folders.find((f) => f.id === item.id);
+    if (!rootFolder) return false;
+    if (isDescendantOrSelfFolder(rootFolder.id, targetFolderId)) {
+      setNotification({
+        type: 'error',
+        message: 'Ein Ordner kann nicht in sich selbst oder einen Unterordner kopiert werden.'
+      });
+      return false;
+    }
+
+    const existingFolderNames = new Set(
+      folders
+        .filter((f) =>
+          f.parentId === targetFolderId &&
+          (targetShared ? f.isShared : (!f.isShared && f.ownerId === currentOwnerId))
+        )
+        .map((f) => f.name.toLowerCase())
+    );
+
+    const cloneFolderRecursive = async (
+      srcFolder: StorageFolder,
+      destParentId: string | null,
+      overrideName?: string,
+      visited: Set<string> = new Set()
+    ) => {
+      if (visited.has(srcFolder.id)) return;
+      visited.add(srcFolder.id);
+
+      const created = await createStorageFolder({
+        name: overrideName || srcFolder.name,
+        parentId: destParentId,
+        isShared: targetShared,
+        ownerId: currentOwnerId,
+        ownerName: currentOwnerName,
+        color: srcFolder.color,
+        subject: srcFolder.subject,
+        grade: srcFolder.grade
+      });
+
+      const directFiles = files.filter((f) => f.folderId === srcFolder.id);
+      for (const df of directFiles) {
+        await addStorageFileRecord({
+          name: df.name,
+          folderId: created.id,
+          isShared: targetShared,
+          ownerId: currentOwnerId,
+          ownerName: currentOwnerName,
+          r2Key: df.r2Key,
+          fileSize: df.fileSize,
+          mimeType: df.mimeType,
+          fileExtension: df.fileExtension,
+          subject: df.subject,
+          grade: df.grade,
+          description: df.description,
+          tags: df.tags
+        });
+      }
+
+      const childFolders = folders.filter((cf) => cf.parentId === srcFolder.id);
+      for (const cf of childFolders) {
+        await cloneFolderRecursive(cf, created.id, undefined, visited);
+      }
+    };
+
+    const topCopyName = buildCopyName(rootFolder.name, existingFolderNames, true);
+    await cloneFolderRecursive(rootFolder, targetFolderId, topCopyName);
+    setNotification({
+      type: 'success',
+      message: `Ordner „${topCopyName}“ inkl. Inhalt eingefügt.`
+    });
+    return true;
+  };
+
+  const handlePasteClipboard = async () => {
+    if (!clipboard || isPasting) return;
+    setIsPasting(true);
+    try {
+      if (clipboard.mode === 'cut') {
+        const moved = await moveItemToTarget(
+          { type: clipboard.type, id: clipboard.id },
+          activeScope,
+          currentFolderId
+        );
+        if (moved) {
+          setClipboard(null);
+        }
+      } else {
+        await copyItemToTarget(
+          { type: clipboard.type, id: clipboard.id },
+          activeScope,
+          currentFolderId
+        );
+      }
+    } catch (err: any) {
+      setNotification({
+        type: 'error',
+        message: err?.message || 'Einfügen fehlgeschlagen.'
+      });
+    } finally {
+      setIsPasting(false);
+    }
+  };
+
+  const handleInternalDragStart = (e: React.DragEvent, item: StorageDragItem) => {
+    e.stopPropagation();
+    setDraggedItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('application/x-hbs-storage-item', JSON.stringify(item));
+      e.dataTransfer.setData('text/plain', item.name);
+    } catch {}
+  };
+
+  const handleInternalDragEnd = () => {
+    setDraggedItem(null);
+    setDropTargetKey(null);
+  };
+
+  const handleTargetDragOver = (e: React.DragEvent, targetKey: string, folderIdToCheck?: string | null) => {
+    if (!draggedItem) return;
+    if (draggedItem.type === 'folder' && folderIdToCheck && isDescendantOrSelfFolder(draggedItem.id, folderIdToCheck)) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (dropTargetKey !== targetKey) {
+      setDropTargetKey(targetKey);
+    }
+  };
+
+  const handleTargetDragLeave = (e: React.DragEvent, targetKey: string) => {
+    if (!draggedItem) return;
+    e.stopPropagation();
+    if (dropTargetKey === targetKey) {
+      setDropTargetKey(null);
+    }
+  };
+
+  const handleDropOnTarget = async (
+    e: React.DragEvent,
+    targetScope: StorageScope,
+    targetFolderId: string | null
+  ) => {
+    let payload: StorageDragItem | null = draggedItem;
+    if (!payload) {
+      try {
+        const raw = e.dataTransfer.getData('application/x-hbs-storage-item');
+        if (raw) payload = JSON.parse(raw);
+      } catch {}
+    }
+    if (!payload) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggedItem(null);
+    setDropTargetKey(null);
+
+    try {
+      await moveItemToTarget({ type: payload.type, id: payload.id }, targetScope, targetFolderId);
+    } catch (err: any) {
+      setNotification({
+        type: 'error',
+        message: err?.message || 'Verschieben fehlgeschlagen.'
+      });
     }
   };
 
@@ -813,17 +1211,22 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
             </div>
           </div>
 
-          {/* Scope Selector Tabs (Mein Bereich vs. Austausch) */}
+          {/* Scope Selector Tabs (Mein Bereich vs. Austausch — also Drop Targets) */}
           <div className="flex items-center bg-slate-100/90 p-1 rounded-2xl border border-slate-200/80">
             <button
               onClick={() => {
                 setActiveScope('personal');
                 setCurrentFolderId(null);
               }}
+              onDragOver={(e) => handleTargetDragOver(e, 'scope:personal')}
+              onDragLeave={(e) => handleTargetDragLeave(e, 'scope:personal')}
+              onDrop={(e) => handleDropOnTarget(e, 'personal', null)}
               className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-black transition-all duration-150 flex items-center gap-2 ${
-                activeScope === 'personal'
-                  ? 'bg-white text-hbs-blue shadow-xs scale-102'
-                  : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
+                dropTargetKey === 'scope:personal'
+                  ? 'bg-hbs-blue-soft text-hbs-blue ring-2 ring-hbs-blue scale-105'
+                  : activeScope === 'personal'
+                    ? 'bg-white text-hbs-blue shadow-xs scale-102'
+                    : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
               }`}
             >
               <span className="w-2 h-2 rounded-full bg-hbs-blue" />
@@ -835,10 +1238,15 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
                 setActiveScope('shared');
                 setCurrentFolderId(null);
               }}
+              onDragOver={(e) => handleTargetDragOver(e, 'scope:shared')}
+              onDragLeave={(e) => handleTargetDragLeave(e, 'scope:shared')}
+              onDrop={(e) => handleDropOnTarget(e, 'shared', null)}
               className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-black transition-all duration-150 flex items-center gap-2 ${
-                activeScope === 'shared'
-                  ? 'bg-white text-purple-600 shadow-xs scale-102'
-                  : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
+                dropTargetKey === 'scope:shared'
+                  ? 'bg-purple-50 text-purple-700 ring-2 ring-purple-500 scale-105'
+                  : activeScope === 'shared'
+                    ? 'bg-white text-purple-600 shadow-xs scale-102'
+                    : 'text-hbs-slate-muted hover:text-hbs-slate-dark'
               }`}
             >
               <span className="w-2 h-2 rounded-full bg-purple-600" />
@@ -1041,28 +1449,99 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
           </div>
         )}
 
-        {/* BREADCRUMB NAVIGATION */}
-        <div className="mb-6 flex items-center gap-1.5 text-xs font-bold text-hbs-slate-muted flex-wrap">
-          {breadcrumbs.map((crumb, idx) => {
-            const isLast = idx === breadcrumbs.length - 1;
-            return (
-              <React.Fragment key={crumb.id || 'root'}>
-                {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-300" />}
-                <button
-                  onClick={() => setCurrentFolderId(crumb.id)}
-                  disabled={isLast}
-                  className={`px-2.5 py-1 rounded-lg transition-all ${
-                    isLast 
-                      ? 'text-hbs-slate-dark font-black bg-white shadow-xs border border-slate-200' 
-                      : 'hover:text-hbs-blue hover:bg-slate-100'
-                  }`}
-                >
-                  {crumb.name}
-                </button>
-              </React.Fragment>
-            );
-          })}
+        {/* BREADCRUMB NAVIGATION (also Drop Targets for moving items up the hierarchy) */}
+        <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-hbs-slate-muted flex-wrap">
+            {breadcrumbs.map((crumb, idx) => {
+              const isLast = idx === breadcrumbs.length - 1;
+              const crumbKey = `crumb:${crumb.id || 'root'}`;
+              const isDropActive = dropTargetKey === crumbKey;
+              return (
+                <React.Fragment key={crumb.id || 'root'}>
+                  {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-300" />}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isLast) setCurrentFolderId(crumb.id);
+                    }}
+                    onDragOver={(e) => {
+                      if (!isLast) handleTargetDragOver(e, crumbKey, crumb.id);
+                    }}
+                    onDragLeave={(e) => handleTargetDragLeave(e, crumbKey)}
+                    onDrop={(e) => {
+                      if (!isLast) handleDropOnTarget(e, activeScope, crumb.id);
+                    }}
+                    aria-current={isLast ? 'page' : undefined}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${
+                      isDropActive
+                        ? 'bg-hbs-blue-soft text-hbs-blue ring-2 ring-hbs-blue scale-105'
+                        : isLast
+                          ? 'text-hbs-slate-dark font-black bg-white shadow-xs border border-slate-200 cursor-default'
+                          : 'hover:text-hbs-blue hover:bg-slate-100 cursor-pointer'
+                    }`}
+                  >
+                    {crumb.name}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+          </div>
+
+          {draggedItem && (
+            <div className="px-3 py-1 rounded-full bg-hbs-blue-soft border border-hbs-blue/30 text-hbs-blue text-[11px] font-bold flex items-center gap-1.5 animate-fadeIn">
+              <GripVertical className="w-3.5 h-3.5" />
+              <span>„{draggedItem.name}“ auf Ordner, Pfad oder Bereich ziehen</span>
+            </div>
+          )}
         </div>
+
+        {/* CLIPBOARD BAR (Kopieren / Ausschneiden & Hier einfügen) */}
+        {clipboard && (
+          <div
+            role="region"
+            aria-label="Zwischenablage"
+            className="mb-5 p-3 sm:px-4 rounded-2xl bg-white border-2 border-hbs-blue/30 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                clipboard.mode === 'cut'
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-hbs-blue-soft text-hbs-blue'
+              }`}>
+                {clipboard.mode === 'cut' ? <Scissors className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black text-hbs-slate-dark truncate">
+                  {clipboard.mode === 'cut' ? 'Ausgeschnitten:' : 'Kopiert:'}{' '}
+                  <span className="text-hbs-blue">{clipboard.name}</span>
+                </p>
+                <p className="text-[11px] text-hbs-slate-muted">
+                  Navigieren Sie zum Zielordner (oder wechseln Sie den Bereich) und klicken Sie auf „Hier einfügen“.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <button
+                type="button"
+                onClick={handlePasteClipboard}
+                disabled={isPasting}
+                className="px-3.5 py-1.5 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-xs font-black shadow-xs flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-60"
+              >
+                <ClipboardPaste className="w-3.5 h-3.5" />
+                <span>{isPasting ? 'Fügt ein…' : 'Hier einfügen'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setClipboard(null)}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-colors"
+                title="Zwischenablage leeren (Esc)"
+              >
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        )}
 
         {viewLayout === 'table' ? (
           /* UNIFIED FINDER / EXPLORER LIST VIEW (Folders + Files in one sortable table) */
@@ -1211,30 +1690,53 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
                     {finderListRows.map((row) => {
                       if (row.kind === 'folder') {
                         const { folder, stats } = row;
+                        const folderDropKey = `folder:${folder.id}`;
+                        const isFolderDropTarget = dropTargetKey === folderDropKey;
+                        const isCutFolder = clipboard?.mode === 'cut' && clipboard.type === 'folder' && clipboard.id === folder.id;
+                        const isDraggedFolder = draggedItem?.type === 'folder' && draggedItem.id === folder.id;
                         return (
                           <tr
                             key={row.id}
-                            className="hover:bg-amber-50/40 transition-colors group"
+                            draggable
+                            onDragStart={(e) => handleInternalDragStart(e, { type: 'folder', id: folder.id, name: folder.name })}
+                            onDragEnd={handleInternalDragEnd}
+                            onDragOver={(e) => handleTargetDragOver(e, folderDropKey, folder.id)}
+                            onDragLeave={(e) => handleTargetDragLeave(e, folderDropKey)}
+                            onDrop={(e) => handleDropOnTarget(e, activeScope, folder.id)}
+                            className={`transition-colors group ${
+                              isFolderDropTarget
+                                ? 'bg-hbs-blue-soft/80 ring-2 ring-inset ring-hbs-blue'
+                                : 'hover:bg-amber-50/40'
+                            } ${isCutFolder || isDraggedFolder ? 'opacity-50' : ''}`}
                           >
                             <td className="py-2.5 px-4">
-                              <button
-                                type="button"
-                                onClick={() => setCurrentFolderId(folder.id)}
-                                className="flex items-center gap-3 text-left w-full group-hover:text-hbs-blue focus-visible:outline-2 focus-visible:outline-hbs-blue rounded-lg"
-                              >
-                                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0 border border-amber-200/70">
-                                  <Folder className="w-4.5 h-4.5 fill-amber-500 text-amber-600" />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-sm font-black text-hbs-slate-dark group-hover:text-hbs-blue truncate max-w-[220px] sm:max-w-md">
-                                    {folder.name}
-                                  </p>
-                                  <span className="sm:hidden text-[10px] text-hbs-slate-muted block">
-                                    Ordner • {stats.fileCount} {stats.fileCount === 1 ? 'Datei' : 'Dateien'}
-                                    {stats.subFolderCount > 0 ? ` • ${stats.subFolderCount} Ordner` : ''}
-                                  </span>
-                                </div>
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  aria-hidden="true"
+                                  title="Ziehen zum Verschieben"
+                                  className="text-slate-300 group-hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0 select-none [-webkit-user-select:none]"
+                                >
+                                  <GripVertical className="w-3.5 h-3.5" />
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setCurrentFolderId(folder.id)}
+                                  className="flex items-center gap-3 text-left flex-1 min-w-0 group-hover:text-hbs-blue focus-visible:outline-2 focus-visible:outline-hbs-blue rounded-lg"
+                                >
+                                  <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0 border border-amber-200/70">
+                                    <Folder className="w-4.5 h-4.5 fill-amber-500 text-amber-600" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-black text-hbs-slate-dark group-hover:text-hbs-blue truncate max-w-[200px] sm:max-w-md">
+                                      {folder.name}
+                                    </p>
+                                    <span className="sm:hidden text-[10px] text-hbs-slate-muted block">
+                                      Ordner • {stats.fileCount} {stats.fileCount === 1 ? 'Datei' : 'Dateien'}
+                                      {stats.subFolderCount > 0 ? ` • ${stats.subFolderCount} Ordner` : ''}
+                                    </span>
+                                  </div>
+                                </button>
+                              </div>
                             </td>
                             <td className="py-2.5 px-4 text-hbs-slate-muted hidden sm:table-cell">
                               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/70 text-[10px] font-black">
@@ -1270,6 +1772,22 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
                                 </button>
                                 <button
                                   type="button"
+                                  onClick={() => setClipboard({ mode: 'copy', type: 'folder', id: folder.id, name: folder.name, sourceScope: activeScope })}
+                                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-hbs-blue"
+                                  title="Ordner kopieren"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setClipboard({ mode: 'cut', type: 'folder', id: folder.id, name: folder.name, sourceScope: activeScope })}
+                                  className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-700"
+                                  title="Ordner ausschneiden (Verschieben)"
+                                >
+                                  <Scissors className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => setRenameTarget({ id: folder.id, type: 'folder', name: folder.name })}
                                   className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
                                   title="Ordner umbenennen"
@@ -1292,24 +1810,41 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
 
                       const { file } = row;
                       const isOwnShared = file.isShared && file.ownerId === currentOwnerId;
+                      const isCutFile = clipboard?.mode === 'cut' && clipboard.type === 'file' && clipboard.id === file.id;
+                      const isDraggedFile = draggedItem?.type === 'file' && draggedItem.id === file.id;
                       return (
-                        <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
+                        <tr
+                          key={row.id}
+                          draggable
+                          onDragStart={(e) => handleInternalDragStart(e, { type: 'file', id: file.id, name: file.name })}
+                          onDragEnd={handleInternalDragEnd}
+                          className={`hover:bg-slate-50/80 transition-colors group ${isCutFile || isDraggedFile ? 'opacity-50' : ''}`}
+                        >
                           <td className="py-2.5 px-4">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenPreview(file)}
-                              className="flex items-center gap-3 text-left w-full group focus-visible:outline-2 focus-visible:outline-hbs-blue rounded-lg"
-                            >
-                              {renderFileIcon(file.fileExtension)}
-                              <div className="min-w-0">
-                                <p className="text-sm font-black text-hbs-slate-dark group-hover:text-hbs-blue truncate max-w-[220px] sm:max-w-md">
-                                  {file.name}
-                                </p>
-                                <span className="sm:hidden text-[10px] text-hbs-slate-muted block">
-                                  {file.fileExtension.toUpperCase()} • {formatFileSize(file.fileSize)} • {file.ownerName}
-                                </span>
-                              </div>
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <span
+                                aria-hidden="true"
+                                title="Ziehen zum Verschieben"
+                                className="text-slate-300 group-hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0 select-none [-webkit-user-select:none]"
+                              >
+                                <GripVertical className="w-3.5 h-3.5" />
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPreview(file)}
+                                className="flex items-center gap-3 text-left flex-1 min-w-0 focus-visible:outline-2 focus-visible:outline-hbs-blue rounded-lg"
+                              >
+                                {renderFileIcon(file.fileExtension)}
+                                <div className="min-w-0">
+                                  <p className="text-sm font-black text-hbs-slate-dark group-hover:text-hbs-blue truncate max-w-[200px] sm:max-w-md">
+                                    {file.name}
+                                  </p>
+                                  <span className="sm:hidden text-[10px] text-hbs-slate-muted block">
+                                    {file.fileExtension.toUpperCase()} • {formatFileSize(file.fileSize)} • {file.ownerName}
+                                  </span>
+                                </div>
+                              </button>
+                            </div>
                           </td>
                           <td className="py-2.5 px-4 text-hbs-slate-muted hidden sm:table-cell">
                             <div className="flex items-center gap-1.5 flex-wrap">
@@ -1380,6 +1915,22 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
                               )}
                               <button
                                 type="button"
+                                onClick={() => setClipboard({ mode: 'copy', type: 'file', id: file.id, name: file.name, sourceScope: activeScope })}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-hbs-blue"
+                                title="Datei kopieren"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setClipboard({ mode: 'cut', type: 'file', id: file.id, name: file.name, sourceScope: activeScope })}
+                                className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-700"
+                                title="Datei ausschneiden (Verschieben)"
+                              >
+                                <Scissors className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => handleToggleShare(file)}
                                 className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-purple-600"
                                 title={
@@ -1430,18 +1981,55 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
                   {visibleFolders.map((folder) => {
                     const stats = folderStatsMap.get(folder.id) || { fileCount: 0, subFolderCount: 0, totalBytes: 0 };
+                    const folderDropKey = `grid-folder:${folder.id}`;
+                    const isFolderDropTarget = dropTargetKey === folderDropKey;
+                    const isCutFolder = clipboard?.mode === 'cut' && clipboard.type === 'folder' && clipboard.id === folder.id;
+                    const isDraggedFolder = draggedItem?.type === 'folder' && draggedItem.id === folder.id;
                     return (
                       <div
                         key={folder.id}
+                        draggable
+                        onDragStart={(e) => handleInternalDragStart(e, { type: 'folder', id: folder.id, name: folder.name })}
+                        onDragEnd={handleInternalDragEnd}
+                        onDragOver={(e) => handleTargetDragOver(e, folderDropKey, folder.id)}
+                        onDragLeave={(e) => handleTargetDragLeave(e, folderDropKey)}
+                        onDrop={(e) => handleDropOnTarget(e, activeScope, folder.id)}
                         onClick={() => setCurrentFolderId(folder.id)}
-                        className="group relative p-4 rounded-2xl bg-white hover:bg-blue-50/50 border border-slate-200/80 hover:border-hbs-blue/40 shadow-xs hover:shadow-md transition-all duration-150 cursor-pointer flex flex-col justify-between"
+                        className={`group relative p-4 rounded-2xl border shadow-xs transition-all duration-150 cursor-pointer flex flex-col justify-between ${
+                          isFolderDropTarget
+                            ? 'bg-hbs-blue-soft/70 border-hbs-blue ring-2 ring-hbs-blue scale-[1.02] shadow-md'
+                            : 'bg-white hover:bg-blue-50/50 border-slate-200/80 hover:border-hbs-blue/40 hover:shadow-md'
+                        } ${isCutFolder || isDraggedFolder ? 'opacity-50 border-dashed' : ''}`}
                       >
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="w-10 h-10 rounded-xl bg-amber-50 group-hover:bg-amber-100 text-amber-500 flex items-center justify-center transition-all">
                             <Folder className="w-5 h-5 fill-amber-500 text-amber-600" />
                           </div>
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                          <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex items-center gap-0.5">
                             <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setClipboard({ mode: 'copy', type: 'folder', id: folder.id, name: folder.name, sourceScope: activeScope });
+                              }}
+                              className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-hbs-blue"
+                              title="Kopieren"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setClipboard({ mode: 'cut', type: 'folder', id: folder.id, name: folder.name, sourceScope: activeScope });
+                              }}
+                              className="p-1 rounded-md hover:bg-amber-50 text-slate-400 hover:text-amber-700"
+                              title="Ausschneiden"
+                            >
+                              <Scissors className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setRenameTarget({ id: folder.id, type: 'folder', name: folder.name });
@@ -1452,6 +2040,7 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDeleteTarget({ id: folder.id, type: 'folder', name: folder.name });
@@ -1517,24 +2106,40 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {visibleFiles.map((file) => {
                     const isOwnShared = file.isShared && file.ownerId === currentOwnerId;
+                    const isCutFile = clipboard?.mode === 'cut' && clipboard.type === 'file' && clipboard.id === file.id;
+                    const isDraggedFile = draggedItem?.type === 'file' && draggedItem.id === file.id;
                     return (
                       <div
                         key={file.id}
-                        className="group relative p-4 rounded-3xl bg-white border border-slate-200/80 hover:border-hbs-blue/40 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between"
+                        draggable
+                        onDragStart={(e) => handleInternalDragStart(e, { type: 'file', id: file.id, name: file.name })}
+                        onDragEnd={handleInternalDragEnd}
+                        className={`group relative p-4 rounded-3xl bg-white border border-slate-200/80 hover:border-hbs-blue/40 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between cursor-grab active:cursor-grabbing ${
+                          isCutFile || isDraggedFile ? 'opacity-50 border-dashed' : ''
+                        }`}
                       >
                         {/* Top Header of Card */}
                         <div>
                           <div className="flex items-start justify-between gap-3 mb-3">
                             {renderFileIcon(file.fileExtension)}
                             
-                            {/* Badge: Shared vs Personal */}
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                              file.isShared 
-                                ? 'bg-purple-100 text-purple-700' 
-                                : 'bg-blue-100 text-hbs-blue'
-                            }`}>
-                              {file.isShared ? 'Austausch' : 'Mein'}
-                            </span>
+                            {/* Badge: Shared vs Personal + Drag Hint */}
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                aria-hidden="true"
+                                title="Ziehen zum Verschieben"
+                                className="text-slate-300 group-hover:text-slate-400 select-none [-webkit-user-select:none]"
+                              >
+                                <GripVertical className="w-3.5 h-3.5" />
+                              </span>
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                file.isShared 
+                                  ? 'bg-purple-100 text-purple-700' 
+                                  : 'bg-blue-100 text-hbs-blue'
+                              }`}>
+                                {file.isShared ? 'Austausch' : 'Mein'}
+                              </span>
+                            </div>
                           </div>
 
                           <h4 
@@ -1606,9 +2211,30 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-0.5 flex-wrap justify-end">
+                            {/* Copy */}
+                            <button
+                              type="button"
+                              onClick={() => setClipboard({ mode: 'copy', type: 'file', id: file.id, name: file.name, sourceScope: activeScope })}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-hbs-blue transition-all"
+                              title="Kopieren"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+
+                            {/* Cut */}
+                            <button
+                              type="button"
+                              onClick={() => setClipboard({ mode: 'cut', type: 'file', id: file.id, name: file.name, sourceScope: activeScope })}
+                              className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-700 transition-all"
+                              title="Ausschneiden (Verschieben)"
+                            >
+                              <Scissors className="w-4 h-4" />
+                            </button>
+
                             {/* Share / Move to personal toggle */}
                             <button
+                              type="button"
                               onClick={() => handleToggleShare(file)}
                               className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-purple-600 transition-all"
                               title={
@@ -1622,6 +2248,7 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
 
                             {/* Rename */}
                             <button
+                              type="button"
                               onClick={() => setRenameTarget({ id: file.id, type: 'file', name: file.name })}
                               className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"
                               title="Umbenennen"
@@ -1631,6 +2258,7 @@ export const FileStorageDashboard: React.FC<FileStorageDashboardProps> = ({
 
                             {/* Delete */}
                             <button
+                              type="button"
                               onClick={() => setDeleteTarget({ id: file.id, type: 'file', name: file.name, r2Key: file.r2Key })}
                               className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all"
                               title="Löschen"
