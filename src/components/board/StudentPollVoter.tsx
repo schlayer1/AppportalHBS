@@ -25,10 +25,22 @@ export const StudentPollVoter: React.FC<StudentPollVoterProps> = () => {
   // Listen to active poll metadata from Firestore
   useEffect(() => {
     if (!db) return;
+    let isActive = true;
+    let unsubFallback: (() => void) | null = null;
+
+    const cleanupFallback = () => {
+      if (unsubFallback) {
+        unsubFallback();
+        unsubFallback = null;
+      }
+    };
+
     try {
       const pollDocRef = doc(db, PORTAL_COLLECTION, 'live_poll');
       const unsubscribe = onSnapshot(pollDocRef, (snap) => {
+        if (!isActive) return;
         if (snap.exists()) {
+          cleanupFallback();
           const d = snap.data();
           if (d.livePoll) {
             setPollData({
@@ -37,10 +49,11 @@ export const StudentPollVoter: React.FC<StudentPollVoterProps> = () => {
               active: d.livePoll.active !== false
             });
           }
-        } else {
-          // Fallback check schools/HBS_portal
+        } else if (!unsubFallback) {
+          // Fallback check schools/HBS_portal (avoid stacking duplicate listeners)
           const schoolDocRef = doc(db!, 'schools', 'HBS_portal');
-          onSnapshot(schoolDocRef, (sSnap) => {
+          unsubFallback = onSnapshot(schoolDocRef, (sSnap) => {
+            if (!isActive) return;
             if (sSnap.exists() && sSnap.data().livePoll) {
               const d = sSnap.data();
               setPollData({
@@ -52,10 +65,18 @@ export const StudentPollVoter: React.FC<StudentPollVoterProps> = () => {
           });
         }
       });
-      return () => unsubscribe();
+      return () => {
+        isActive = false;
+        cleanupFallback();
+        unsubscribe();
+      };
     } catch (err) {
       console.warn('Firestore poll listener:', err);
     }
+    return () => {
+      isActive = false;
+      cleanupFallback();
+    };
   }, []);
 
   const handleVote = async (optionId: string) => {
