@@ -11,7 +11,8 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  Trash2
+  Trash2,
+  FlaskConical
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { SchoolApp } from '../config/apps';
@@ -99,7 +100,7 @@ export const AppCard: React.FC<AppCardProps> = ({
               onMouseEnter={() => setIsCardHovered(true)}
               onMouseLeave={() => setIsCardHovered(false)}
               className={`relative rounded-3xl p-6 sm:p-7 border-2 ${theme.border} ${theme.softBg} shadow-[0_12px_30px_-8px_rgba(9,29,46,0.1),0_4px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_45px_-10px_rgba(9,29,46,0.18)] transition-all duration-300 flex flex-col justify-between overflow-hidden group h-full ${
-                app.isFeaturedStudentQr ? 'pt-8 sm:pt-9' : ''
+                app.isBeta || app.isFeaturedStudentQr ? 'pt-9 sm:pt-10' : ''
               }`}
             >
               
@@ -109,13 +110,18 @@ export const AppCard: React.FC<AppCardProps> = ({
                 style={{ backgroundColor: theme.glow }}
               />
 
-              {/* Featured banner for student app */}
-              {app.isFeaturedStudentQr && (
+              {/* Beta or Featured banner */}
+              {app.isBeta ? (
+                <div className="absolute top-0 right-0 left-0 bg-gradient-to-r from-[#091D2E] via-[#0B7BA7] to-[#F39200] py-1.5 px-4 text-center text-white text-[11px] font-black tracking-wider uppercase flex items-center justify-center gap-1.5 shadow-xs z-10">
+                  <FlaskConical className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                  <span className="truncate">{app.betaBannerText || 'BETA-VERSION • 16-Bit Geschichtsabenteuer • QR-Schnellscan'}</span>
+                </div>
+              ) : app.isFeaturedStudentQr ? (
                 <div className="absolute top-0 right-0 left-0 bg-gradient-to-r from-[#F39200] to-amber-600 py-1.5 px-4 text-center text-white text-[11px] font-black tracking-wider uppercase flex items-center justify-center gap-1.5 shadow-xs z-10">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Direkt im Unterricht • QR-Schnellscan</span>
                 </div>
-              )}
+              ) : null}
 
               <div className="flex-1 flex flex-col">
                 
@@ -196,11 +202,17 @@ export const AppCard: React.FC<AppCardProps> = ({
 
                 {/* Badge Category Row */}
                 <div className="flex items-center gap-2 mb-2.5 h-7">
+                  {app.isBeta && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-[#091D2E] text-amber-400 border border-amber-500/40 shadow-xs whitespace-nowrap">
+                      <FlaskConical className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span>BETA</span>
+                    </span>
+                  )}
                   <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border shadow-xs whitespace-nowrap ${theme.badge}`}>
                     {app.badge}
                   </span>
                   {app.privacyBadge && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-white/80 px-2 py-0.5 rounded-md border border-slate-200 shadow-xs whitespace-nowrap truncate max-w-[200px]">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-white/80 px-2 py-0.5 rounded-md border border-slate-200 shadow-xs whitespace-nowrap truncate max-w-[180px]">
                       <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
                       <span className="truncate">{app.privacyBadge}</span>
                     </span>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { QrCode, Star, ArrowUpRight, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { QrCode, Star, ArrowUpRight, ChevronLeft, ChevronRight, Trash2, FlaskConical } from 'lucide-react';
 import { SchoolApp } from '../config/apps';
 import { AnimatedAppIcon } from './AnimatedAppIcon';
 import { recordAppLaunch } from '../services/cloudflareAnalytics';
@@ -61,8 +61,15 @@ export const CompactAppCard: React.FC<CompactAppCardProps> = ({
 
   return (
     <div
-      className={`group relative bg-white/95 backdrop-blur-xl rounded-3xl p-4 sm:p-5 border border-white/80 shadow-[0_10px_25px_-5px_rgba(9,29,46,0.08),0_4px_10px_-2px_rgba(9,29,46,0.04),inset_0_1px_1px_0_rgba(255,255,255,1)] hover:shadow-[0_20px_35px_-10px_rgba(11,123,167,0.18)] hover:-translate-y-1 active:scale-[0.98] transition-all duration-200 flex flex-col justify-between overflow-hidden ${themeStyles.cardBorder}`}
+      className={`group relative bg-white/95 backdrop-blur-xl rounded-3xl p-4 sm:p-5 border border-white/80 shadow-[0_10px_25px_-5px_rgba(9,29,46,0.08),0_4px_10px_-2px_rgba(9,29,46,0.04),inset_0_1px_1px_0_rgba(255,255,255,1)] hover:shadow-[0_20px_35px_-10px_rgba(11,123,167,0.18)] hover:-translate-y-1 active:scale-[0.98] transition-all duration-200 flex flex-col justify-between overflow-hidden ${themeStyles.cardBorder} ${app.isBeta ? 'pt-7 sm:pt-8' : ''}`}
     >
+      {app.isBeta && (
+        <div className="absolute top-0 right-0 left-0 bg-gradient-to-r from-[#091D2E] via-[#0B7BA7] to-[#F39200] py-1 px-3 text-center text-white text-[10px] font-black tracking-wider uppercase flex items-center justify-center gap-1 shadow-2xs z-10">
+          <FlaskConical className="w-3 h-3 text-amber-300 shrink-0" />
+          <span className="truncate">BETA • 16-Bit Geschichtsabenteuer</span>
+        </div>
+      )}
+
       {/* Ambient background glow inside the card */}
       <div 
         className="absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl pointer-events-none opacity-40 group-hover:opacity-70 transition-opacity"
@@ -152,7 +159,13 @@ export const CompactAppCard: React.FC<CompactAppCardProps> = ({
           onClick={() => onOpenDetails(app)}
           className="cursor-pointer mb-3 relative z-10"
         >
-          <div className="flex items-center gap-1.5 mb-1">
+          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+            {app.isBeta && (
+              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-[#091D2E] text-amber-400 border border-amber-500/40">
+                <FlaskConical className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                <span>BETA</span>
+              </span>
+            )}
             <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md border ${themeStyles.badge}`}>
               {app.badge}
             </span>

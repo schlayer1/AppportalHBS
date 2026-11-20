@@ -12,6 +12,8 @@ export interface SchoolApp {
   icon: string; // Lucide icon name
   tags: string[];
   isFeaturedStudentQr?: boolean;
+  isBeta?: boolean;
+  betaBannerText?: string;
   offlineReady?: boolean;
   privacyBadge?: string;
   pedagogicalValue?: string;
@@ -451,6 +453,51 @@ export const SCHOOL_APPS: SchoolApp[] = [
       "Eltern füllen den digitalen Bogen zu Interessen, Fachwissen und Hilfsangeboten aus.",
       "Erhalten einen persönlichen Bearbeitungscode zur jederzeitigen Aktualisierung.",
       "Kollegium und Schulleitung finden im geschützten Admin-Bereich zielgenau Unterstützung."
+    ]
+  },
+  {
+    id: "epochenhub-retro-games",
+    title: "Epochenhub • 16-Bit Geschichtsabenteuer (Beta)",
+    shortTitle: "Epochenhub (Beta)",
+    subtitle: "8 interaktive 16-Bit Retro-Lernspiele (70 Kapitel) & Natur-Atlas",
+    description: "Zentrales 16-Bit-Epochenportal der Heimbürgeschule für den Geschichtsunterricht (Kl. 5–8): Vereint 8 spielbare Top-Down-Abenteuer mit insgesamt 70 Kapiteln von der Steinzeit (40.000 v. Chr.) über Altes Ägypten, Griechenland, Rom, Germanen, Wikinger und Mittelalter bis zur Reformation (1555 n. Chr.). Mit chronologischer Zeitreise, 16-Bit Natur-Atlas (Flora & Fauna), lokalem Schüler-Zeitreise-Pass (Chrono-Pass), Smartboard-QR-Codes, Hefter-Speichercodes und 1-Klick A4-Hefterblatt-Druck.",
+    url: "https://epochenhub.vercel.app/",
+    category: "unterricht",
+    categories: ["unterricht", "kollegium"],
+    badge: "Beta • 8 Spiele & 70 Kapitel",
+    badgeColor: "amber",
+    icon: "Gamepad2",
+    tags: [
+      "Epochenhub",
+      "Beta",
+      "16-Bit Retro Games",
+      "Geschichte",
+      "Steinzeit",
+      "Ägypten",
+      "Griechenland",
+      "Rom",
+      "Germanen",
+      "Wikinger",
+      "Mittelalter",
+      "Reformation",
+      "Natur-Atlas",
+      "Chrono-Pass",
+      "A4-Hefterblatt"
+    ],
+    isFeaturedStudentQr: true,
+    isBeta: true,
+    betaBannerText: "BETA-VERSION • 16-Bit Geschichtsabenteuer • QR-Schnellscan",
+    offlineReady: true,
+    privacyBadge: "100% DSGVO & Ohne Login",
+    pedagogicalValue: "Verbindet historischen Fachunterricht (Thüringer Lehrplan Kl. 5–8) mit immersiven 16-Bit-Erkundungswelten: Jedes Spiel bietet ein 27-Begriffe-Fachlexikon, 5 Mitmach-Stationen, 360°-Primärquellen-Inspektor, deterministische Hefter-Speichercodes für das Geschichtsheft und druckfertige A4-Hefterblätter.",
+    quickGuide: [
+      "Epochenhub am Smartboard öffnen oder QR-Code für Schüler-iPads einblenden.",
+      "Zwischen chronologischer 'Zeitreise', 'Raster' und dem 16-Bit 'Natur-Atlas' (Flora & Fauna) wählen.",
+      "Epochenspiel direkt im Browser starten (jedes Kapitel ist für den Unterricht einzeln frei wählbar) und Fortschritte per Hefter-Code oder A4-Hefterblatt sichern."
+    ],
+    shortcuts: [
+      { label: "Zeitreise", url: "https://epochenhub.vercel.app/#timeline" },
+      { label: "Natur-Atlas", url: "https://epochenhub.vercel.app/#atlas" }
     ]
   },
   {

@@ -2,10 +2,47 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '3.5.0',
+    title: 'Epochenhub (Beta) im App-Portal integriert: 8 interaktive 16-Bit Geschichtsabenteuer (70 Kapitel) & Natur-Atlas',
+    date: '20. November 2026',
+    isLatest: true,
+    highlight: 'Neues Geschichts-Portal für Unterricht & Kollegium: Das Epochenhub (https://epochenhub.vercel.app/) ist ab sofort mit offiziellem Beta-Banner im App-Portal unter „Schüler & Unterricht“ sowie „Lehrerzimmer & Kollegium“ verankert. Es bündelt 8 interaktive 16-Bit Top-Down-Geschichtsabenteuer mit insgesamt 70 Kapiteln von der Steinzeit (40.000 v. Chr.) bis zur Reformation (1555 n. Chr.) – inklusive chronologischer Zeitreise, 16-Bit Natur-Atlas (Flora & Fauna), Schüler-Zeitreise-Pass (Chrono-Pass), Smartboard-QR-Codes und A4-Hefterblatt-Druck.',
+    items: [
+      {
+        id: 'cl-350-1',
+        type: 'neu',
+        title: 'Epochenhub (Beta) mit Beta-Banner im App-Portal verankert',
+        description: 'Direktstart des Epochenhubs unter https://epochenhub.vercel.app/ (deklariert mit eigenem Beta-Banner in der Bento-, Kompakt- und Detailansicht) sowie Schnell-QR-Code für Schüler-iPads und Smartboards.',
+        badge: 'Epochenhub (Beta)'
+      },
+      {
+        id: 'cl-350-2',
+        type: 'neu',
+        title: '8 spielbare 16-Bit Geschichts-Expeditionen mit 70 Kapiteln (Klasse 5–8)',
+        description: 'Umfasst alle 8 Epochenspiele nach Thüringer Lehrplan: Steinzeit bis Eisenzeit (6 Kap.), Altes Ägypten (6 Kap.), Antikes Griechenland (10 Kap.), Römisches Reich (12 Kap.), Die Germanen (8 Kap.), Die Wikinger (12 Kap.), Europäisches Mittelalter / Feudalsystem (8 Kap.) sowie Die Reformation 1517–1555 (8 Kap.). Jedes Kapitel ist im Unterricht einzeln direkt anwählbar.',
+        badge: '8 Spiele • 70 Kapitel'
+      },
+      {
+        id: 'cl-350-3',
+        type: 'neu',
+        title: 'Interaktiver 16-Bit Natur-Atlas (Flora & Fauna) & Chrono-Pass',
+        description: 'Neben der chronologischen Zeitleiste und der Raster-Ansicht bietet das Epochenhub einen interaktiven 16-Bit Natur-Atlas (Bestiarium & Herbarium der Epochen) sowie einen lokalen Schüler-Zeitreise-Pass zum Stempeln erforschter Epochen – 100 % DSGVO-konform und ohne Login.',
+        badge: 'Natur-Atlas & Pass'
+      },
+      {
+        id: 'cl-350-4',
+        type: 'neu',
+        title: 'Didaktische Unterrichtswerkzeuge: 27-Begriffe-Lexikon, Hefter-Codes & A4-Hefterblatt',
+        description: 'Jedes Spiel enthält ein progressives Fachlexikon mit 27 Lehrplan-Begriffen und Vorlesefunktion, 5 interaktive Mitmach-Stationen, einen 360°-Quelleninspektor, deterministische Hefter-Speichercodes für das Geschichtsheft sowie ein 1-Klick A4-Hefterblatt-Drucksystem.',
+        badge: 'Didaktik & A4-Druck'
+      }
+    ]
+  },
+  {
     version: '3.4.1',
     title: 'Dateiablage 2.0: Rekursive Ordner-Zählung, Finder-Listenansicht mit Sortierung & sicheres Übernehmen',
     date: '17. November 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Upgrade für die Dateiablage & den Materialpool: Oberordner zählen ab sofort alle Dateien in beliebig tief verschachtelten Unterordnern mit, das Verschieben bzw. Übernehmen aus dem Kollegiums-Austausch in „Mein Speicher“ ordnet die Datei zuverlässig der angemeldeten Lehrkraft zu, und die neue Finder-/Explorer-Listenansicht sortiert Ordner und Dateien gemeinsam nach Name, Typ/Fach, Größe, Ersteller und Datum.',
     items: [
       {

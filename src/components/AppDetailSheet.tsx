@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { X, ExternalLink, Copy, Check, QrCode, GraduationCap, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { X, ExternalLink, Copy, Check, QrCode, GraduationCap, ShieldCheck, CheckCircle2, FlaskConical } from 'lucide-react';
 import { SchoolApp } from '../config/apps';
 import { AnimatedAppIcon } from './AnimatedAppIcon';
 
@@ -76,6 +76,12 @@ export const AppDetailSheet: React.FC<AppDetailSheetProps> = ({
 
         {/* Scrollable Sheet Body */}
         <div className="overflow-y-auto flex-1 px-5 sm:px-6 py-4 space-y-4">
+          {app.isBeta && (
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-[#091D2E] via-[#0B7BA7] to-[#F39200] text-white text-xs font-bold flex items-center gap-2 shadow-sm">
+              <FlaskConical className="w-4 h-4 text-amber-300 shrink-0" />
+              <span>{app.betaBannerText || 'BETA-VERSION • 16-Bit Geschichtsabenteuer • QR-Schnellscan'}</span>
+            </div>
+          )}
           
           {/* Description */}
           <p className="text-xs sm:text-sm text-hbs-slate-muted leading-relaxed">

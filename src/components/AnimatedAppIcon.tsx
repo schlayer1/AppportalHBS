@@ -24,7 +24,10 @@ import {
   Users,
   Wrench,
   Brain,
-  Scale
+  Scale,
+  Gamepad2,
+  FolderOpen,
+  Target
 } from 'lucide-react';
 
 interface AnimatedAppIconProps {
@@ -233,6 +236,31 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
     return (
       <div className="relative flex items-center justify-center group/icon">
         <Scale className={`${className} transition-transform duration-300 group-hover/icon:scale-110 group-hover/icon:-rotate-6 text-sky-600`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Gamepad2') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Gamepad2 className={`${className} transition-transform duration-300 group-hover/icon:scale-115 group-hover/icon:-rotate-6 text-amber-400`} size={size} />
+        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-300 animate-ping" />
+      </div>
+    );
+  }
+
+  if (iconName === 'FolderOpen') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <FolderOpen className={`${className} transition-transform duration-300 group-hover/icon:scale-110`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Target') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Target className={`${className} transition-transform duration-300 group-hover/icon:scale-110`} size={size} />
       </div>
     );
   }
