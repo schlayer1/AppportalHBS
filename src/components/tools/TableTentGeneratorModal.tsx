@@ -9,23 +9,34 @@ import { QRCodeSVG } from 'qrcode.react';
 interface TableTentGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialPreset?: TargetPreset;
+  initialPinCode?: string;
 }
 
-type TargetPreset = 'portal' | 'menti' | 'kahoot' | 'oncoo' | 'tafel' | 'custom';
+export type TargetPreset = 'portal' | 'menti' | 'kahoot' | 'oncoo' | 'gruppen' | 'tafel' | 'custom';
 
 export const TableTentGeneratorModal: React.FC<TableTentGeneratorModalProps> = ({
   isOpen,
-  onClose
+  onClose,
+  initialPreset = 'portal',
+  initialPinCode = ''
 }) => {
   const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'https://portal.schule.de';
 
-  const [preset, setPreset] = useState<TargetPreset>('portal');
-  const [pinCode, setPinCode] = useState<string>('');
+  const [preset, setPreset] = useState<TargetPreset>(initialPreset);
+  const [pinCode, setPinCode] = useState<string>(initialPinCode);
   const [customUrl, setCustomUrl] = useState<string>('');
   const [title, setTitle] = useState<string>('Appportal Heimbürgeschule');
   const [subtitle, setSubtitle] = useState<string>('Direktzugang für den Unterricht');
   const [tableNumber, setTableNumber] = useState<string>('Tisch 1');
   const [showTableField, setShowTableField] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (isOpen && initialPreset) {
+      handleSelectPreset(initialPreset);
+      if (initialPinCode) setPinCode(initialPinCode);
+    }
+  }, [isOpen, initialPreset, initialPinCode]);
 
   // Close modal on Escape key
   useEffect(() => {
@@ -49,6 +60,8 @@ export const TableTentGeneratorModal: React.FC<TableTentGeneratorModalProps> = (
     finalUrl = pinCode.trim() ? `${baseUrl}?kahoot=${pinCode.trim()}` : `${baseUrl}#kahoot`;
   } else if (preset === 'oncoo') {
     finalUrl = pinCode.trim() ? `${baseUrl}?oncoo=${pinCode.trim()}` : `${baseUrl}#oncoo`;
+  } else if (preset === 'gruppen') {
+    finalUrl = pinCode.trim() ? `${baseUrl}?gruppen=${pinCode.trim()}` : `${baseUrl}#gruppen`;
   } else if (preset === 'tafel') {
     finalUrl = `${baseUrl}?board=guest`;
   } else if (preset === 'custom') {
@@ -69,6 +82,9 @@ export const TableTentGeneratorModal: React.FC<TableTentGeneratorModalProps> = (
     } else if (p === 'oncoo') {
       setTitle('HBS Oncoo Lerntools');
       setSubtitle('Kartenabfrage, Zielscheibe & Lerntempoduett');
+    } else if (p === 'gruppen') {
+      setTitle('HBS Gruppen per QR-Code');
+      setSubtitle('Scannen, um deine Gruppe & Station zu ziehen');
     } else if (p === 'tafel') {
       setTitle('Digitale Tafel • Schüleransicht');
       setSubtitle('Tafelbild live auf deinem Gerät ansehen');
@@ -171,6 +187,7 @@ export const TableTentGeneratorModal: React.FC<TableTentGeneratorModalProps> = (
               { id: 'menti', label: 'HBS Menti Live' },
               { id: 'kahoot', label: 'HBS Kahoot!' },
               { id: 'oncoo', label: 'HBS Oncoo' },
+              { id: 'gruppen', label: 'HBS Gruppenlos (QR)' },
               { id: 'tafel', label: 'Digitale Tafel' },
               { id: 'custom', label: 'Eigener Link' },
             ].map(item => (
@@ -190,17 +207,17 @@ export const TableTentGeneratorModal: React.FC<TableTentGeneratorModalProps> = (
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-            {(preset === 'menti' || preset === 'kahoot' || preset === 'oncoo') && (
+            {(preset === 'menti' || preset === 'kahoot' || preset === 'oncoo' || preset === 'gruppen') && (
               <div>
                 <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">
-                  Optionaler Sitzungs-PIN:
+                  Optionaler Sitzungs-PIN / Code:
                 </label>
                 <input
                   type="text"
-                  maxLength={8}
+                  maxLength={12}
                   value={pinCode}
                   onChange={e => setPinCode(e.target.value)}
-                  placeholder="z. B. 482 109"
+                  placeholder="z. B. HBS42"
                   className="w-full p-2 rounded-xl bg-white border border-slate-300 font-mono font-bold text-xs"
                 />
               </div>

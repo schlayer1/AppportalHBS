@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Users, Shuffle, Edit2, Check } from 'lucide-react';
+import { Users, Shuffle, Edit2, Check, QrCode } from 'lucide-react';
+import { SAL1KE_GROUP_COLORS, createShuffledGroupBag, QrGroupSession } from '../../../types/gruppenTypes';
+import { syncGruppenLiveSession } from '../../../services/firebase';
 
 const DEFAULT_NAMES = [
   'Anna', 'Ben', 'Clara', 'David', 'Elias', 
@@ -151,14 +153,62 @@ export const GroupMakerWidget: React.FC = () => {
         </>
       )}
 
-      {/* Action Button */}
-      <button
-        onClick={handleGenerateGroups}
-        className="w-full min-h-[42px] mt-2 rounded-2xl bg-hbs-teal hover:bg-hbs-teal-deep text-white font-black text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 shadow-hbs-teal/20"
-      >
-        <Shuffle className="w-4 h-4" />
-        <span>Gruppen neu mischen</span>
-      </button>
+      {/* Action Buttons */}
+      <div className="flex flex-col gap-1.5 mt-2">
+        <button
+          onClick={handleGenerateGroups}
+          className="w-full min-h-[42px] rounded-2xl bg-hbs-teal hover:bg-hbs-teal-deep text-white font-black text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 shadow-hbs-teal/20 cursor-pointer"
+        >
+          <Shuffle className="w-4 h-4" />
+          <span>Gruppen neu mischen</span>
+        </button>
+
+        {groups.length >= 2 && (
+          <button
+            onClick={async () => {
+              const count = Math.max(2, Math.min(12, groups.length));
+              const totalStudents = groups.reduce((acc, g) => acc + g.length, 0);
+              const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+              let suffix = '';
+              for (let i = 0; i < 4; i++) suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+              const code = `HBS${suffix}`;
+              const now = Date.now();
+              const session: QrGroupSession = {
+                id: `grp-${now}`,
+                code,
+                pinCode: code,
+                title: 'Sucht euch einen Platz und baut eure Station auf',
+                groupCount: count,
+                groupNames: Array.from({ length: count }, (_, i) => `Gruppe ${i + 1}`),
+                groupColors: SAL1KE_GROUP_COLORS.slice(0, count),
+                maxSeats: Math.max(totalStudents + 4, 29),
+                assignedCount: 0,
+                groupCounts: Array(count).fill(0),
+                remainingBag: createShuffledGroupBag(count),
+                deviceAssignments: {},
+                preassignedGroups: groups.slice(0, count).map((members, idx) => ({
+                  groupIndex: idx,
+                  groupName: `Gruppe ${idx + 1}`,
+                  members
+                })),
+                isOpen: true,
+                authorId: 'board',
+                authorName: 'Digitale Tafel',
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: now + 7 * 86400000
+              };
+              await syncGruppenLiveSession(session);
+              window.location.hash = '#gruppen';
+            }}
+            className="w-full min-h-[38px] rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white font-bold text-[11px] shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+            title="Überträgt diese Teams direkt in das Vollbild-Tool 'Gruppen per QR-Code'"
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span>Als QR-Gruppenlos starten</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 };

@@ -19,7 +19,8 @@ rules_version = '2';
 //   Allowed docIds:
 //     - 'portal_data': PortalCloudData (users, preferences, boardTemplates,
 //       mentiPresentations, activeMentiSession, kahootGames,
-//       activeKahootSession, oncooSessions, activeOncooSession, updatedAt)
+//       activeKahootSession, oncooSessions, activeOncooSession,
+//       activeGruppenSession, updatedAt)
 //     - 'hbs_feature_requests': { items: list<FeatureRequest>, updatedAt: number }
 //     - 'shared_board': { sharedBoard: SharedBoardPayload }
 //     - 'live_poll': { livePoll?, 'livePoll.votes'?, 'livePoll.updatedAt'?,
@@ -27,12 +28,13 @@ rules_version = '2';
 //     - 'kahoot_*': KahootLiveSession
 //     - 'menti_*': MentiLiveSession
 //     - 'oncoo_*': OncooSession
+//     - 'gruppen_*': QrGroupSession
 //
 // Collection: schools/{schoolId}
 //   Allowed schoolId:
 //     - 'HBS_portal': mirror doc containing sharedBoard, livePoll (+ dotted
 //       livePoll.* keys), activeKahootSession, activeMentiSession (+ dotted
-//       activeMentiSession.* keys), activeOncooSession
+//       activeMentiSession.* keys), activeOncooSession, activeGruppenSession
 //
 // Collection: hbs_feature_requests/{requestId}
 //   - id (optional), title, description, category, authorName, authorId,
@@ -348,6 +350,61 @@ service cloud.firestore {
              isValidOncooFields(o);
     }
 
+    function gruppenAllowedFields() {
+      return [
+        'id', 'code', 'pinCode', 'title', 'subject', 'grade',
+        'groupCount', 'groupNames', 'groupColors', 'maxSeats',
+        'assignedCount', 'groupCounts', 'remainingBag',
+        'deviceAssignments', 'preassignedGroups', 'isOpen',
+        'authorId', 'authorName', 'createdAt', 'updatedAt', 'expiresAt'
+      ];
+    }
+
+    function isValidGruppenFields(g) {
+      return g is map &&
+             optStr(g, 'id', 128) &&
+             optStr(g, 'code', 40) &&
+             optStr(g, 'pinCode', 40) &&
+             optStr(g, 'title', 300) &&
+             optStr(g, 'subject', 100) &&
+             optStr(g, 'grade', 50) &&
+             optNumRange(g, 'groupCount', 2, 12) &&
+             optList(g, 'groupNames', 12) &&
+             optList(g, 'groupColors', 12) &&
+             optNumRange(g, 'maxSeats', 1, 300) &&
+             optNumRange(g, 'assignedCount', 0, 300) &&
+             optList(g, 'groupCounts', 12) &&
+             optList(g, 'remainingBag', 12) &&
+             optMap(g, 'deviceAssignments', 300) &&
+             optList(g, 'preassignedGroups', 12) &&
+             optBool(g, 'isOpen') &&
+             optStr(g, 'authorId', 128) &&
+             optStr(g, 'authorName', 150) &&
+             optNum(g, 'createdAt') &&
+             optNum(g, 'updatedAt') &&
+             optNum(g, 'expiresAt');
+    }
+
+    function isValidGruppenSessionCreate(g) {
+      return g is map &&
+             g.keys().size() >= 1 &&
+             g.keys().size() <= 21 &&
+             g.keys().hasOnly(gruppenAllowedFields()) &&
+             isValidGruppenFields(g);
+    }
+
+    function isValidGruppenSessionUpdateDoc(g) {
+      return g is map &&
+             hasOnlyAllowedUpdatedFields(gruppenAllowedFields()) &&
+             isValidGruppenFields(g);
+    }
+
+    function isValidGruppenSessionNestedUpdate(parentField, g) {
+      return g is map &&
+             isValidNestedUpdateMap(parentField, g, gruppenAllowedFields()) &&
+             isValidGruppenFields(g);
+    }
+
     function sharedBoardAllowedFields() {
       return [
         'title', 'subject', 'grade', 'teacherName', 'targetDate',
@@ -429,13 +486,14 @@ service cloud.firestore {
       return [
         'users', 'preferences', 'boardTemplates', 'mentiPresentations',
         'activeMentiSession', 'kahootGames', 'activeKahootSession',
-        'oncooSessions', 'activeOncooSession', 'updatedAt'
+        'oncooSessions', 'activeOncooSession', 'activeGruppenSession',
+        'updatedAt'
       ];
     }
 
     function isValidPortalDataCreate(data) {
       return data.keys().size() >= 1 &&
-             data.keys().size() <= 10 &&
+             data.keys().size() <= 11 &&
              hasOnlyAllowedFields(portalDataAllowedFields()) &&
              optList(data, 'users', 300) &&
              optMap(data, 'preferences', 300) &&
@@ -446,6 +504,7 @@ service cloud.firestore {
              (!('activeKahootSession' in data) || data.activeKahootSession == null || isValidKahootSessionCreate(data.activeKahootSession)) &&
              optList(data, 'oncooSessions', 300) &&
              (!('activeOncooSession' in data) || data.activeOncooSession == null || isValidOncooSessionCreate(data.activeOncooSession)) &&
+             (!('activeGruppenSession' in data) || data.activeGruppenSession == null || isValidGruppenSessionCreate(data.activeGruppenSession)) &&
              optNum(data, 'updatedAt');
     }
 
@@ -461,6 +520,7 @@ service cloud.firestore {
              (!('activeKahootSession' in affected) || data.activeKahootSession == null || isValidKahootSessionNestedUpdate('activeKahootSession', data.activeKahootSession)) &&
              (!('oncooSessions' in affected) || optList(data, 'oncooSessions', 300)) &&
              (!('activeOncooSession' in affected) || data.activeOncooSession == null || isValidOncooSessionNestedUpdate('activeOncooSession', data.activeOncooSession)) &&
+             (!('activeGruppenSession' in affected) || data.activeGruppenSession == null || isValidGruppenSessionNestedUpdate('activeGruppenSession', data.activeGruppenSession)) &&
              (!('updatedAt' in affected) || optNum(data, 'updatedAt'));
     }
 
@@ -542,13 +602,14 @@ service cloud.firestore {
         'activeMentiSession.responses',
         'activeMentiSession.participantsCount',
         'activeMentiSession.recentReactions',
-        'activeOncooSession'
+        'activeOncooSession',
+        'activeGruppenSession'
       ];
     }
 
     function isValidHbsPortalSchoolDocCreate(data) {
       return data.keys().size() >= 1 &&
-             data.keys().size() <= 22 &&
+             data.keys().size() <= 23 &&
              hasOnlyAllowedFields(hbsPortalSchoolAllowedFields()) &&
              (!('sharedBoard' in data) || data.sharedBoard == null || isValidSharedBoardCreate(data.sharedBoard)) &&
              (!('livePoll' in data) || data.livePoll == null || isValidLivePollMapCreate(data.livePoll)) &&
@@ -561,7 +622,8 @@ service cloud.firestore {
              optMap(data, 'activeMentiSession.responses', 500) &&
              optNumRange(data, 'activeMentiSession.participantsCount', 0, 10000) &&
              optList(data, 'activeMentiSession.recentReactions', 500) &&
-             (!('activeOncooSession' in data) || data.activeOncooSession == null || isValidOncooSessionCreate(data.activeOncooSession));
+             (!('activeOncooSession' in data) || data.activeOncooSession == null || isValidOncooSessionCreate(data.activeOncooSession)) &&
+             (!('activeGruppenSession' in data) || data.activeGruppenSession == null || isValidGruppenSessionCreate(data.activeGruppenSession));
     }
 
     function isValidHbsPortalSchoolDocUpdate(data) {
@@ -578,7 +640,8 @@ service cloud.firestore {
              (!('activeMentiSession.responses' in affected) || optMap(data, 'activeMentiSession.responses', 500)) &&
              (!('activeMentiSession.participantsCount' in affected) || optNumRange(data, 'activeMentiSession.participantsCount', 0, 10000)) &&
              (!('activeMentiSession.recentReactions' in affected) || optList(data, 'activeMentiSession.recentReactions', 500)) &&
-             (!('activeOncooSession' in affected) || data.activeOncooSession == null || isValidOncooSessionNestedUpdate('activeOncooSession', data.activeOncooSession));
+             (!('activeOncooSession' in affected) || data.activeOncooSession == null || isValidOncooSessionNestedUpdate('activeOncooSession', data.activeOncooSession)) &&
+             (!('activeGruppenSession' in affected) || data.activeGruppenSession == null || isValidGruppenSessionNestedUpdate('activeGruppenSession', data.activeGruppenSession));
     }
 
     // ===============================================================
@@ -727,7 +790,8 @@ service cloud.firestore {
              (docId == 'live_poll' && isValidLivePollDocCreate(data)) ||
              (docId.matches('^kahoot_.{1,60}$') && isValidKahootSessionCreate(data)) ||
              (docId.matches('^menti_.{1,60}$') && isValidMentiSessionCreate(data)) ||
-             (docId.matches('^oncoo_.{1,60}$') && isValidOncooSessionCreate(data));
+             (docId.matches('^oncoo_.{1,60}$') && isValidOncooSessionCreate(data)) ||
+             (docId.matches('^gruppen_.{1,60}$') && isValidGruppenSessionCreate(data));
     }
 
     function isValidAppPortalDocUpdate(docId, data) {
@@ -737,7 +801,8 @@ service cloud.firestore {
              (docId == 'live_poll' && isValidLivePollDocUpdate(data)) ||
              (docId.matches('^kahoot_.{1,60}$') && isValidKahootSessionUpdateDoc(data)) ||
              (docId.matches('^menti_.{1,60}$') && isValidMentiSessionUpdateDoc(data)) ||
-             (docId.matches('^oncoo_.{1,60}$') && isValidOncooSessionUpdateDoc(data));
+             (docId.matches('^oncoo_.{1,60}$') && isValidOncooSessionUpdateDoc(data)) ||
+             (docId.matches('^gruppen_.{1,60}$') && isValidGruppenSessionUpdateDoc(data));
     }
 
     // ===============================================================

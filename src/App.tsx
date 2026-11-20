@@ -36,6 +36,10 @@ const OncooPresenter = lazy(() => import('./components/oncoo/OncooPresenter').th
 const OncooStudentClient = lazy(() => import('./components/oncoo/OncooStudentClient').then(m => ({ default: m.OncooStudentClient })));
 import type { OncooSession } from './types/oncooTypes';
 
+const GruppenDashboard = lazy(() => import('./components/gruppen/GruppenDashboard').then(m => ({ default: m.GruppenDashboard })));
+const GruppenStudentClient = lazy(() => import('./components/gruppen/GruppenStudentClient').then(m => ({ default: m.GruppenStudentClient })));
+import type { TargetPreset } from './components/tools/TableTentGeneratorModal';
+
 // Lazy-loaded heavy modal dialogues
 const InstallGuideModal = lazy(() => import('./components/InstallGuideModal').then(m => ({ default: m.InstallGuideModal })));
 const AdminPanelModal = lazy(() => import('./components/admin/AdminPanelModal').then(m => ({ default: m.AdminPanelModal })));
@@ -72,6 +76,7 @@ const VIEW_TO_HASH: Partial<Record<ViewMode, string>> = {
   menti: '#menti',
   kahoot: '#kahoot',
   oncoo: '#oncoo',
+  gruppen: '#gruppen',
   ablage: '#ablage',
 };
 
@@ -133,6 +138,7 @@ export default function App() {
       if (hash === '#menti' || hash.startsWith('#menti/')) return 'menti';
       if (hash === '#kahoot' || hash.startsWith('#kahoot/')) return 'kahoot';
       if (hash === '#oncoo' || hash.startsWith('#oncoo/')) return 'oncoo';
+      if (hash === '#gruppen' || hash.startsWith('#gruppen/')) return 'gruppen';
       if (hash === '#tafel') return 'tafel';
       if (hash === '#ablage' || hash === '#files') return 'ablage';
       if (localStorage.getItem('hbs_guest_portal_mode_v1') === 'true') {
@@ -152,7 +158,7 @@ export default function App() {
 
   // Track app usage when dedicated tool view is active (100% cookie-free & anonymized)
   useEffect(() => {
-    if (viewMode === 'tafel' || viewMode === 'kahoot' || viewMode === 'menti' || viewMode === 'oncoo' || viewMode === 'ablage') {
+    if (viewMode === 'tafel' || viewMode === 'kahoot' || viewMode === 'menti' || viewMode === 'oncoo' || viewMode === 'gruppen' || viewMode === 'ablage') {
       recordAppLaunch(viewMode);
     }
   }, [viewMode]);
@@ -238,6 +244,7 @@ export default function App() {
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState<boolean>(false);
   const [isAddCustomLinkOpen, setIsAddCustomLinkOpen] = useState<boolean>(false);
   const [isTableTentOpen, setIsTableTentOpen] = useState<boolean>(false);
+  const [tableTentInitialConfig, setTableTentInitialConfig] = useState<{ preset?: TargetPreset; pinCode?: string }>({});
   const [isReorderMode, setIsReorderMode] = useState<boolean>(false);
   const [isHandbookOpen, setIsHandbookOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
@@ -312,6 +319,8 @@ export default function App() {
         } else {
           setOncooSubView('dashboard');
         }
+      } else if (hash === '#gruppen' || hash.startsWith('#gruppen/')) {
+        setViewMode('gruppen');
       } else if (hash === '#tafel') {
         setViewMode('tafel');
       } else if (hash === '#ablage' || hash === '#files') {
@@ -354,7 +363,7 @@ export default function App() {
         setKahootSubView('dashboard');
         setOncooSubView('dashboard');
         setViewMode((prev) => {
-          if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo' || prev === 'tafel' || prev === 'ablage') {
+          if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo' || prev === 'gruppen' || prev === 'tafel' || prev === 'ablage') {
             return preferredPortalView;
           }
           return prev;
@@ -545,6 +554,27 @@ export default function App() {
     );
   }
 
+  // Check if student is accessing Gruppen per QR-Code via PIN or QR code (bypass password gate)
+  const isGruppenPlayer = typeof window !== 'undefined' && (
+    window.location.search.includes('gruppen=') || 
+    window.location.hash.includes('gruppen=')
+  );
+
+  if (isGruppenPlayer) {
+    return (
+      <Suspense fallback={<LoadingSpinner message="Deine Gruppe wird geladen..." />}>
+        <GruppenStudentClient 
+          onClose={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('gruppen');
+            window.history.replaceState({}, '', url.pathname);
+            window.location.reload();
+          }} 
+        />
+      </Suspense>
+    );
+  }
+
   // Check if student is accessing shared blackboard via QR code (bypass password gate)
   const isBoardShare = typeof window !== 'undefined' && (
     window.location.search.includes('boardShare=') || 
@@ -727,6 +757,23 @@ export default function App() {
             />
           </Suspense>
         )}
+      </ErrorBoundary>
+    );
+  }
+
+  // Fullscreen / Dedicated HBS Gruppen per QR-Code (sal1ke Gruppen Replica)
+  if (viewMode === 'gruppen') {
+    return (
+      <ErrorBoundary fallbackTitle="Fehler beim Laden von HBS Gruppen per QR-Code" onReset={handleExitToPortal}>
+        <Suspense fallback={<LoadingSpinner message="QR-Gruppenlos wird geladen..." />}>
+          <GruppenDashboard
+            onBackToPortal={handleExitToPortal}
+            onOpenTableTentWithCode={(pinCode) => {
+              setTableTentInitialConfig({ preset: 'gruppen', pinCode });
+              setIsTableTentOpen(true);
+            }}
+          />
+        </Suspense>
       </ErrorBoundary>
     );
   }
@@ -1099,7 +1146,12 @@ export default function App() {
         {isTableTentOpen && (
           <TableTentGeneratorModal
             isOpen={isTableTentOpen}
-            onClose={() => setIsTableTentOpen(false)}
+            onClose={() => {
+              setIsTableTentOpen(false);
+              setTableTentInitialConfig({});
+            }}
+            initialPreset={tableTentInitialConfig.preset}
+            initialPinCode={tableTentInitialConfig.pinCode}
           />
         )}
 

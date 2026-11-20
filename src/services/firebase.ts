@@ -116,6 +116,7 @@ import { DEFAULT_MENTI_TEMPLATES } from "../data/defaultMentiTemplates";
 import { KahootGame, KahootLiveSession, KahootParticipant } from "../types/kahootTypes";
 import { DEFAULT_KAHOOT_GAMES } from "../data/defaultKahootTemplates";
 import { OncooSession, OncooCard, OncooHelpItem, OncooTargetVote, OncooDuettPair, DEFAULT_ONCOO_TEMPLATES } from "../types/oncooTypes";
+import { QrGroupSession, QrGroupClaimResult, createShuffledGroupBag } from "../types/gruppenTypes";
 
 export interface PortalCloudData {
   users: PortalUser[];
@@ -127,6 +128,7 @@ export interface PortalCloudData {
   activeKahootSession?: KahootLiveSession | null;
   oncooSessions?: OncooSession[];
   activeOncooSession?: OncooSession | null;
+  activeGruppenSession?: QrGroupSession | null;
   updatedAt: number;
 }
 
@@ -1535,4 +1537,294 @@ export const submitOncooActionInCloud = async (
     console.warn("Error submitting Oncoo action in cloud:", err);
   }
 };
+
+// ==========================================================
+// HBS GRUPPEN PER QR-CODE (sal1ke.de/tools/probe/gruppen Clone)
+// ==========================================================
+
+const GRUPPEN_LOCAL_CACHE_PREFIX = 'hbs_gruppen_session_';
+
+export const saveLocalGruppenSession = (session: QrGroupSession): void => {
+  try {
+    const cleanPin = (session.pinCode || session.code || '').replace(/\s+/g, '').toUpperCase();
+    localStorage.setItem(`${GRUPPEN_LOCAL_CACHE_PREFIX}${cleanPin}`, JSON.stringify(session));
+    localStorage.setItem('hbs_gruppen_active_session', JSON.stringify(session));
+  } catch {
+    // ignore
+  }
+};
+
+export const getLocalGruppenSession = (pinCode: string): QrGroupSession | null => {
+  try {
+    const cleanPin = (pinCode || '').replace(/\s+/g, '').toUpperCase();
+    const raw = localStorage.getItem(`${GRUPPEN_LOCAL_CACHE_PREFIX}${cleanPin}`);
+    if (raw) return JSON.parse(raw) as QrGroupSession;
+    const activeRaw = localStorage.getItem('hbs_gruppen_active_session');
+    if (activeRaw) {
+      const parsed = JSON.parse(activeRaw) as QrGroupSession;
+      if ((parsed.pinCode || parsed.code || '').replace(/\s+/g, '').toUpperCase() === cleanPin) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+};
+
+/**
+ * Syncs an active QR Group Allocation session to Firestore & local storage.
+ */
+export const syncGruppenLiveSession = async (session: QrGroupSession): Promise<void> => {
+  const cleanPin = (session.pinCode || session.code || '').replace(/\s+/g, '').toUpperCase();
+  const dataToWrite = sanitizeForFirestore({
+    ...session,
+    code: cleanPin,
+    pinCode: cleanPin,
+    updatedAt: Date.now()
+  });
+  saveLocalGruppenSession(dataToWrite);
+
+  if (!db || !cleanPin) return;
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `gruppen_${cleanPin}`);
+    await setDoc(sessionDocRef, dataToWrite, { merge: true });
+
+    const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
+    await setDoc(portalDocRef, { activeGruppenSession: dataToWrite }, { merge: true }).catch(() => {});
+
+    const schoolDocRef = doc(db, 'schools', 'HBS_portal');
+    await setDoc(schoolDocRef, { activeGruppenSession: dataToWrite }, { merge: true }).catch(() => {});
+  } catch (err) {
+    console.warn("Gruppen sync to cloud warning:", err);
+  }
+};
+
+/**
+ * Loads a QR Group Allocation session by PIN code from Firestore (or local fallback).
+ */
+export const getGruppenLiveSessionFromCloud = async (pinCode: string): Promise<QrGroupSession | null> => {
+  const cleanPin = (pinCode || '').replace(/\s+/g, '').toUpperCase();
+  if (!cleanPin) return null;
+
+  if (db) {
+    try {
+      const sessionDocRef = doc(db, PORTAL_COLLECTION, `gruppen_${cleanPin}`);
+      const snap = await getDoc(sessionDocRef);
+      if (snap.exists()) {
+        const data = snap.data() as QrGroupSession;
+        saveLocalGruppenSession(data);
+        return data;
+      }
+
+      const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
+      const pSnap = await getDoc(portalDocRef);
+      if (pSnap.exists()) {
+        const active = pSnap.data()?.activeGruppenSession;
+        if (active && String(active.pinCode || active.code || '').replace(/\s+/g, '').toUpperCase() === cleanPin) {
+          saveLocalGruppenSession(active as QrGroupSession);
+          return active as QrGroupSession;
+        }
+      }
+    } catch (err) {
+      console.warn("Error getting Gruppen session from cloud:", err);
+    }
+  }
+  return getLocalGruppenSession(cleanPin);
+};
+
+/**
+ * Subscribes in real-time to a QR Group Allocation session by its PIN.
+ */
+export const subscribeToGruppenSession = (
+  pinCode: string,
+  callback: (session: QrGroupSession | null) => void
+): (() => void) => {
+  const cleanPin = (pinCode || '').replace(/\s+/g, '').toUpperCase();
+  if (!cleanPin) return () => {};
+
+  if (!db) {
+    const local = getLocalGruppenSession(cleanPin);
+    if (local) callback(local);
+    return () => {};
+  }
+
+  try {
+    const sessionDocRef = doc(db, PORTAL_COLLECTION, `gruppen_${cleanPin}`);
+    const unsubscribe = onSnapshot(sessionDocRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as QrGroupSession;
+        saveLocalGruppenSession(data);
+        callback(data);
+      } else {
+        const local = getLocalGruppenSession(cleanPin);
+        if (local) {
+          callback(local);
+          return;
+        }
+        callback(null);
+      }
+    }, (err) => {
+      console.warn("Gruppen snapshot error:", err);
+      const local = getLocalGruppenSession(cleanPin);
+      if (local) callback(local);
+    });
+    return unsubscribe;
+  } catch (err) {
+    console.warn("Could not subscribe to Gruppen session:", err);
+    return () => {};
+  }
+};
+
+/**
+ * Atomically claims a group slot for a student device using sal1ke's fair round-robin
+ * shuffled bag algorithm:
+ * - Groups always stay equal size (at most 1 person difference)
+ * - Consecutive scans land in different groups
+ * - Same device token re-scanning receives the exact same group without consuming an extra seat
+ * - Rejects when round is closed (`!isOpen`) or all seats are taken (`assignedCount >= maxSeats`)
+ */
+export const claimGruppenSlotInCloud = async (
+  pinCode: string,
+  deviceToken: string
+): Promise<QrGroupClaimResult> => {
+  const cleanPin = (pinCode || '').replace(/\s+/g, '').toUpperCase();
+  if (!cleanPin) return { status: 'not_found', message: 'Diese Runde gibt es nicht mehr.' };
+
+  const applyDrawLogic = (sess: QrGroupSession): { updated: QrGroupSession; result: QrGroupClaimResult } => {
+    const groupCount = Math.max(2, Math.min(12, sess.groupCount || 5));
+    const names = Array.isArray(sess.groupNames) && sess.groupNames.length >= groupCount
+      ? sess.groupNames
+      : Array.from({ length: groupCount }, (_, i) => `Gruppe ${i + 1}`);
+    const colors = Array.isArray(sess.groupColors) && sess.groupColors.length >= groupCount
+      ? sess.groupColors
+      : ['#1565C0', '#C2410C', '#2E7D32', '#8E24AA', '#00796B'];
+
+    const assignments = { ...(sess.deviceAssignments || {}) };
+
+    // 1. Check if this device already has a group in this session
+    if (typeof assignments[deviceToken] === 'number' && assignments[deviceToken] >= 0 && assignments[deviceToken] < groupCount) {
+      const existingIdx = assignments[deviceToken];
+      return {
+        updated: sess,
+        result: {
+          status: 'already_assigned',
+          groupIndex: existingIdx,
+          groupName: names[existingIdx] || `Gruppe ${existingIdx + 1}`,
+          groupColor: colors[existingIdx % colors.length],
+          session: sess
+        }
+      };
+    }
+
+    // 2. Check if round is closed
+    if (!sess.isOpen) {
+      return {
+        updated: sess,
+        result: {
+          status: 'closed',
+          message: 'Diese Runde ist geschlossen.',
+          session: sess
+        }
+      };
+    }
+
+    // 3. Check if all seats are taken
+    const currentAssigned = typeof sess.assignedCount === 'number' ? sess.assignedCount : 0;
+    const maxSeats = typeof sess.maxSeats === 'number' ? sess.maxSeats : 29;
+    if (currentAssigned >= maxSeats) {
+      return {
+        updated: sess,
+        result: {
+          status: 'full',
+          message: 'Alle Plätze dieser Runde sind vergeben. Sag deiner Lehrkraft Bescheid.',
+          session: sess
+        }
+      };
+    }
+
+    // 4. Draw next group from round-robin shuffled bag
+    let bag = Array.isArray(sess.remainingBag) ? [...sess.remainingBag] : [];
+    const counts = Array.isArray(sess.groupCounts) && sess.groupCounts.length === groupCount
+      ? [...sess.groupCounts]
+      : Array(groupCount).fill(0);
+
+    if (bag.length === 0) {
+      // Find minimum count groups first, or create a full shuffled permutation bag
+      bag = createShuffledGroupBag(groupCount);
+    }
+
+    const drawnGroupIndex = bag.pop()!;
+    counts[drawnGroupIndex] = (counts[drawnGroupIndex] || 0) + 1;
+    assignments[deviceToken] = drawnGroupIndex;
+
+    // Refill bag immediately if emptied, avoiding drawnGroupIndex as the very next draw
+    if (bag.length === 0) {
+      bag = createShuffledGroupBag(groupCount, drawnGroupIndex);
+    }
+
+    const updatedSession: QrGroupSession = {
+      ...sess,
+      assignedCount: currentAssigned + 1,
+      groupCounts: counts,
+      remainingBag: bag,
+      deviceAssignments: assignments,
+      updatedAt: Date.now()
+    };
+
+    return {
+      updated: updatedSession,
+      result: {
+        status: 'assigned',
+        groupIndex: drawnGroupIndex,
+        groupName: names[drawnGroupIndex] || `Gruppe ${drawnGroupIndex + 1}`,
+        groupColor: colors[drawnGroupIndex % colors.length],
+        session: updatedSession
+      }
+    };
+  };
+
+  if (db) {
+    try {
+      const sessionDocRef = doc(db, PORTAL_COLLECTION, `gruppen_${cleanPin}`);
+      const txResult = await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(sessionDocRef);
+        if (!snap.exists()) {
+          return null;
+        }
+        const sess = snap.data() as QrGroupSession;
+        const { updated, result } = applyDrawLogic(sess);
+        if (result.status === 'assigned') {
+          const sanitized = sanitizeForFirestore(updated);
+          transaction.set(sessionDocRef, sanitized, { merge: true });
+        }
+        return { updated, result };
+      });
+
+      if (txResult) {
+        saveLocalGruppenSession(txResult.updated);
+        if (txResult.result.status === 'assigned') {
+          const portalDocRef = doc(db, PORTAL_COLLECTION, PORTAL_DATA_DOC);
+          setDoc(portalDocRef, { activeGruppenSession: sanitizeForFirestore(txResult.updated) }, { merge: true }).catch(() => {});
+        }
+        return txResult.result;
+      }
+    } catch (err) {
+      console.warn("Firestore transaction for Gruppen claim failed, trying fallback:", err);
+    }
+  }
+
+  // Fallback to local / direct doc if offline or transaction unavailable
+  const fallbackSession = await getGruppenLiveSessionFromCloud(cleanPin);
+  if (!fallbackSession) {
+    return { status: 'not_found', message: 'Diese Runde gibt es nicht mehr.' };
+  }
+
+  const { updated, result } = applyDrawLogic(fallbackSession);
+  if (result.status === 'assigned') {
+    await syncGruppenLiveSession(updated);
+  }
+  return result;
+};
+
 

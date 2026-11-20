@@ -175,6 +175,29 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
+    id: "hbs-gruppen-qr",
+    title: "HBS Gruppen per QR-Code (Zufallslos)",
+    shortTitle: "Gruppen per QR",
+    subtitle: "Faire Gruppenzuteilung per QR-Scan & Farb-Vollbild",
+    description: "Sekundenschnelle, faire Gruppeneinteilung (2–12 Gruppen) per QR-Code nach dem sal1ke-Prinzip: Vergeben wird reihum in zufälliger Reihenfolge – die Gruppen sind immer gleich groß (höchstens eine Person Unterschied) und wer nacheinander scannt, kommt garantiert in verschiedene Gruppen. Jedes Schülergerät färbt sich vollflächig in seiner Gruppenfarbe und merkt sich seine Gruppe ohne Namen oder Login. Mit verstecktem Lehrer-Spickzettel, druckbaren Tischkarten und Tafel-Import.",
+    url: "#gruppen",
+    category: "unterricht",
+    categories: ["unterricht", "kollegium"],
+    badge: "Neu: QR-Gruppenlos",
+    badgeColor: "teal",
+    icon: "Dices",
+    tags: ["Gruppen", "QR-Code", "Zufallsgenerator", "Gruppenarbeit", "Stationenlernen", "Farben", "Smartboard", "sal1ke"],
+    isFeaturedStudentQr: true,
+    offlineReady: true,
+    privacyBadge: "100% DSGVO & Ohne Namen",
+    pedagogicalValue: "Verhindert Diskussionen und Zeitverlust bei der Gruppenbildung: Da am Beamer nur die Gesamtzahl der gescannten Geräte steht (nicht die Verteilung je Gruppe), kann niemand ablesen oder abpassen, welche Gruppe als Nächstes gezogen wird.",
+    quickGuide: [
+      "Am Smartboard öffnen und optional über 'Runde anpassen' Gruppenanzahl (2–12), eigene Stationsnamen oder Arbeitsauftrag wählen.",
+      "Schüler scannen den großen QR-Code oder geben den Runden-Code ein – jedes Gerät zeigt seine Gruppe riesig in der passenden Erkennungsfarbe.",
+      "Bei Bedarf den versteckten 'Spickzettel' für die Einzelverteilung öffnen, '+10 Plätze mehr' freigeben oder farbige Tischkarten drucken."
+    ]
+  },
+  {
     id: "digitaler-museumsrundgang",
     title: "Digitaler Museumsrundgang (3D-Saal)",
     shortTitle: "Museumsrundgang",
