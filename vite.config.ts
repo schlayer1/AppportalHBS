@@ -96,7 +96,7 @@ function localApiProxyPlugin(): Plugin {
   };
 }
 
-function swVersionPlugin(): Plugin {
+function swVersionPlugin(buildId: string): Plugin {
   let outDir = 'dist';
   return {
     name: 'hbs-sw-version',
@@ -109,7 +109,7 @@ function swVersionPlugin(): Plugin {
       const content = fs.readFileSync(swPath, 'utf8');
       const stamped = content.replace(
         /'hbs-app-portal-v1'/,
-        `'hbs-app-portal-${Date.now()}'`
+        `'hbs-app-portal-${buildId}'`
       );
       fs.writeFileSync(swPath, stamped, 'utf8');
     },
@@ -117,6 +117,8 @@ function swVersionPlugin(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
+  const buildId = String(Date.now());
+
   // Lädt auch nicht-VITE_ Secrets aus .env für lokale API-Middlewares (GEMINI_API_KEY, R2_*, CLOUDFLARE_*)
   const env = loadEnv(mode, process.cwd(), '');
   for (const [k, v] of Object.entries(env)) {
@@ -126,7 +128,10 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), localApiProxyPlugin(), swVersionPlugin()],
+    define: {
+      __HBS_BUILD_ID__: JSON.stringify(buildId),
+    },
+    plugins: [react(), localApiProxyPlugin(), swVersionPlugin(buildId)],
     build: {
       rollupOptions: {
         output: {

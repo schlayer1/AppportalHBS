@@ -2,32 +2,33 @@ import React, { useEffect, useState } from 'react';
 import { RefreshCw, X, Sparkles } from 'lucide-react';
 
 export const SW_UPDATE_EVENT = 'hbs-sw-update-available';
+const DISMISSED_SW_VERSION_KEY = 'hbs_sw_dismissed_version_v1';
 
 export const SwUpdateBanner: React.FC = () => {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [workerCacheName, setWorkerCacheName] = useState<string>('');
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
   useEffect(() => {
     const handleUpdateAvailable = (e: Event) => {
-      const customEvent = e as CustomEvent<{ worker?: ServiceWorker }>;
-      if (customEvent.detail?.worker) {
-        setWaitingWorker(customEvent.detail.worker);
-        setIsDismissed(false);
-      }
+      const customEvent = e as CustomEvent<{ worker?: ServiceWorker; cacheName?: string }>;
+      const worker = customEvent.detail?.worker;
+      const cacheName = customEvent.detail?.cacheName || '';
+      if (!worker) return;
+
+      try {
+        if (cacheName && sessionStorage.getItem(DISMISSED_SW_VERSION_KEY) === cacheName) {
+          return;
+        }
+      } catch {}
+
+      setWaitingWorker(worker);
+      setWorkerCacheName(cacheName);
+      setIsDismissed(false);
     };
 
     window.addEventListener(SW_UPDATE_EVENT, handleUpdateAvailable);
-
-    // Check if a waiting worker already exists on mount
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then((reg) => {
-        if (reg?.waiting) {
-          setWaitingWorker(reg.waiting);
-        }
-      }).catch(() => {});
-    }
-
     return () => {
       window.removeEventListener(SW_UPDATE_EVENT, handleUpdateAvailable);
     };
@@ -37,7 +38,17 @@ export const SwUpdateBanner: React.FC = () => {
 
   const handleApplyUpdate = () => {
     setIsUpdating(true);
+    (window as any).__hbsUserRequestedSwReload = true;
     waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+  };
+
+  const handleDismiss = () => {
+    if (workerCacheName) {
+      try {
+        sessionStorage.setItem(DISMISSED_SW_VERSION_KEY, workerCacheName);
+      } catch {}
+    }
+    setIsDismissed(true);
   };
 
   return (
@@ -74,7 +85,7 @@ export const SwUpdateBanner: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => setIsDismissed(true)}
+            onClick={handleDismiss}
             aria-label="Hinweis später anzeigen"
             title="Später"
             className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"

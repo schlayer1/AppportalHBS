@@ -15,8 +15,11 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  if (!event.data) return;
+  if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  } else if (event.data.type === 'GET_CACHE_NAME' && event.ports && event.ports[0]) {
+    event.ports[0].postMessage({ cacheName: CACHE_NAME });
   }
 });
 
