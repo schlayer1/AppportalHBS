@@ -132,8 +132,13 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
   useEffect(() => {
     if (!session.pinCode) return;
     const unsub = subscribeToGruppenSession(session.pinCode, (remote) => {
-      if (remote && remote.updatedAt >= session.updatedAt) {
-        setSession(remote);
+      if (remote) {
+        setSession((prev) => {
+          if (remote.updatedAt >= prev.updatedAt || remote.assignedCount !== prev.assignedCount) {
+            return remote;
+          }
+          return prev;
+        });
       }
     });
     return () => unsub();
