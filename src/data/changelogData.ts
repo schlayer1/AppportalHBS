@@ -2,10 +2,47 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '3.7.0',
+    title: 'HBS Gruppen per QR-Code: Faire Gruppenzulosung mit Farb-Vollbild, Einzel-Arbeitsaufträgen & 48h-Auto-Cleanup',
+    date: '20. November 2026',
+    isLatest: true,
+    highlight: 'Neues Vollbild-Unterrichtswerkzeug direkt im App-Portal (#gruppen): Mit „HBS Gruppen per QR-Code“ losen Lehrkräfte ihre Klasse in Sekunden fair und ohne Diskussionen in 2 bis 12 gleich große Gruppen oder Lernstationen. Wer nacheinander scannt, landet garantiert in verschiedenen Gruppen. Jedes Schülergerät färbt sich vollflächig in seiner Gruppenfarbe und zeigt auf Wunsch direkt den gruppenspezifischen Arbeitsauftrag an – komplett ohne Schüler-Login, ohne Namen und mit automatischer Datenbank-Bereinigung nach 48 Stunden.',
+    items: [
+      {
+        id: 'cl-370-1',
+        type: 'neu',
+        title: 'Fairer Round-Robin-Zufallstopf & Informationsschutz am Smartboard',
+        description: 'Die Vergabe erfolgt reihum aus einem Zufallstopf: Alle Gruppen bleiben immer gleich groß (höchstens 1 Person Unterschied) und aufeinanderfolgende Scans kommen in verschiedene Gruppen. Auf der Beamer-Bühne steht standardmäßig nur die Gesamtzahl der gescannten Geräte, damit niemand abpassen kann, welche Gruppe als Nächstes gezogen wird.',
+        badge: 'Fairer Zufallstopf'
+      },
+      {
+        id: 'cl-370-2',
+        type: 'neu',
+        title: 'Farb-Vollbild auf Schülergeräten & individuelle Arbeitsaufträge je Gruppe',
+        description: 'Nach dem QR-Scan (oder der Code-Eingabe) färbt sich das gesamte Display auf Smartphone oder iPad in einer von 12 kräftigen Erkennungsfarben. Lehrkräfte können sowohl einen allgemeinen Auftrag als auch für jede einzelne Gruppe/Station einen eigenen Arbeitsauftrag hinterlegen, der sofort auf dem Schülergerät und den druckbaren A4-Tischkarten erscheint.',
+        badge: 'Farb-Vollbild & Aufträge'
+      },
+      {
+        id: 'cl-370-3',
+        type: 'neu',
+        title: 'Versteckter Lehrer-Spickzettel, Tafel-Import & A4-Tischkarten-Druck',
+        description: 'Über den zuschaltbaren „Spickzettel“ sieht die Lehrkraft in Echtzeit die genaue Verteilung je Gruppe. Zudem lassen sich die Schülerlisten aus dem Gruppen-Generator der Digitalen Tafel mit einem Klick übernehmen sowie farbige Tischkarten und Falt-Aufsteller direkt im Browser als A4-Blatt drucken.',
+        badge: 'Spickzettel & Tafel-Brücke'
+      },
+      {
+        id: 'cl-370-4',
+        type: 'verbessert',
+        title: '100% DSGVO-konform & automatische 2-Tage-Datenbankbereinigung (48h TTL)',
+        description: 'Es werden keinerlei Schülernamen in der Cloud gespeichert; jedes Gerät merkt sich nur seine Gruppennummer für die laufende Runde (erneutes Scannen verbraucht keinen weiteren Platz). Alle Runden-Daten haben eine strikte Vorhaltezeit von maximal 48 Stunden und werden danach automatisch aus Firestore und dem Gerätespeicher entfernt.',
+        badge: 'DSGVO & 48h Auto-Cleanup'
+      }
+    ]
+  },
+  {
     version: '3.6.0',
     title: 'Digitaler Museumsrundgang (3D-Saal): Virtuelle Klassenausstellungen mit PPTX/PDF/Audio/Video, Beamer-Führung & Cloudflare R2',
     date: '20. November 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Neues Highlight für alle Unterrichtsfächer: Mit dem Digitalen Museumsrundgang (https://digitalesmuseum.vercel.app/) wird der klassische „Gallery Walk“ zum interaktiven 3D-Erlebnis. Schülerinnen und Schüler reichen Plakate, mehrseitige PDFs, PowerPoint-Präsentationen (.pptx), Audio-Podcasts oder Lernvideos per 6-stelligem Code ein – danach wandert die gesamte Klasse frei oder im synchronisierten Beamer-Führungsmodus durch den 3D-Museumssaal mit Schulsiegel im Giebel, vergibt Likes, verortet Fragen auf dem Exponat und gibt kriteriengeleitetes Sterne-Feedback.',
     items: [
       {
