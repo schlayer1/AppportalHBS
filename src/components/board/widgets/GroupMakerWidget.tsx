@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Users, Shuffle, Edit2, Check, QrCode } from 'lucide-react';
 import { SAL1KE_GROUP_COLORS, createShuffledGroupBag, QrGroupSession } from '../../../types/gruppenTypes';
-import { syncGruppenLiveSession } from '../../../services/firebase';
+import { syncGruppenLiveSession, GRUPPEN_TTL_MS } from '../../../services/firebase';
 
 const DEFAULT_NAMES = [
   'Anna', 'Ben', 'Clara', 'David', 'Elias', 
@@ -196,7 +196,7 @@ export const GroupMakerWidget: React.FC = () => {
                 authorName: 'Digitale Tafel',
                 createdAt: now,
                 updatedAt: now,
-                expiresAt: now + 7 * 86400000
+                expiresAt: now + GRUPPEN_TTL_MS
               };
               await syncGruppenLiveSession(session);
               window.location.hash = '#gruppen';

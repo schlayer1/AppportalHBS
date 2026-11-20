@@ -353,7 +353,7 @@ service cloud.firestore {
     function gruppenAllowedFields() {
       return [
         'id', 'code', 'pinCode', 'title', 'subject', 'grade',
-        'groupCount', 'groupNames', 'groupColors', 'maxSeats',
+        'groupCount', 'groupNames', 'groupColors', 'groupTasks', 'maxSeats',
         'assignedCount', 'groupCounts', 'remainingBag',
         'deviceAssignments', 'preassignedGroups', 'isOpen',
         'authorId', 'authorName', 'createdAt', 'updatedAt', 'expiresAt'
@@ -371,6 +371,7 @@ service cloud.firestore {
              optNumRange(g, 'groupCount', 2, 12) &&
              optList(g, 'groupNames', 12) &&
              optList(g, 'groupColors', 12) &&
+             optList(g, 'groupTasks', 12) &&
              optNumRange(g, 'maxSeats', 1, 300) &&
              optNumRange(g, 'assignedCount', 0, 300) &&
              optList(g, 'groupCounts', 12) &&
@@ -388,7 +389,7 @@ service cloud.firestore {
     function isValidGruppenSessionCreate(g) {
       return g is map &&
              g.keys().size() >= 1 &&
-             g.keys().size() <= 21 &&
+             g.keys().size() <= 22 &&
              g.keys().hasOnly(gruppenAllowedFields()) &&
              isValidGruppenFields(g);
     }
@@ -1029,7 +1030,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isValidAppPortalDocCreate(docId, request.resource.data);
       allow update: if isValidAppPortalDocUpdate(docId, request.resource.data);
-      allow delete: if false;
+      allow delete: if docId.matches('^(gruppen|oncoo_gruppen|kahoot|menti|oncoo)_.{1,60}$');
     }
 
     // Fallback- & Spiegel-Dokument für Live-Board, Poll, Kahoot, Menti, Oncoo

@@ -35,7 +35,9 @@ import {
   syncGruppenLiveSession,
   subscribeToGruppenSession,
   claimGruppenSlotInCloud,
-  getGruppenLiveSessionFromCloud
+  getGruppenLiveSessionFromCloud,
+  cleanupExpiredGruppenSessionsInCloud,
+  GRUPPEN_TTL_MS
 } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { formatTeacherName } from '../../types/user';
@@ -44,8 +46,6 @@ interface GruppenDashboardProps {
   onBackToPortal: () => void;
   onOpenTableTentWithCode?: (pinCode: string) => void;
 }
-
-const SEVEN_DAYS_MS = 7 * 86400000;
 
 function generateRoundCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -122,13 +122,14 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
       authorName: currentUser ? formatTeacherName(currentUser) : 'Lehrkraft',
       createdAt: now,
       updatedAt: now,
-      expiresAt: now + SEVEN_DAYS_MS
+      expiresAt: now + GRUPPEN_TTL_MS
     };
   });
 
-  // Sync initial session to cloud on mount and subscribe to real-time student scans
+  // Sync initial session to cloud on mount and clean up expired (>2 days) sessions
   useEffect(() => {
     syncGruppenLiveSession(session);
+    cleanupExpiredGruppenSessionsInCloud().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -354,12 +355,13 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
         authorName: currentUser ? formatTeacherName(currentUser) : 'Lehrkraft',
         createdAt: canPreserveAssignments ? session.createdAt : now,
         updatedAt: now,
-        expiresAt: now + SEVEN_DAYS_MS
+        expiresAt: now + GRUPPEN_TTL_MS
       };
 
       setSession(nextSession);
       setIsConfigOpen(false);
       await syncGruppenLiveSession(nextSession);
+      cleanupExpiredGruppenSessionsInCloud().catch(() => {});
     },
     [
       draftGroupCount,
@@ -867,7 +869,8 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
               einmal scannen zeigt dieselbe Gruppe und verbraucht keinen weiteren Platz. Die Bühne
               zeigt standardmäßig nur, wie viele Geräte schon eine Gruppe haben, nicht wie viele in
               jeder Gruppe sind – sonst ließe sich am Smartboard ablesen, welche Gruppe als Nächstes
-              kommt. Es werden nur anonyme Zahlen gespeichert, keine Schülernamen; sind alle Plätze
+              kommt. Es werden nur anonyme Zahlen gespeichert, keine Schülernamen; nach spätestens
+              2 Tagen wird die Runde automatisch aus der Datenbank entfernt. Sind alle Plätze
               vergeben, kann niemand die Runde mit Abrufen fluten, bis du mit „10 Plätze mehr“
               nachlegst.
             </p>

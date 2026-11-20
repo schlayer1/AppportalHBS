@@ -7,6 +7,9 @@ import {
   doc, 
   getDoc, 
   setDoc, 
+  deleteDoc,
+  collection,
+  getDocs,
   onSnapshot,
   arrayUnion,
   runTransaction,
@@ -1542,6 +1545,7 @@ export const submitOncooActionInCloud = async (
 // HBS GRUPPEN PER QR-CODE (sal1ke.de/tools/probe/gruppen Clone)
 // ==========================================================
 
+export const GRUPPEN_TTL_MS = 2 * 86400000; // Strictly 2 days (48 hours) retention
 const GRUPPEN_LOCAL_CACHE_PREFIX = 'hbs_gruppen_session_';
 
 /**
@@ -1551,13 +1555,27 @@ const GRUPPEN_LOCAL_CACHE_PREFIX = 'hbs_gruppen_session_';
  */
 const getGruppenDocId = (cleanPin: string): string => `oncoo_gruppen_${cleanPin}`;
 
+const isGruppenSessionExpired = (session: QrGroupSession | null | undefined): boolean => {
+  if (!session) return true;
+  const now = Date.now();
+  if (typeof session.expiresAt === 'number' && session.expiresAt > 0) {
+    return now > session.expiresAt;
+  }
+  if (typeof session.createdAt === 'number' && session.createdAt > 0) {
+    return now - session.createdAt > GRUPPEN_TTL_MS;
+  }
+  return false;
+};
+
 const wrapGruppenForFirestore = (session: QrGroupSession): Record<string, unknown> => {
   const cleanPin = (session.pinCode || session.code || '').replace(/\s+/g, '').toUpperCase();
+  const now = Date.now();
   const normalized: QrGroupSession = {
     ...session,
     code: cleanPin,
     pinCode: cleanPin,
-    updatedAt: session.updatedAt || Date.now()
+    updatedAt: session.updatedAt || now,
+    expiresAt: session.expiresAt || (session.createdAt || now) + GRUPPEN_TTL_MS
   };
   return sanitizeForFirestore({
     id: normalized.id || `grp-${cleanPin}`,
@@ -1566,7 +1584,7 @@ const wrapGruppenForFirestore = (session: QrGroupSession): Record<string, unknow
     authorId: normalized.authorId || 'teacher',
     authorName: normalized.authorName || 'Lehrkraft',
     isShared: false,
-    createdAt: normalized.createdAt || Date.now(),
+    createdAt: normalized.createdAt || now,
     updatedAt: normalized.updatedAt,
     pinCode: cleanPin,
     isActive: true,
@@ -1577,13 +1595,121 @@ const wrapGruppenForFirestore = (session: QrGroupSession): Record<string, unknow
 
 const unwrapGruppenFromFirestore = (raw: Record<string, unknown> | undefined | null): QrGroupSession | null => {
   if (!raw) return null;
+  // Ignore already scrubbed/expired placeholder docs
+  if (raw.isActive === false && (!raw.placemat || Object.keys(raw.placemat as object).length === 0)) {
+    return null;
+  }
   if (raw.placemat && typeof raw.placemat === 'object' && 'groupCount' in (raw.placemat as Record<string, unknown>)) {
-    return raw.placemat as QrGroupSession;
+    const sess = raw.placemat as QrGroupSession;
+    return isGruppenSessionExpired(sess) ? null : sess;
   }
   if ('groupCount' in raw && 'pinCode' in raw) {
-    return raw as unknown as QrGroupSession;
+    const sess = raw as unknown as QrGroupSession;
+    return isGruppenSessionExpired(sess) ? null : sess;
   }
   return null;
+};
+
+/**
+ * Purges a single expired Gruppen document in Firestore:
+ * 1. First attempts a physical `deleteDoc()` (works as soon as the updated firestore.rules are deployed).
+ * 2. If `deleteDoc` is blocked by older rules, overwrites the document with a tiny 100-byte scrubbed tombstone
+ *    (`placemat: {}`), completely removing all device tokens, arrays, and tasks from the database.
+ */
+const purgeGruppenDocInCloud = async (docId: string, cleanPin: string): Promise<void> => {
+  if (!db) return;
+  const docRef = doc(db, PORTAL_COLLECTION, docId);
+  try {
+    await deleteDoc(docRef);
+  } catch {
+    try {
+      await setDoc(docRef, {
+        id: `expired-${cleanPin}`,
+        toolType: 'placemat',
+        title: 'Abgelaufen',
+        pinCode: cleanPin,
+        isActive: false,
+        isLocked: true,
+        updatedAt: Date.now(),
+        placemat: {}
+      });
+    } catch {
+      // ignore
+    }
+  }
+};
+
+/**
+ * Automatically scans and removes all Gruppen sessions in `localStorage` and `Firestore`
+ * that are older than 2 days (48 hours) so the database never accumulates stale rounds.
+ */
+export const cleanupExpiredGruppenSessionsInCloud = async (): Promise<number> => {
+  let cleanedCount = 0;
+
+  // 1. Clean local browser cache
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.startsWith(GRUPPEN_LOCAL_CACHE_PREFIX) || key === 'hbs_gruppen_active_session') {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw) as QrGroupSession;
+          if (isGruppenSessionExpired(parsed)) {
+            localStorage.removeItem(key);
+            cleanedCount++;
+          }
+        }
+      } else if (key.startsWith('tools-g-')) {
+        const val = localStorage.getItem(key) || '';
+        const ts = Number(val.split('.')[1] || 0);
+        if (!ts || Date.now() - ts >= GRUPPEN_TTL_MS) {
+          localStorage.removeItem(key);
+        }
+      }
+    }
+  } catch {
+    // ignore localStorage errors
+  }
+
+  // 2. Clean Firestore collection `hbs_appportal`
+  if (!db) return cleanedCount;
+  try {
+    const colRef = collection(db, PORTAL_COLLECTION);
+    const snap = await getDocs(colRef);
+    const purgePromises: Promise<void>[] = [];
+
+    snap.forEach((docSnap) => {
+      const id = docSnap.id;
+      if (!id.startsWith('oncoo_gruppen_') && !id.startsWith('gruppen_')) return;
+
+      const data = docSnap.data() as Record<string, unknown>;
+      // Skip if already scrubbed tombstone and delete isn't active yet
+      if (data.isActive === false && (!data.placemat || Object.keys(data.placemat as object).length === 0)) {
+        // Still try physical delete in case rules were deployed
+        purgePromises.push(deleteDoc(doc(db!, PORTAL_COLLECTION, id)).catch(() => {}));
+        return;
+      }
+
+      const inner = (data.placemat && typeof data.placemat === 'object' && 'groupCount' in (data.placemat as object))
+        ? (data.placemat as QrGroupSession)
+        : (data as unknown as QrGroupSession);
+
+      if (isGruppenSessionExpired(inner)) {
+        const cleanPin = String(inner?.pinCode || id.replace(/^oncoo_gruppen_|^gruppen_/, '')).toUpperCase();
+        purgePromises.push(purgeGruppenDocInCloud(id, cleanPin));
+        cleanedCount++;
+      }
+    });
+
+    if (purgePromises.length > 0) {
+      await Promise.allSettled(purgePromises);
+    }
+  } catch (err) {
+    console.warn("Gruppen TTL cleanup warning:", err);
+  }
+
+  return cleanedCount;
 };
 
 export const saveLocalGruppenSession = (session: QrGroupSession): void => {
@@ -1600,10 +1726,21 @@ export const getLocalGruppenSession = (pinCode: string): QrGroupSession | null =
   try {
     const cleanPin = (pinCode || '').replace(/\s+/g, '').toUpperCase();
     const raw = localStorage.getItem(`${GRUPPEN_LOCAL_CACHE_PREFIX}${cleanPin}`);
-    if (raw) return JSON.parse(raw) as QrGroupSession;
+    if (raw) {
+      const parsed = JSON.parse(raw) as QrGroupSession;
+      if (isGruppenSessionExpired(parsed)) {
+        localStorage.removeItem(`${GRUPPEN_LOCAL_CACHE_PREFIX}${cleanPin}`);
+        return null;
+      }
+      return parsed;
+    }
     const activeRaw = localStorage.getItem('hbs_gruppen_active_session');
     if (activeRaw) {
       const parsed = JSON.parse(activeRaw) as QrGroupSession;
+      if (isGruppenSessionExpired(parsed)) {
+        localStorage.removeItem('hbs_gruppen_active_session');
+        return null;
+      }
       if ((parsed.pinCode || parsed.code || '').replace(/\s+/g, '').toUpperCase() === cleanPin) {
         return parsed;
       }
@@ -1646,10 +1783,19 @@ export const getGruppenLiveSessionFromCloud = async (pinCode: string): Promise<Q
 
   if (db) {
     try {
-      const sessionDocRef = doc(db, PORTAL_COLLECTION, getGruppenDocId(cleanPin));
+      const docId = getGruppenDocId(cleanPin);
+      const sessionDocRef = doc(db, PORTAL_COLLECTION, docId);
       const snap = await getDoc(sessionDocRef);
       if (snap.exists()) {
-        const unwrapped = unwrapGruppenFromFirestore(snap.data() as Record<string, unknown>);
+        const raw = snap.data() as Record<string, unknown>;
+        const inner = (raw.placemat && typeof raw.placemat === 'object' && 'groupCount' in (raw.placemat as object))
+          ? (raw.placemat as QrGroupSession)
+          : null;
+        if (inner && isGruppenSessionExpired(inner)) {
+          await purgeGruppenDocInCloud(docId, cleanPin);
+          return null;
+        }
+        const unwrapped = unwrapGruppenFromFirestore(raw);
         if (unwrapped) {
           saveLocalGruppenSession(unwrapped);
           return unwrapped;
@@ -1657,13 +1803,17 @@ export const getGruppenLiveSessionFromCloud = async (pinCode: string): Promise<Q
       }
 
       // Secondary check on legacy `gruppen_<PIN>` if rules were deployed later
-      const directDocRef = doc(db, PORTAL_COLLECTION, `gruppen_${cleanPin}`);
+      const directDocId = `gruppen_${cleanPin}`;
+      const directDocRef = doc(db, PORTAL_COLLECTION, directDocId);
       const directSnap = await getDoc(directDocRef);
       if (directSnap.exists()) {
-        const unwrapped = unwrapGruppenFromFirestore(directSnap.data() as Record<string, unknown>);
+        const raw = directSnap.data() as Record<string, unknown>;
+        const unwrapped = unwrapGruppenFromFirestore(raw);
         if (unwrapped) {
           saveLocalGruppenSession(unwrapped);
           return unwrapped;
+        } else {
+          await purgeGruppenDocInCloud(directDocId, cleanPin);
         }
       }
     } catch (err) {

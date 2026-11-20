@@ -19,19 +19,19 @@ import {
 import {
   claimGruppenSlotInCloud,
   getGruppenLiveSessionFromCloud,
-  subscribeToGruppenSession
+  subscribeToGruppenSession,
+  cleanupExpiredGruppenSessionsInCloud,
+  GRUPPEN_TTL_MS
 } from '../../services/firebase';
 
 interface GruppenStudentClientProps {
   onClose: () => void;
 }
 
-const SEVEN_DAYS_MS = 7 * 86400000;
 const DEVICE_TOKEN_KEY = 'hbs_gruppen_device_token_v1';
 
 /**
- * Cleans up expired `tools-g-*` entries older than 7 days in localStorage,
- * exactly matching sal1ke's `gruppe.js` privacy guarantee.
+ * Cleans up expired `tools-g-*` entries older than 2 days (48 hours) in localStorage.
  */
 function cleanupExpiredGroupTokens(): void {
   try {
@@ -41,7 +41,7 @@ function cleanupExpiredGroupTokens(): void {
         const val = localStorage.getItem(k) || '';
         const parts = val.split('.');
         const ts = Number(parts[1] || 0);
-        if (!ts || Date.now() - ts >= SEVEN_DAYS_MS) {
+        if (!ts || Date.now() - ts >= GRUPPEN_TTL_MS) {
           localStorage.removeItem(k);
         }
       }
@@ -184,6 +184,10 @@ export const GruppenStudentClient: React.FC<GruppenStudentClientProps> = ({ onCl
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    cleanupExpiredGruppenSessionsInCloud().catch(() => {});
   }, []);
 
   useEffect(() => {
