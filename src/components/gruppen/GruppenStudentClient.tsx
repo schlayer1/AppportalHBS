@@ -141,14 +141,24 @@ export const GruppenStudentClient: React.FC<GruppenStudentClientProps> = ({ onCl
 
       // 1. Check local storage (`tools-g-<CODE>`) first — just like sal1ke's `kennt()` in `gruppe.js`
       const localStored = getStoredGroupIndex(cleanCode, groupCount);
+      const deviceToken = getOrCreateDeviceToken();
+
       if (localStored !== null) {
         setAssignedGroupIndex(localStored);
+        // Ensure this device's locally stored group is also registered in the cloud session
+        // (e.g. if the teacher updated the round settings while keeping the same code)
+        if (existingSession.deviceAssignments?.[deviceToken] !== localStored) {
+          claimGruppenSlotInCloud(cleanCode, deviceToken, localStored)
+            .then((res) => {
+              if (res.session) setSession(res.session);
+            })
+            .catch(() => {});
+        }
         setIsLoading(false);
         return;
       }
 
       // 2. Otherwise claim a fair round-robin slot in cloud using deviceToken
-      const deviceToken = getOrCreateDeviceToken();
       const result = await claimGruppenSlotInCloud(cleanCode, deviceToken);
 
       if (
@@ -321,15 +331,42 @@ export const GruppenStudentClient: React.FC<GruppenStudentClientProps> = ({ onCl
           )}
         </main>
 
-        {/* Bottom: Task Prompt & Privacy Note (matching sal1ke `.los-auftrag` & `.los-fuss`) */}
+        {/* Bottom: Task Prompt & Privacy Note (matching sal1ke `.los-auftrag` & `.los-fuss` + individual group task) */}
         <footer className="w-full max-w-xl mx-auto text-center space-y-3 pb-2">
-          {session?.title && (
-            <div className="p-4 sm:p-5 rounded-2xl bg-black/20 border border-white/25 backdrop-blur-xs shadow-lg">
-              <p className="text-base sm:text-xl font-extrabold text-white leading-snug">
-                {session.title}
-              </p>
-            </div>
-          )}
+          {(() => {
+            const specificGroupTask = session?.groupTasks?.[assignedGroupIndex]?.trim();
+            const generalTitle = session?.title?.trim();
+
+            if (specificGroupTask) {
+              return (
+                <div className="p-4 sm:p-6 rounded-2xl bg-black/25 border-2 border-white/35 backdrop-blur-xs shadow-xl space-y-1.5">
+                  <span className="inline-block text-[11px] font-extrabold uppercase tracking-widest text-white/85 bg-white/15 px-2.5 py-0.5 rounded-full">
+                    Arbeitsauftrag für {rawGroupName}
+                  </span>
+                  <p className="text-lg sm:text-2xl font-black text-white leading-snug">
+                    {specificGroupTask}
+                  </p>
+                  {generalTitle && generalTitle !== specificGroupTask && (
+                    <p className="text-xs sm:text-sm font-semibold text-white/80 pt-1">
+                      {generalTitle}
+                    </p>
+                  )}
+                </div>
+              );
+            }
+
+            if (generalTitle) {
+              return (
+                <div className="p-4 sm:p-5 rounded-2xl bg-black/20 border border-white/25 backdrop-blur-xs shadow-lg">
+                  <p className="text-base sm:text-xl font-extrabold text-white leading-snug">
+                    {generalTitle}
+                  </p>
+                </div>
+              );
+            }
+
+            return null;
+          })()}
 
           <p className="text-xs font-medium text-white/80 flex items-center justify-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 shrink-0" />

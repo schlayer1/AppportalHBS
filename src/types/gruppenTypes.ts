@@ -23,11 +23,12 @@ export interface QrGroupSession {
   id: string;
   code: string;
   pinCode: string;
-  title: string; // Arbeitsauftrag, e.g. "Sucht euch einen Platz und baut eure Station auf"
+  title: string; // Allgemeiner Arbeitsauftrag, e.g. "Sucht euch einen Platz und baut eure Station auf"
   subject?: string;
   grade?: string;
   groupCount: number; // 2..12
   groupNames: string[]; // e.g. ["Gruppe 1", "Gruppe 2", ...] or ["Station A", ...]
+  groupTasks?: string[]; // Optional individual task prompt per group (index 0..groupCount-1)
   groupColors: string[]; // hex colors matching SAL1KE_GROUP_COLORS
   maxSeats: number; // default e.g. 29, expandable via "+10 Plätze mehr" up to 300
   assignedCount: number; // total devices assigned so far
@@ -47,6 +48,7 @@ export interface QrGroupClaimResult {
   status: 'assigned' | 'already_assigned' | 'closed' | 'full' | 'not_found' | 'error';
   groupIndex?: number;
   groupName?: string;
+  groupTask?: string;
   groupColor?: string;
   session?: QrGroupSession;
   message?: string;
@@ -59,6 +61,7 @@ export interface QrGroupPreset {
   groupCount: number;
   maxSeats: number;
   groupNames: string[];
+  groupTasks?: string[];
 }
 
 export const DEFAULT_GRUPPEN_PRESETS: QrGroupPreset[] = [
@@ -89,10 +92,14 @@ export const DEFAULT_GRUPPEN_PRESETS: QrGroupPreset[] = [
   {
     id: 'pro-contra-2',
     label: '2 Debattier-Lager (Pro / Contra)',
-    title: 'Sammelt in eurem Lager 3 starke Argumente für die Debatte',
+    title: 'Bereitet eure Argumente für die Podiumsdebatte vor',
     groupCount: 2,
     maxSeats: 30,
-    groupNames: ['Team Pro (Dafür)', 'Team Contra (Dagegen)']
+    groupNames: ['Team Pro (Dafür)', 'Team Contra (Dagegen)'],
+    groupTasks: [
+      'Sammelt 3 starke Argumente und Beispiele, die FÜR die These sprechen.',
+      'Sammelt 3 starke Argumente und Beispiele, die GEGEN die These sprechen.'
+    ]
   },
   {
     id: 'experten-8',

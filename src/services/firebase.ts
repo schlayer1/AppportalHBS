@@ -1724,11 +1724,14 @@ export const subscribeToGruppenSession = (
  * - Groups always stay equal size (at most 1 person difference)
  * - Consecutive scans land in different groups
  * - Same device token re-scanning receives the exact same group without consuming an extra seat
+ * - If `knownGroupIndex` is provided (from localStorage `tools-g-<CODE>`), ensures this device
+ *   is also registered in the cloud session's `deviceAssignments` and `groupCounts` if it was reset.
  * - Rejects when round is closed (`!isOpen`) or all seats are taken (`assignedCount >= maxSeats`)
  */
 export const claimGruppenSlotInCloud = async (
   pinCode: string,
-  deviceToken: string
+  deviceToken: string,
+  knownGroupIndex?: number | null
 ): Promise<QrGroupClaimResult> => {
   const cleanPin = (pinCode || '').replace(/\s+/g, '').toUpperCase();
   if (!cleanPin) return { status: 'not_found', message: 'Diese Runde gibt es nicht mehr.' };
@@ -1738,13 +1741,14 @@ export const claimGruppenSlotInCloud = async (
     const names = Array.isArray(sess.groupNames) && sess.groupNames.length >= groupCount
       ? sess.groupNames
       : Array.from({ length: groupCount }, (_, i) => `Gruppe ${i + 1}`);
+    const tasks = Array.isArray(sess.groupTasks) ? sess.groupTasks : [];
     const colors = Array.isArray(sess.groupColors) && sess.groupColors.length >= groupCount
       ? sess.groupColors
       : ['#1565C0', '#C2410C', '#2E7D32', '#8E24AA', '#00796B'];
 
     const assignments = { ...(sess.deviceAssignments || {}) };
 
-    // 1. Check if this device already has a group in this session
+    // 1. Check if this device already has a group in this cloud session
     if (typeof assignments[deviceToken] === 'number' && assignments[deviceToken] >= 0 && assignments[deviceToken] < groupCount) {
       const existingIdx = assignments[deviceToken];
       return {
@@ -1753,8 +1757,45 @@ export const claimGruppenSlotInCloud = async (
           status: 'already_assigned',
           groupIndex: existingIdx,
           groupName: names[existingIdx] || `Gruppe ${existingIdx + 1}`,
+          groupTask: tasks[existingIdx] || undefined,
           groupColor: colors[existingIdx % colors.length],
           session: sess
+        }
+      };
+    }
+
+    // 1b. If the student's browser already holds a valid local group for this code (`knownGroupIndex`),
+    // but the cloud session didn't have this deviceToken yet (e.g. teacher clicked "Übernehmen" with same code),
+    // re-register that exact group index in the cloud so the teacher's count & cheat sheet match!
+    if (typeof knownGroupIndex === 'number' && knownGroupIndex >= 0 && knownGroupIndex < groupCount) {
+      const counts = Array.isArray(sess.groupCounts) && sess.groupCounts.length === groupCount
+        ? [...sess.groupCounts]
+        : Array(groupCount).fill(0);
+      counts[knownGroupIndex] = (counts[knownGroupIndex] || 0) + 1;
+      assignments[deviceToken] = knownGroupIndex;
+      const currentAssigned = typeof sess.assignedCount === 'number' ? sess.assignedCount : 0;
+      const bag = Array.isArray(sess.remainingBag)
+        ? sess.remainingBag.filter((idx) => idx !== knownGroupIndex)
+        : createShuffledGroupBag(groupCount, knownGroupIndex);
+
+      const syncedSession: QrGroupSession = {
+        ...sess,
+        assignedCount: currentAssigned + 1,
+        groupCounts: counts,
+        remainingBag: bag.length > 0 ? bag : createShuffledGroupBag(groupCount, knownGroupIndex),
+        deviceAssignments: assignments,
+        updatedAt: Date.now()
+      };
+
+      return {
+        updated: syncedSession,
+        result: {
+          status: 'assigned',
+          groupIndex: knownGroupIndex,
+          groupName: names[knownGroupIndex] || `Gruppe ${knownGroupIndex + 1}`,
+          groupTask: tasks[knownGroupIndex] || undefined,
+          groupColor: colors[knownGroupIndex % colors.length],
+          session: syncedSession
         }
       };
     }
@@ -1819,6 +1860,7 @@ export const claimGruppenSlotInCloud = async (
         status: 'assigned',
         groupIndex: drawnGroupIndex,
         groupName: names[drawnGroupIndex] || `Gruppe ${drawnGroupIndex + 1}`,
+        groupTask: tasks[drawnGroupIndex] || undefined,
         groupColor: colors[drawnGroupIndex % colors.length],
         session: updatedSession
       }

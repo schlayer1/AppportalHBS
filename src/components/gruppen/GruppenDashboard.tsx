@@ -34,7 +34,8 @@ import {
 import {
   syncGruppenLiveSession,
   subscribeToGruppenSession,
-  claimGruppenSlotInCloud
+  claimGruppenSlotInCloud,
+  getGruppenLiveSessionFromCloud
 } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { formatTeacherName } from '../../types/user';
@@ -84,6 +85,7 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
     'Gruppe 4',
     'Gruppe 5'
   ]);
+  const [draftGroupTasks, setDraftGroupTasks] = useState<string[]>(['', '', '', '', '']);
   const [draftPreassignedGroups, setDraftPreassignedGroups] = useState<PreassignedGroupTeam[]>([]);
 
   // Active Live Session State
@@ -131,17 +133,35 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
 
   useEffect(() => {
     if (!session.pinCode) return;
-    const unsub = subscribeToGruppenSession(session.pinCode, (remote) => {
-      if (remote) {
-        setSession((prev) => {
-          if (remote.updatedAt >= prev.updatedAt || remote.assignedCount !== prev.assignedCount) {
-            return remote;
-          }
-          return prev;
-        });
+    const applyRemote = (remote: QrGroupSession | null) => {
+      if (!remote) return;
+      setSession((prev) => {
+        if (
+          remote.updatedAt > prev.updatedAt ||
+          remote.assignedCount !== prev.assignedCount ||
+          JSON.stringify(remote.groupCounts) !== JSON.stringify(prev.groupCounts)
+        ) {
+          return remote;
+        }
+        return prev;
+      });
+    };
+
+    const unsub = subscribeToGruppenSession(session.pinCode, applyRemote);
+
+    // Fallback polling every 3s in case mobile scan updated cloud while tab was backgrounded
+    const pollInterval = setInterval(() => {
+      if (!document.hidden) {
+        getGruppenLiveSessionFromCloud(session.pinCode)
+          .then(applyRemote)
+          .catch(() => {});
       }
-    });
-    return () => unsub();
+    }, 3000);
+
+    return () => {
+      unsub();
+      clearInterval(pollInterval);
+    };
   }, [session.pinCode]);
 
   // Listen to browser fullscreen state
@@ -224,7 +244,7 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
     }
   };
 
-  // Update draft group names array when groupCount changes
+  // Update draft group names and tasks arrays when groupCount changes
   const handleChangeDraftGroupCount = (newCount: number) => {
     const clamped = Math.max(2, Math.min(12, newCount));
     setDraftGroupCount(clamped);
@@ -232,6 +252,13 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
       const next = [...prev];
       while (next.length < clamped) {
         next.push(`Gruppe ${next.length + 1}`);
+      }
+      return next.slice(0, clamped);
+    });
+    setDraftGroupTasks((prev) => {
+      const next = [...prev];
+      while (next.length < clamped) {
+        next.push('');
       }
       return next.slice(0, clamped);
     });
@@ -271,7 +298,7 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
     setDraftMaxSeats(Math.max(list.length + 2, draftMaxSeats));
   };
 
-  // Start a fresh round with current draft configuration
+  // Start a fresh round or update current round configuration
   const handleStartNewRound = useCallback(
     async (keepCurrentCode = false) => {
       setIsSimulatingClass(false);
@@ -280,35 +307,52 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
       const names = draftGroupNames
         .slice(0, count)
         .map((n, i) => n.trim() || `Gruppe ${i + 1}`);
+      const tasks = draftGroupTasks
+        .slice(0, count)
+        .map((t) => t.trim());
       const now = Date.now();
 
-      // Clear local device memory for demo/re-testing if same code
-      try {
-        localStorage.removeItem(`tools-g-${newCode}`);
-      } catch {
-        // ignore
+      // If keeping the current code AND groupCount hasn't changed, preserve already scanned student devices!
+      const canPreserveAssignments =
+        keepCurrentCode &&
+        count === session.groupCount &&
+        session.assignedCount > 0;
+
+      if (!canPreserveAssignments) {
+        try {
+          localStorage.removeItem(`tools-g-${newCode}`);
+        } catch {
+          // ignore
+        }
       }
 
       const nextSession: QrGroupSession = {
-        id: `grp-${now}`,
+        id: canPreserveAssignments ? session.id : `grp-${now}`,
         code: newCode,
         pinCode: newCode,
         title: draftTitle.trim() || 'Sucht euch einen Platz und baut eure Station auf',
         groupCount: count,
         groupNames: names,
+        groupTasks: tasks,
         groupColors: SAL1KE_GROUP_COLORS.slice(0, count),
         maxSeats: Math.max(count, Math.min(200, draftMaxSeats || 29)),
-        assignedCount: 0,
-        groupCounts: Array(count).fill(0),
-        remainingBag: createShuffledGroupBag(count),
-        deviceAssignments: {},
+        assignedCount: canPreserveAssignments ? session.assignedCount : 0,
+        groupCounts: canPreserveAssignments && Array.isArray(session.groupCounts) && session.groupCounts.length === count
+          ? [...session.groupCounts]
+          : Array(count).fill(0),
+        remainingBag: canPreserveAssignments && Array.isArray(session.remainingBag) && session.remainingBag.length > 0
+          ? [...session.remainingBag]
+          : createShuffledGroupBag(count),
+        deviceAssignments: canPreserveAssignments && session.deviceAssignments
+          ? { ...session.deviceAssignments }
+          : {},
         ...(draftPreassignedGroups.length === count
           ? { preassignedGroups: draftPreassignedGroups }
           : {}),
-        isOpen: true,
+        isOpen: canPreserveAssignments ? session.isOpen : true,
         authorId: currentUser?.id || 'teacher',
         authorName: currentUser ? formatTeacherName(currentUser) : 'Lehrkraft',
-        createdAt: now,
+        createdAt: canPreserveAssignments ? session.createdAt : now,
         updatedAt: now,
         expiresAt: now + SEVEN_DAYS_MS
       };
@@ -320,11 +364,12 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
     [
       draftGroupCount,
       draftGroupNames,
+      draftGroupTasks,
       draftMaxSeats,
       draftPreassignedGroups,
       draftTitle,
       currentUser,
-      session.pinCode
+      session
     ]
   );
 
@@ -334,6 +379,11 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
     setDraftGroupCount(session.groupCount);
     setDraftMaxSeats(session.maxSeats);
     setDraftGroupNames([...session.groupNames]);
+    const existingTasks = Array.isArray(session.groupTasks) ? [...session.groupTasks] : [];
+    while (existingTasks.length < session.groupCount) {
+      existingTasks.push('');
+    }
+    setDraftGroupTasks(existingTasks.slice(0, session.groupCount));
     setDraftPreassignedGroups(session.preassignedGroups ? [...session.preassignedGroups] : []);
     setIsConfigOpen(true);
   };
@@ -752,12 +802,13 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 {session.groupNames.slice(0, session.groupCount).map((gName, idx) => {
                   const color =
                     session.groupColors?.[idx] ||
                     SAL1KE_GROUP_COLORS[idx % SAL1KE_GROUP_COLORS.length];
                   const count = session.groupCounts?.[idx] || 0;
+                  const gTask = session.groupTasks?.[idx]?.trim();
                   const preTeam = session.preassignedGroups?.find((t) => t.groupIndex === idx);
                   return (
                     <div
@@ -775,6 +826,11 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
                             {count}
                           </span>
                         </div>
+                        {gTask && (
+                          <p className="mt-1.5 text-[11px] text-amber-300/90 font-semibold leading-snug border-t border-slate-700/80 pt-1.5">
+                            Auftrag: {gTask}
+                          </p>
+                        )}
                         {preTeam && preTeam.members.length > 0 && (
                           <ul className="mt-2 text-[11px] text-slate-300 space-y-0.5 border-t border-slate-700/80 pt-1.5">
                             {preTeam.members.map((m, mIdx) => (
@@ -943,6 +999,9 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
                         setDraftGroupCount(preset.groupCount);
                         setDraftMaxSeats(preset.maxSeats);
                         setDraftGroupNames([...preset.groupNames]);
+                        const pTasks = preset.groupTasks ? [...preset.groupTasks] : [];
+                        while (pTasks.length < preset.groupCount) pTasks.push('');
+                        setDraftGroupTasks(pTasks);
                       }}
                       className="min-h-[40px] px-3 py-1.5 rounded-xl bg-hbs-bg hover:bg-hbs-blue-soft text-hbs-slate hover:text-hbs-blue text-xs font-bold border border-hbs-slate-border transition-all cursor-pointer"
                     >
@@ -1025,49 +1084,76 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Individual Group Names & Colors */}
+              {/* Individual Group Names, Colors & Group-Specific Tasks */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold text-hbs-slate-dark">
-                    Gruppennamen & Erkennungsfarben
-                  </label>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                  <div>
+                    <label className="text-xs font-bold text-hbs-slate-dark block">
+                      Gruppennamen, Farben & individuelle Arbeitsaufträge (Optional)
+                    </label>
+                    <span className="text-[11px] text-hbs-slate-muted">
+                      Jede Gruppe kann einen eigenen Auftrag erhalten, der nach dem QR-Scan direkt auf dem Schülergerät erscheint.
+                    </span>
+                  </div>
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
                       setDraftGroupNames(
                         Array.from({ length: draftGroupCount }, (_, i) => `Gruppe ${i + 1}`)
-                      )
-                    }
+                      );
+                      setDraftGroupTasks(Array.from({ length: draftGroupCount }, () => ''));
+                    }}
                     className="text-xs font-bold text-hbs-blue hover:underline cursor-pointer"
                   >
-                    Auf „Gruppe 1..{draftGroupCount}“ zurücksetzen
+                    Namen & Aufträge zurücksetzen
                   </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 gap-3">
                   {Array.from({ length: draftGroupCount }).map((_, idx) => {
                     const color = SAL1KE_GROUP_COLORS[idx % SAL1KE_GROUP_COLORS.length];
                     return (
-                      <div key={idx} className="flex items-center gap-2">
-                        <span
-                          style={{ backgroundColor: color }}
-                          className="w-8 h-10 rounded-xl shrink-0 flex items-center justify-center text-white font-black text-xs shadow-2xs"
-                        >
-                          {idx + 1}
-                        </span>
+                      <div
+                        key={idx}
+                        className="p-3 rounded-2xl bg-hbs-bg/70 border border-hbs-slate-border/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5"
+                      >
+                        <div className="flex items-center gap-2 sm:w-52 shrink-0">
+                          <span
+                            style={{ backgroundColor: color }}
+                            className="w-8 h-10 rounded-xl shrink-0 flex items-center justify-center text-white font-black text-xs shadow-2xs"
+                          >
+                            {idx + 1}
+                          </span>
+                          <input
+                            type="text"
+                            value={draftGroupNames[idx] || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setDraftGroupNames((prev) => {
+                                const copy = [...prev];
+                                copy[idx] = val;
+                                return copy;
+                              });
+                            }}
+                            placeholder={`Gruppe ${idx + 1}`}
+                            maxLength={40}
+                            className="flex-1 h-10 px-3 rounded-xl bg-white border border-hbs-slate-border focus:border-hbs-blue text-xs sm:text-sm font-bold text-hbs-slate-dark focus:outline-none"
+                          />
+                        </div>
+
                         <input
                           type="text"
-                          value={draftGroupNames[idx] || ''}
+                          value={draftGroupTasks[idx] || ''}
                           onChange={(e) => {
                             const val = e.target.value;
-                            setDraftGroupNames((prev) => {
+                            setDraftGroupTasks((prev) => {
                               const copy = [...prev];
                               copy[idx] = val;
                               return copy;
                             });
                           }}
-                          placeholder={`Gruppe ${idx + 1}`}
-                          maxLength={40}
-                          className="flex-1 h-10 px-3 rounded-xl border border-hbs-slate-border focus:border-hbs-blue text-xs sm:text-sm font-bold text-hbs-slate-dark focus:outline-none"
+                          placeholder={`Optional: Eigener Arbeitsauftrag für ${draftGroupNames[idx] || `Gruppe ${idx + 1}`} …`}
+                          maxLength={220}
+                          className="flex-1 h-10 px-3 rounded-xl bg-white border border-hbs-slate-border focus:border-hbs-teal text-xs sm:text-sm font-medium text-hbs-slate-dark focus:outline-none"
                         />
                       </div>
                     );
@@ -1248,8 +1334,8 @@ export const GruppenDashboard: React.FC<GruppenDashboardProps> = ({
                         )}
                       </div>
 
-                      <p className="text-[11px] font-bold text-hbs-slate-muted text-center truncate">
-                        {session.title}
+                      <p className="text-xs font-bold text-hbs-slate-dark text-center">
+                        {session.groupTasks?.[idx]?.trim() || session.title}
                       </p>
                     </div>
                   );
