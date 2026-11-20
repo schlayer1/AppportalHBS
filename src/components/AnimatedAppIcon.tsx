@@ -27,7 +27,8 @@ import {
   Scale,
   Gamepad2,
   FolderOpen,
-  Target
+  Target,
+  Landmark
 } from 'lucide-react';
 
 interface AnimatedAppIconProps {
@@ -261,6 +262,15 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
     return (
       <div className="relative flex items-center justify-center group/icon">
         <Target className={`${className} transition-transform duration-300 group-hover/icon:scale-110`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Landmark') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Landmark className={`${className} transition-transform duration-300 group-hover/icon:scale-115 group-hover/icon:-translate-y-0.5 text-amber-500`} size={size} />
+        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-teal-400 animate-ping" />
       </div>
     );
   }

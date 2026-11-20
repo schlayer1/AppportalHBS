@@ -2,10 +2,47 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '3.6.0',
+    title: 'Digitaler Museumsrundgang (3D-Saal): Virtuelle Klassenausstellungen mit PPTX/PDF/Audio/Video, Beamer-Führung & Cloudflare R2',
+    date: '20. November 2026',
+    isLatest: true,
+    highlight: 'Neues Highlight für alle Unterrichtsfächer: Mit dem Digitalen Museumsrundgang (https://digitalesmuseum.vercel.app/) wird der klassische „Gallery Walk“ zum interaktiven 3D-Erlebnis. Schülerinnen und Schüler reichen Plakate, mehrseitige PDFs, PowerPoint-Präsentationen (.pptx), Audio-Podcasts oder Lernvideos per 6-stelligem Code ein – danach wandert die gesamte Klasse frei oder im synchronisierten Beamer-Führungsmodus durch den 3D-Museumssaal mit Schulsiegel im Giebel, vergibt Likes, verortet Fragen auf dem Exponat und gibt kriteriengeleitetes Sterne-Feedback.',
+    items: [
+      {
+        id: 'cl-360-1',
+        type: 'neu',
+        title: 'Begehbarer 3D-Museumssaal (WebGL) mit 3 Architektur-Stilen & HBS-Portal',
+        description: 'Frei begehbarer 3D-Ausstellungssaal (mit 2D-Karussell-Fallback) in den Stilen „Klassisch“ (Weinrot & Goldrahmen), „Moderne Galerie“ und „Bei Nacht (Spotlights)“ – inklusive Heimbürgeschule-Siegel im Eingangs-Giebel, Grundriss-Minimap und mehrseitigem Blättern direkt am Bilderrahmen.',
+        badge: '3D-Museumssaal'
+      },
+      {
+        id: 'cl-360-2',
+        type: 'neu',
+        title: 'Multimediale Exponate: Bilder, PDFs, automatischer PPTX-Konverter, Audio & Video',
+        description: 'Unterstützt Einzelbilder, mehrseitige PDF-Dokumente (mit Seitenauswahl), PowerPoint-Dateien (.pptx werden direkt im Browser in Einzelfolien und PDF umgewandelt), Videos (.mp4/.mov/.webm), eigenständige Audio-Exponate (.mp3/.m4a/.wav) sowie gesprochene Audio-Kommentare zu Plakaten – gespeichert in Cloudflare R2.',
+        badge: 'PPTX • PDF • Audio • Video'
+      },
+      {
+        id: 'cl-360-3',
+        type: 'neu',
+        title: 'Lesehilfen-Zeichner, ortsgebundene Fragen & 3-Kriterien-Sterne-Feedback',
+        description: 'Einreichende können eigene Lesehilfen (Textmarker, Kreise, Pfeile, Freihandstift) auf ihren Seiten einzeichnen. Beim Rundgang lassen sich Fragen und Kommentare per Klick exakt an einer Bildstelle anheften und strukturierte Rückmeldungen („Das ist euch gut gelungen“ / „Ein Tipp“) vergeben.',
+        badge: 'Peer-Feedback & Annotationen'
+      },
+      {
+        id: 'cl-360-4',
+        type: 'neu',
+        title: 'Lehrkraft-Cockpit mit HBS-PIN-Sync, Drag-&-Drop-Sammelupload, Beamer-Führung & R2-Cleanup',
+        description: 'Synchronisierte Kollegiums-Anmeldung (inkl. Anrede Frau/Herr aus der Vertretungsstatistik), 3-Phasen-Steuerung (Aufbau, Rundgang, Geschlossen), Lehrer-Sammelupload per Drag & Drop, Live-Beamer-Führung (alle Schülergeräte folgen dem Smartboard) sowie restloses Löschen von Ausstellungen samt aller Cloudflare-R2-Dateien.',
+        badge: 'Lehrkraft-Cockpit & R2'
+      }
+    ]
+  },
+  {
     version: '3.5.0',
     title: 'Epochenhub (Beta) im App-Portal integriert: 8 interaktive 16-Bit Geschichtsabenteuer (70 Kapitel) & Natur-Atlas',
     date: '20. November 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Neues Geschichts-Portal für Unterricht & Kollegium: Das Epochenhub (https://epochenhub.vercel.app/) ist ab sofort mit offiziellem Beta-Banner im App-Portal unter „Schüler & Unterricht“ sowie „Lehrerzimmer & Kollegium“ verankert. Es bündelt 8 interaktive 16-Bit Top-Down-Geschichtsabenteuer mit insgesamt 70 Kapiteln von der Steinzeit (40.000 v. Chr.) bis zur Reformation (1555 n. Chr.) – inklusive chronologischer Zeitreise, 16-Bit Natur-Atlas (Flora & Fauna), Schüler-Zeitreise-Pass (Chrono-Pass), Smartboard-QR-Codes und A4-Hefterblatt-Druck.',
     items: [
       {

@@ -175,6 +175,44 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
+    id: "digitaler-museumsrundgang",
+    title: "Digitaler Museumsrundgang (3D-Saal)",
+    shortTitle: "Museumsrundgang",
+    subtitle: "Virtuelle 3D-Ausstellungen, Galerie-Rundgang & Peer-Feedback",
+    description: "Interaktiver 3D-Ausstellungssaal für Schülerarbeiten aller Fächer: Lernende reichen Plakate, mehrseitige PDFs, PowerPoint-Präsentationen (.pptx mit automatischer Folien-Konvertierung), Audio-Beiträge oder Videos per 6-stelligem Code ein. Anschließend wandert die Klasse gemeinsam oder im synchronisierten Beamer-Führungsmodus durch den 3D-Museumssaal (Klassisch, Moderne Galerie, Bei Nacht), vergibt Likes, verortet Fragen direkt auf dem Plakat und gibt strukturiertes 3-Kriterien-Sterne-Feedback.",
+    url: "https://digitalesmuseum.vercel.app/",
+    category: "unterricht",
+    categories: ["unterricht", "kollegium"],
+    badge: "Neu: 3D-Saal & R2",
+    badgeColor: "teal",
+    icon: "Landmark",
+    tags: [
+      "Museumsrundgang",
+      "3D-Galerie",
+      "Ausstellung",
+      "Plakate",
+      "PowerPoint",
+      "PDF",
+      "Audio & Video",
+      "Peer-Feedback",
+      "Beamer-Führung",
+      "Cloudflare R2"
+    ],
+    isFeaturedStudentQr: true,
+    offlineReady: false,
+    privacyBadge: "100% DSGVO & Ohne Schüler-Login",
+    pedagogicalValue: "Verwandelt klassische Plakat-, Präsentations- und Medienabgaben in ein gemeinsames, wertschätzendes Ausstellungserlebnis (digitaler Gallery Walk) mit Lesehilfen-Overlay, ortsgebundenen Rückfragen und kriteriengeleiteter Peer-Evaluation.",
+    quickGuide: [
+      "Lehrkraft meldet sich mit HBS-Portal-PIN an und legt eine neue Ausstellung (Titel, Klasse, Saal-Stil & Feedback-Kriterien) an.",
+      "Schüler scannen den QR-Code oder geben den 6-stelligen Ausstellungscode ein und laden Plakate, PDFs, PPTX, Audio oder Video hoch (oder die Lehrkraft zieht Dateien per Drag & Drop hinein).",
+      "Phase auf '2 · Rundgang' schalten: Alle erkunden den 3D-Saal frei oder folgen der geführten Beamer-Tour und geben Sterne-Rückmeldungen & Kommentare."
+    ],
+    shortcuts: [
+      { label: "Lehrkraft-Bereich", url: "https://digitalesmuseum.vercel.app/#lehrer" },
+      { label: "Probeausstellung", url: "https://digitalesmuseum.vercel.app/?demo&saal=klassisch" }
+    ]
+  },
+  {
     id: "schueler-translator",
     title: "Übersetzer Schüler",
     shortTitle: "Übersetzer Schüler",
