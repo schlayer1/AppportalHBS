@@ -30,7 +30,8 @@ import {
   Target,
   Landmark,
   Dices,
-  LayoutPanelTop
+  LayoutPanelTop,
+  Code2
 } from 'lucide-react';
 
 interface AnimatedAppIconProps {
@@ -289,6 +290,14 @@ export const AnimatedAppIcon: React.FC<AnimatedAppIconProps> = ({
     return (
       <div className="relative flex items-center justify-center group/icon">
         <LayoutPanelTop className={`${className} transition-transform duration-300 group-hover/icon:scale-110 text-hbs-blue`} size={size} />
+      </div>
+    );
+  }
+
+  if (iconName === 'Code2') {
+    return (
+      <div className="relative flex items-center justify-center group/icon">
+        <Code2 className={`${className} transition-transform duration-300 group-hover/icon:scale-110`} size={size} />
       </div>
     );
   }

@@ -35,7 +35,7 @@ import { PORTAL_CONFIG } from '../config/apps';
 import { useAuth } from '../context/AuthContext';
 import { formatTeacherName } from '../types/user';
 
-export type ViewMode = 'bento' | 'compact' | 'smartboard' | 'tafel' | 'menti' | 'kahoot' | 'oncoo' | 'gruppen' | 'sitzplan' | 'ablage';
+export type ViewMode = 'bento' | 'compact' | 'smartboard' | 'tafel' | 'menti' | 'kahoot' | 'oncoo' | 'gruppen' | 'sitzplan' | 'ablage' | 'html-werkstatt';
 
 interface HeaderProps {
   onLogout: () => void;

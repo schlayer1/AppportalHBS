@@ -2,10 +2,84 @@ import { ChangelogRelease } from '../types/requestTypes';
 
 export const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: '3.9.0',
+    title: 'HTML-Werkstatt für Lehrkräfte: 11 Regelschul-Beispiele, Live-Editor & Thüringer Ideen-Finder',
+    date: '25. November 2026',
+    isLatest: true,
+    highlight: 'Neues Kollegiums-Werkzeug direkt in der Bento-Ansicht (#html-werkstatt): Die interaktive HTML-Werkstatt zeigt anhand von elf direkt klickbaren Beispielen aus dem Regelschulalltag (Kl. 5–10), was eine einzige HTML-Datei ohne Installation und Internetverbindung leisten kann – inklusive Live-HTML-Editor mit .html-Download sowie einem Ideen-Finder mit fertigen Prompts für alle Fächer der Thüringer Rahmenstundentafel.',
+    items: [
+      {
+        id: 'cl-390-1',
+        type: 'neu',
+        title: 'Live-HTML-Editor mit Sofort-Vorschau & .html-Download',
+        description: 'Im Bereich „Grundidee“ testen Kolleginnen und Kollegen Regelschul-Vorlagen (Text, Aufklapp-Lösung, Tabelle, farbiger Merkkasten) in Echtzeit mit direkter Browser-Vorschau und können das Ergebnis mit einem Klick als eigenständige .html-Datei herunterladen.',
+        badge: 'Live-Editor & Export'
+      },
+      {
+        id: 'cl-390-2',
+        type: 'neu',
+        title: '11 funktionierende Unterrichts-Beispiele für die Regelschule (Kl. 5–10)',
+        description: 'Sortiert nach Unterrichtsphasen (Einstieg, Erarbeitung, Übung, Sicherung, Organisation) – darunter Entscheidungsgeschichte (Geschichte Kl. 6), Prozent-Zahlenschloss (Mathe Kl. 7), Zinseszins-Simulation, Wasserkreislauf-Schaubild (MNT/Geo), Wortarten-Zuordnung per Drag & Drop oder iPad-Tap, Englisch-Lernkarten, Endlos-Aufgabengenerator, Kaufvertrag-Quiz (§ 110 BGB), Lerncheckliste, Zufallsauswahl & Phasen-Timer.',
+        badge: '11 Live-Demos'
+      },
+      {
+        id: 'cl-390-3',
+        type: 'neu',
+        title: 'Ideen-Finder für alle Fächer der Thüringer Rahmenstundentafel',
+        description: 'Wählen Sie ein beliebiges Regelschulfach (von Deutsch, Mathe und Englisch über MNT, Chemie, Physik, Astronomie, WTH/S, Ethik/Religion bis Darstellen & Gestalten), Ihr Thema und die Lerngruppe (Kl. 5–10): Der Ideen-Finder generiert passende, direkt kopierbare KI-Prompts.',
+        badge: 'Thüringer Stundentafel'
+      },
+      {
+        id: 'cl-390-4',
+        type: 'verbessert',
+        title: 'Gezielte Kollegiums-Integration im HBS-Design & Smartboard-Schutz',
+        description: 'Erscheint als eigene Kachel im Kollegiums-Bereich der Bento-Ansicht (im Schüler-/Smartboard-Modus automatisch ausgeblendet) und läuft zu 100 % lokal im Browser im einheitlichen Heimbürgeschule-Design.',
+        badge: 'Kollegium & HBS-Design'
+      }
+    ]
+  },
+  {
+    version: '3.8.0',
+    title: 'HBS Sitzplan (Sitzplangenerator): Raumplaner, Soziogramm, 3D-Lehrerblick & Cloudflare-R2-Freigabe',
+    date: '25. November 2026',
+    isLatest: false,
+    highlight: 'Neues Vollbild-Werkzeug für Kollegium und Klassenleitungen (#sitzplan): Mit „HBS Sitzplan“ gestalten Lehrkräfte Klassen- und Fachräume flexibel per Vorlage oder Finger-Umrandung, pflegen Kinderlisten samt Beziehungsregeln (inkl. Soziogramm und automatischer Widerspruchsprüfung), lassen pädagogisch optimierte Sitzpläne berechnen, prüfen diese in der 3D-Lehrerperspektive und drucken bzw. teilen fertige Pläne nach Klassen und Fachräumen über Cloudflare R2.',
+    items: [
+      {
+        id: 'cl-380-1',
+        type: 'neu',
+        title: 'Interaktiver Klassenraum- & Tischplaner mit Raumvorlagen',
+        description: 'Tische, Pult, Tafel, Türen und Fenster per Klick, Ziehen oder Vorlage anordnen – wahlweise als Klassenraum oder Fachraum (Chemie, Physik, Kunst, Biologie). Enthält eine fertige Musterklasse zum sofortigen Ausprobieren.',
+        badge: 'Raum-Editor'
+      },
+      {
+        id: 'cl-380-2',
+        type: 'neu',
+        title: 'Schülerprofile, Beziehungsregeln, Soziogramm & Widerspruchsprüfung',
+        description: 'Regeln wie „Unbedingt zusammensetzen“ oder „Nicht zusammensetzen“ sowie Sitz-Präferenzen (vorne/ruhig) lassen sich visuell im Soziogramm verwalten. Der Generator erkennt Regelkonflikte automatisch und berechnet optimierte Sitzplan-Varianten.',
+        badge: 'Sitzplan-Engine'
+      },
+      {
+        id: 'cl-380-3',
+        type: 'neu',
+        title: '3D-Klassenraumansicht & Druck in Lehrerperspektive („Tafel im Rücken“)',
+        description: 'Sitzpläne lassen sich räumlich in 3D aus der Lehrerperspektive kontrollieren und sauber als PDF oder PNG ausgeben – inklusive Ansicht „Tafel im Rücken“ für den schnellen Überblick am Pult.',
+        badge: '3D-Ansicht & PDF/PNG'
+      },
+      {
+        id: 'cl-380-4',
+        type: 'neu',
+        title: 'Kollegiums-Freigabe für Klassen & Fachräume über Cloudflare R2',
+        description: 'Klassenleitungen und Fachlehrkräfte können abgestimmte Sitzpläne für das Kollegium freigeben, nach Klassen oder Fachräumen filtern und geräteübergreifend in Cloudflare R2 synchronisieren.',
+        badge: 'Kollegiums-Sync (R2)'
+      }
+    ]
+  },
+  {
     version: '3.7.0',
     title: 'HBS Gruppen per QR-Code: Faire Gruppenzulosung mit Farb-Vollbild, Einzel-Arbeitsaufträgen & 48h-Auto-Cleanup',
     date: '20. November 2026',
-    isLatest: true,
+    isLatest: false,
     highlight: 'Neues Vollbild-Unterrichtswerkzeug direkt im App-Portal (#gruppen): Mit „HBS Gruppen per QR-Code“ losen Lehrkräfte ihre Klasse in Sekunden fair und ohne Diskussionen in 2 bis 12 gleich große Gruppen oder Lernstationen. Wer nacheinander scannt, landet garantiert in verschiedenen Gruppen. Jedes Schülergerät färbt sich vollflächig in seiner Gruppenfarbe und zeigt auf Wunsch direkt den gruppenspezifischen Arbeitsauftrag an – komplett ohne Schüler-Login, ohne Namen und mit automatischer Datenbank-Bereinigung nach 48 Stunden.',
     items: [
       {

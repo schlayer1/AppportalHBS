@@ -52,6 +52,7 @@ const ChangelogModal = lazy(() => import('./components/ChangelogModal').then(m =
 const RequestModal = lazy(() => import('./components/RequestModal').then(m => ({ default: m.RequestModal })));
 const FileStorageDashboard = lazy(() => import('./components/storage/FileStorageDashboard').then(m => ({ default: m.FileStorageDashboard })));
 const SitzplanDashboard = lazy(() => import('./components/sitzplan/SitzplanDashboard').then(m => ({ default: m.SitzplanDashboard })));
+const HtmlWerkstattPage = lazy(() => import('./components/htmlwerkstatt/HtmlWerkstattPage').then(m => ({ default: m.HtmlWerkstattPage })));
 import { EmptyState } from './components/ui/empty-state';
 import { CardTilt } from './components/ui/card-tilt';
 import { AuroraBackground } from './components/ui/aurora-background';
@@ -80,6 +81,7 @@ const VIEW_TO_HASH: Partial<Record<ViewMode, string>> = {
   gruppen: '#gruppen',
   sitzplan: '#sitzplan',
   ablage: '#ablage',
+  'html-werkstatt': '#html-werkstatt',
 };
 
 const pushPortalHash = (hash: string) => {
@@ -144,6 +146,7 @@ export default function App() {
       if (hash === '#sitzplan' || hash.startsWith('#sitzplan/')) return 'sitzplan';
       if (hash === '#tafel') return 'tafel';
       if (hash === '#ablage' || hash === '#files') return 'ablage';
+      if (hash === '#html-werkstatt') return 'html-werkstatt';
       if (localStorage.getItem('hbs_guest_portal_mode_v1') === 'true') {
         return 'tafel';
       }
@@ -161,7 +164,7 @@ export default function App() {
 
   // Track app usage when dedicated tool view is active (100% cookie-free & anonymized)
   useEffect(() => {
-    if (viewMode === 'tafel' || viewMode === 'kahoot' || viewMode === 'menti' || viewMode === 'oncoo' || viewMode === 'gruppen' || viewMode === 'sitzplan' || viewMode === 'ablage') {
+    if (viewMode === 'tafel' || viewMode === 'kahoot' || viewMode === 'menti' || viewMode === 'oncoo' || viewMode === 'gruppen' || viewMode === 'sitzplan' || viewMode === 'ablage' || viewMode === 'html-werkstatt') {
       recordAppLaunch(viewMode);
     }
   }, [viewMode]);
@@ -340,6 +343,13 @@ export default function App() {
           return;
         }
         setViewMode('ablage');
+      } else if (hash === '#html-werkstatt') {
+        if (preferredPortalView === 'smartboard' && currentUser && !isGuest) {
+          setPendingSmartboardTargetView('html-werkstatt');
+          pushPortalHash('');
+          return;
+        }
+        setViewMode('html-werkstatt');
       } else if (hash === '#handbuch') {
         setIsHandbookOpen(true);
         try {
@@ -373,7 +383,7 @@ export default function App() {
         setKahootSubView('dashboard');
         setOncooSubView('dashboard');
         setViewMode((prev) => {
-          if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo' || prev === 'gruppen' || prev === 'sitzplan' || prev === 'tafel' || prev === 'ablage') {
+          if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo' || prev === 'gruppen' || prev === 'sitzplan' || prev === 'tafel' || prev === 'ablage' || prev === 'html-werkstatt') {
             return preferredPortalView;
           }
           return prev;
@@ -794,6 +804,20 @@ export default function App() {
       <ErrorBoundary fallbackTitle="Fehler beim Laden von HBS Sitzplan" onReset={handleExitToPortal}>
         <Suspense fallback={<LoadingSpinner message="HBS Sitzplan wird geladen..." />}>
           <SitzplanDashboard onBackToPortal={handleExitToPortal} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  // Fullscreen / Dedicated HTML-Werkstatt für Lehrkräfte
+  if (viewMode === 'html-werkstatt' && !isGuest) {
+    return (
+      <ErrorBoundary fallbackTitle="Fehler beim Laden der HTML-Werkstatt" onReset={handleExitToPortal}>
+        <Suspense fallback={<LoadingSpinner message="HTML-Werkstatt wird geladen..." />}>
+          <HtmlWerkstattPage
+            onBackToPortal={handleExitToPortal}
+            onOpenStorage={() => applyViewModeChange('ablage')}
+          />
         </Suspense>
       </ErrorBoundary>
     );

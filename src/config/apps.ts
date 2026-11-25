@@ -87,6 +87,28 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
+    id: "html-werkstatt",
+    title: "HTML-Werkstatt für Lehrkräfte",
+    shortTitle: "HTML-Werkstatt",
+    subtitle: "11 interaktive Beispiele, Live-Editor & Ideen-Finder",
+    description: "Praxiswerkstatt für das Kollegium: Entdecken Sie, was eine einzige HTML-Datei im Unterricht leisten kann. Mit Live-HTML-Editor samt .html-Download, 11 direkt klickbaren Regelschul-Beispielen (Kl. 5–10) und einem Ideen-Finder mit fertigen Prompts für alle Fächer der Thüringer Rahmenstundentafel.",
+    url: "#html-werkstatt",
+    category: "kollegium",
+    badge: "Neu: HTML-Werkstatt",
+    badgeColor: "blue",
+    icon: "Code2",
+    tags: ["HTML-Apps", "Kollegium", "Live-Editor", "Ideen-Finder", "Prompts", "Regelschule", "Offline"],
+    isFeaturedStudentQr: false,
+    offlineReady: true,
+    privacyBadge: "100% Lokal im Browser",
+    pedagogicalValue: "Macht anhand funktionierender Regelschul-Beispiele sofort greifbar, wie Lehrkräfte eigene interaktive Übungen, Quizze, Simulationen und Organisationstools als einzelne HTML-Datei ohne Installation nutzen können.",
+    quickGuide: [
+      "Im Live-Editor direkt HTML testen und bei Bedarf als eigene .html-Datei herunterladen.",
+      "Alle 11 Beispiele (Einstieg, Erarbeitung, Übung, Sicherung, Organisation) durchklicken.",
+      "Im Ideen-Finder Fach, Thema und Klassenstufe (Kl. 5–10) wählen und fertigen Prompt kopieren."
+    ]
+  },
+  {
     id: "digitale-tafel",
     title: "Digitale Tafel (Classroom-Screen)",
     shortTitle: "Digitale Tafel",
