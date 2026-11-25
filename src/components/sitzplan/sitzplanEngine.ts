@@ -1460,7 +1460,8 @@ export function createDemoClass(
   authorName: string,
   withTables = false,
   customId?: string,
-  customName = 'Klasse 4b (Beispiel)'
+  customName = 'Klasse 4b (Musterklasse)',
+  isDemo = true
 ): SitzplanClass {
   const students: StudentProfile[] = DEMO_RAW.map(
     ([name, concentration, teamwork, talkative, support, front], idx) => ({
@@ -1500,7 +1501,8 @@ export function createDemoClass(
   return {
     id: customId || genId('c'),
     name: customName,
-    classLabel: 'Klasse 4b',
+    classLabel: isDemo ? 'Klasse 4b (Musterklasse)' : customName,
+    isDemo,
     roleType: 'klassenleitung',
     subject: 'Klassenraum',
     authorId,

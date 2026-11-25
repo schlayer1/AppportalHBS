@@ -148,8 +148,8 @@ export const SitzplanDashboard: React.FC<SitzplanDashboardProps> = ({
 
   return (
     <div className="sitzplan-app-ui flex h-dvh min-w-0 flex-col overflow-hidden bg-hbs-bg text-hbs-slate-dark print:hidden">
-      {/* HBS Header */}
-      <header className="shrink-0 border-b border-hbs-slate-border bg-white/95 backdrop-blur-md px-3 py-2 sm:px-5">
+      {/* HBS Header (relative z-40 ensures dropdowns always layer above RoomEditor/main) */}
+      <header className="relative z-40 shrink-0 border-b border-hbs-slate-border bg-white/95 backdrop-blur-md px-3 py-2 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2 max-w-[2100px] mx-auto">
           {/* Left: Siegel + Back + Class Select */}
           <div className="flex min-w-0 items-center gap-2">
@@ -181,7 +181,7 @@ export const SitzplanDashboard: React.FC<SitzplanDashboardProps> = ({
               aria-label="Klasse wählen"
               value={store.activeClassId}
               onChange={(e) => store.setActiveClass(e.target.value)}
-              className="min-h-[42px] min-w-0 max-w-[11rem] sm:max-w-[15rem] rounded-xl border border-hbs-slate-border bg-hbs-bg px-2.5 text-sm font-black text-hbs-slate-dark focus:border-hbs-blue focus:outline-none"
+              className="min-h-[42px] min-w-0 max-w-[12rem] sm:max-w-[16rem] rounded-xl border border-hbs-slate-border bg-hbs-bg px-2.5 text-sm font-black text-hbs-slate-dark focus:border-hbs-blue focus:outline-none"
             >
               {store.classes.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -190,6 +190,16 @@ export const SitzplanDashboard: React.FC<SitzplanDashboardProps> = ({
                 </option>
               ))}
             </select>
+
+            {cls?.isDemo && (
+              <span
+                title="Fiktive Musterklasse mit Beispieldaten zur Demonstration für das Kollegium"
+                className="hidden sm:inline-flex items-center gap-1 rounded-full bg-hbs-amber-light border border-hbs-amber/35 px-2.5 py-0.5 text-[11px] font-extrabold text-hbs-amber-dark shrink-0"
+              >
+                <Sparkles className="w-3 h-3" />
+                Musterklasse (fiktiv)
+              </span>
+            )}
 
             {cls?.roleType === 'fachlehrer' && cls.subject && (
               <span className="hidden lg:inline-flex items-center gap-1 rounded-full bg-hbs-amber-light border border-hbs-amber/25 px-2.5 py-0.5 text-[11px] font-bold text-hbs-amber-dark shrink-0">
@@ -248,20 +258,34 @@ export const SitzplanDashboard: React.FC<SitzplanDashboardProps> = ({
             {/* Cloudflare R2 Sync Status */}
             <button
               type="button"
-              onClick={() => store.forceSyncNow()}
+              onClick={async () => {
+                const res = await store.forceSyncNow();
+                if (res.ok) {
+                  notify(`Erfolgreich in Cloudflare R2 gesichert (${store.r2WorkspaceKey}).`, 'success');
+                } else {
+                  notify(
+                    `R2-Sync fehlgeschlagen (${res.error || 'Offline'}) – Änderungen vorerst nur lokal gespeichert.`,
+                    'warn'
+                  );
+                }
+              }}
               title={
                 store.syncState === 'synced'
-                  ? 'In Cloudflare R2 Cloud gesichert (klicken für Sofort-Sync)'
+                  ? `Verifiziert in Cloudflare R2 gespeichert (${store.r2WorkspaceKey})${
+                      store.lastSyncedAt
+                        ? ` · Zuletzt ${new Date(store.lastSyncedAt).toLocaleTimeString('de-DE')}`
+                        : ''
+                    } – klicken zum erneuten Prüfen/Hochladen`
                   : store.syncState === 'syncing'
-                    ? 'Synchronisiere mit Cloudflare R2…'
-                    : store.syncError || 'Lokal im Browser gespeichert'
+                    ? 'Wird direkt an Cloudflare R2 übertragen…'
+                    : store.syncError || 'Nur lokal im Browser gespeichert (noch nicht in R2)'
               }
-              className={`hidden xl:inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition-colors ${
+              className={`hidden sm:inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition-colors ${
                 store.syncState === 'synced'
-                  ? 'bg-hbs-teal-light/60 border-hbs-teal/25 text-hbs-teal-deep'
+                  ? 'bg-hbs-teal-light/60 border-hbs-teal/25 text-hbs-teal-deep hover:bg-hbs-teal-light'
                   : store.syncState === 'syncing'
                     ? 'bg-hbs-blue-light border-hbs-blue/25 text-hbs-blue'
-                    : 'bg-slate-100 border-slate-200 text-hbs-slate-muted'
+                    : 'bg-hbs-amber-light/70 border-hbs-amber/30 text-hbs-amber-dark hover:bg-hbs-amber-light'
               }`}
             >
               {store.syncState === 'syncing' ? (
@@ -276,7 +300,7 @@ export const SitzplanDashboard: React.FC<SitzplanDashboardProps> = ({
                   ? 'R2 Cloud'
                   : store.syncState === 'syncing'
                     ? 'Sync…'
-                    : 'Lokal'}
+                    : 'Nur lokal'}
               </span>
             </button>
 
@@ -321,8 +345,8 @@ export const SitzplanDashboard: React.FC<SitzplanDashboardProps> = ({
 
               {menuOpen && (
                 <>
-                  <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-hbs-slate-border bg-white p-1.5 shadow-hbs-modal space-y-0.5">
+                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                  <div className="absolute right-0 top-12 z-50 w-64 rounded-2xl border border-hbs-slate-border bg-white p-1.5 shadow-hbs-modal space-y-0.5">
                     <div className="px-3 py-2 border-b border-slate-100 mb-1">
                       <span className="block text-[10px] font-bold uppercase text-hbs-slate-muted">
                         Angemeldet als
@@ -387,12 +411,12 @@ export const SitzplanDashboard: React.FC<SitzplanDashboardProps> = ({
                       onClick={() => {
                         setMenuOpen(false);
                         store.addDemoClass();
-                        notify('Beispielklasse 4b hinzugefügt.', 'success');
+                        notify('Fiktive Musterklasse 4b hinzugefügt.', 'success');
                       }}
                       className="w-full min-h-[40px] px-3 rounded-xl text-left text-xs font-bold text-hbs-slate-dark hover:bg-hbs-blue-soft flex items-center gap-2"
                     >
-                      <Sparkles className="w-4 h-4 text-hbs-teal" />
-                      <span>Beispielklasse hinzufügen</span>
+                      <Sparkles className="w-4 h-4 text-hbs-amber" />
+                      <span>Musterklasse 4b hinzufügen</span>
                     </button>
 
                     <div className="h-px bg-slate-100 my-1" />
@@ -443,7 +467,7 @@ export const SitzplanDashboard: React.FC<SitzplanDashboardProps> = ({
       </header>
 
       {/* Main Content */}
-      <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
+      <main className="relative z-10 min-h-0 min-w-0 flex-1 overflow-hidden">
         {!store.hydrated ? (
           <div className="flex h-full items-center justify-center text-sm font-bold text-hbs-slate-muted">
             Lade gespeicherte Sitzpläne …

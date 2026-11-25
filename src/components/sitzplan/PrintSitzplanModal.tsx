@@ -1,8 +1,13 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Eye, FileDown, Printer, RotateCcw, X } from 'lucide-react';
+import { Eye, FileDown, FileText, Loader2, Printer, RotateCcw, X } from 'lucide-react';
 import { RoomLayout } from '../../types/sitzplanTypes';
-import { SeatPlanCanvas, exportSeatPlanSvgAsPng } from './SeatPlanCanvas';
+import {
+  SeatPlanCanvas,
+  SeatPlanExportMeta,
+  exportSeatPlanSvgAsPdf,
+  exportSeatPlanSvgAsPng,
+} from './SeatPlanCanvas';
 
 interface PrintSitzplanModalProps {
   isOpen: boolean;
@@ -26,61 +31,104 @@ export const PrintSitzplanModal: React.FC<PrintSitzplanModalProps> = ({
   initialTeacherPerspective = true,
 }) => {
   const [teacherPerspective, setTeacherPerspective] = useState(initialTeacherPerspective);
-  const printSvgRef = useRef<SVGSVGElement | null>(null);
+  const [exportingKind, setExportingKind] = useState<'png' | 'pdf' | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const previewSvgRef = useRef<SVGSVGElement | null>(null);
+
+  const validFromDate = useMemo(
+    () =>
+      new Date().toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }),
+    [isOpen]
+  );
 
   if (!isOpen) return null;
+
+  const exportMeta: SeatPlanExportMeta = {
+    title,
+    subtitle,
+    teacherPerspective,
+    validFromDate,
+    logoSrc: '/Siegel_bunt.png',
+  };
+
+  const baseFileName = `${title}_${teacherPerspective ? 'Lehrerblick' : 'Raumblick'}_${validFromDate}`;
 
   const handlePrint = () => {
     window.print();
   };
 
   const handlePng = async () => {
-    if (!printSvgRef.current) return;
-    await exportSeatPlanSvgAsPng(
-      printSvgRef.current,
-      `${title}_${teacherPerspective ? 'Lehrerblick' : 'Raumblick'}`
-    );
+    if (!previewSvgRef.current) return;
+    setExportError(null);
+    setExportingKind('png');
+    try {
+      await exportSeatPlanSvgAsPng(previewSvgRef.current, baseFileName, exportMeta);
+    } catch (err: any) {
+      setExportError(err?.message || 'PNG-Export fehlgeschlagen.');
+    } finally {
+      setExportingKind(null);
+    }
   };
 
-  const sheetContent = (
-    <div className="bg-white text-hbs-slate-dark p-4 sm:p-6 flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <img
-              src="/Siegel_bunt.png"
-              alt="HBS Siegel"
-              className="w-7 h-7 object-contain"
-            />
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-hbs-blue">
+  const handlePdf = async () => {
+    if (!previewSvgRef.current) return;
+    setExportError(null);
+    setExportingKind('pdf');
+    try {
+      await exportSeatPlanSvgAsPdf(previewSvgRef.current, baseFileName, exportMeta);
+    } catch (err: any) {
+      setExportError(err?.message || 'PDF-Export fehlgeschlagen.');
+    } finally {
+      setExportingKind(null);
+    }
+  };
+
+  const renderSheet = (isPrintPortal: boolean) => (
+    <div className="bg-white text-hbs-slate-dark p-4 sm:p-6 print:p-0 flex flex-col gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <img
+            src="/Siegel_bunt.png"
+            alt="HBS Siegel"
+            className="w-11 h-11 object-contain shrink-0"
+          />
+          <div className="min-w-0">
+            <span className="block text-[11px] font-extrabold uppercase tracking-wider text-hbs-blue">
               Heimbürgeschule Kahla · Sitzplan
             </span>
+            <h2 className="text-xl font-black text-hbs-slate-dark leading-tight mt-0.5 truncate">
+              {title}
+            </h2>
+            <p className="text-xs font-medium text-hbs-slate-muted">{subtitle}</p>
           </div>
-          <h2 className="text-xl font-black text-hbs-slate-dark mt-0.5">{title}</h2>
-          <p className="text-xs font-medium text-hbs-slate-muted">{subtitle}</p>
         </div>
 
-        <div className="text-right text-xs">
+        <div className="text-right text-xs shrink-0">
           <span className="inline-flex items-center gap-1 rounded-full bg-hbs-blue-light px-3 py-1 font-bold text-hbs-blue border border-hbs-blue/20">
             {teacherPerspective
               ? 'Lehrerperspektive (Tafel im Rücken)'
               : 'Schülerperspektive (Tafel oben)'}
           </span>
-          <p className="text-[11px] text-hbs-slate-muted mt-1">
-            Stand: {new Date().toLocaleDateString('de-DE')}
+          <p className="text-xs font-extrabold text-hbs-slate-dark mt-1.5">
+            Gültig ab: {validFromDate}
           </p>
         </div>
       </div>
 
-      <div className="w-full aspect-[10/7] max-h-[62vh] mx-auto border border-slate-200 rounded-xl overflow-hidden bg-white p-2">
+      <div className="w-full mx-auto border border-slate-200 rounded-xl bg-white p-2 sm:p-3 print:border-slate-300">
         <SeatPlanCanvas
-          ref={printSvgRef}
+          ref={isPrintPortal ? undefined : previewSvgRef}
           room={room}
           assignment={assignment}
           students={students}
           interactive={false}
+          fitMode="contain"
           teacherPerspective={teacherPerspective}
-          gridId="hbs-sitzplan-print-grid"
+          gridId={isPrintPortal ? 'hbs-sitzplan-print-grid-portal' : 'hbs-sitzplan-print-grid'}
         />
       </div>
 
@@ -123,7 +171,7 @@ export const PrintSitzplanModal: React.FC<PrintSitzplanModalProps> = ({
                 Sitzplan drucken &amp; exportieren
               </h3>
               <p className="text-xs text-hbs-slate-muted">
-                Wähle die Blickrichtung für den Ausdruck (Standard: Tafel im Rücken).
+                Vorschau im DIN-A4-Querformat mit Schullogo und „Gültig ab“-Vermerk.
               </p>
             </div>
 
@@ -167,9 +215,14 @@ export const PrintSitzplanModal: React.FC<PrintSitzplanModalProps> = ({
           </div>
 
           <div className="flex-1 overflow-y-auto bg-slate-100/80 p-3 sm:p-5">
-            <div className="mx-auto max-w-4xl rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-              {sheetContent}
+            <div className="mx-auto max-w-4xl rounded-xl border border-slate-200 bg-white shadow-sm">
+              {renderSheet(false)}
             </div>
+            {exportError && (
+              <p className="mx-auto mt-3 max-w-4xl rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                {exportError}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2 border-t border-hbs-slate-border bg-white p-4">
@@ -183,27 +236,45 @@ export const PrintSitzplanModal: React.FC<PrintSitzplanModalProps> = ({
             <button
               type="button"
               onClick={handlePng}
-              className="min-h-[44px] px-4 rounded-xl border border-hbs-blue/30 bg-hbs-blue-light text-hbs-blue text-sm font-bold hover:bg-hbs-blue-soft flex items-center gap-2"
+              disabled={exportingKind !== null}
+              className="min-h-[44px] px-4 rounded-xl border border-hbs-blue/30 bg-hbs-blue-light text-hbs-blue text-sm font-bold hover:bg-hbs-blue-soft flex items-center gap-2 disabled:opacity-60"
             >
-              <FileDown className="w-4 h-4" />
+              {exportingKind === 'png' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileDown className="w-4 h-4" />
+              )}
               <span>Als Bild (PNG)</span>
             </button>
             <button
               type="button"
+              onClick={handlePdf}
+              disabled={exportingKind !== null}
+              className="min-h-[44px] px-5 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-sm font-bold flex items-center gap-2 shadow-xs disabled:opacity-60"
+            >
+              {exportingKind === 'pdf' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4" />
+              )}
+              <span>Als PDF speichern</span>
+            </button>
+            <button
+              type="button"
               onClick={handlePrint}
-              className="min-h-[44px] px-5 rounded-xl bg-hbs-blue hover:bg-hbs-blue-deep text-white text-sm font-bold flex items-center gap-2 shadow-xs"
+              className="min-h-[44px] px-4 rounded-xl border border-hbs-slate-border bg-white hover:bg-slate-50 text-hbs-slate-dark text-sm font-bold flex items-center gap-2"
             >
               <Printer className="w-4 h-4" />
-              <span>Drucken / Als PDF speichern</span>
+              <span>Drucken</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Dedicated A4 Print Container rendered at document.body via portal */}
+      {/* Dedicated A4 Landscape Print Container rendered at document.body via portal */}
       {createPortal(
         <div id="hbs-sitzplan-print-root" className="hidden print:block printable-document">
-          {sheetContent}
+          {renderSheet(true)}
         </div>,
         document.body
       )}

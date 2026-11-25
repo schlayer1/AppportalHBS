@@ -88,8 +88,9 @@ export const FACHRAUM_SUBJECTS = [
 
 export interface SitzplanClass {
   id: string;
-  name: string; // Display name e.g. "Klasse 4b" or "7a · Chemie"
+  name: string; // Display name e.g. "Klasse 4b (Musterklasse)" or "7a · Chemie"
   classLabel?: string; // Normalized class name for shared overview e.g. "7a"
+  isDemo?: boolean; // Marks fictional demo/example classes clearly for colleagues
   roleType?: PlanRoleType;
   subject?: string; // e.g. "Klassenraum" | "Chemie" | "Physik" | "Kunst" | "Biologie"
   roomLabel?: string; // e.g. "Raum 204" or "Chemieraum"

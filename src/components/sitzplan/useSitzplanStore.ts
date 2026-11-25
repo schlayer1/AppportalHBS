@@ -21,6 +21,7 @@ import {
 import {
   fetchAllSharedPlansFromR2,
   fetchTeacherWorkspaceFromR2,
+  getTeacherWorkspaceR2Key,
   loadLocalTeacherWorkspace,
   publishSharedPlanToR2,
   saveLocalTeacherWorkspace,
@@ -30,13 +31,42 @@ import {
 
 export type SyncState = 'loading' | 'synced' | 'syncing' | 'local-only' | 'error';
 
+function normalizeLoadedClass(c: SitzplanClass): SitzplanClass {
+  const sanitized = sanitizeClassPlans(c);
+  if (
+    sanitized.isDemo ||
+    (sanitized.id === 'c1' &&
+      (sanitized.name === 'Klasse 4b' ||
+        sanitized.name === 'Beispielklasse 4b' ||
+        sanitized.name === 'Klasse 4b (Beispiel)'))
+  ) {
+    return {
+      ...sanitized,
+      isDemo: true,
+      name:
+        sanitized.name === 'Klasse 4b' ||
+        sanitized.name === 'Beispielklasse 4b' ||
+        sanitized.name === 'Klasse 4b (Beispiel)'
+          ? 'Klasse 4b (Musterklasse)'
+          : sanitized.name,
+      classLabel:
+        !sanitized.classLabel || sanitized.classLabel === 'Klasse 4b'
+          ? 'Klasse 4b (Musterklasse)'
+          : sanitized.classLabel,
+    };
+  }
+  return sanitized;
+}
+
 export function useSitzplanStore(authorId: string, authorName: string) {
   const [hydrated, setHydrated] = useState(false);
   const [syncState, setSyncState] = useState<SyncState>('loading');
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const r2WorkspaceKey = getTeacherWorkspaceR2Key(authorId);
 
   const [classes, setClasses] = useState<SitzplanClass[]>(() => [
-    createDemoClass(authorId, authorName, false, 'c1', 'Klasse 4b'),
+    createDemoClass(authorId, authorName, false, 'c1', 'Klasse 4b (Musterklasse)', true),
   ]);
   const [activeClassId, setActiveClassId] = useState<string>('c1');
   const [expert, setExpert] = useState<boolean>(false);
@@ -51,18 +81,20 @@ export function useSitzplanStore(authorId: string, authorName: string) {
   const skipNextSyncRef = useRef(true);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Initial load: local IndexedDB first, then merge newer R2 cloud workspace
+  // Initial load: local IndexedDB first, then merge/reconcile with real R2 cloud state
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const local = await loadLocalTeacherWorkspace(authorId);
-      if (!cancelled && local && local.classes.length > 0) {
+      const normalizedLocalClasses =
+        local && local.classes.length > 0 ? local.classes.map(normalizeLoadedClass) : null;
+      if (!cancelled && normalizedLocalClasses) {
         skipNextSyncRef.current = true;
-        setClasses(local.classes.map(sanitizeClassPlans));
-        setActiveClassId(local.activeClassId || local.classes[0].id);
-        setExpert(Boolean(local.expert));
-        setRoomTemplates(Array.isArray(local.roomTemplates) ? local.roomTemplates : []);
-        setUpdatedAt(local.updatedAt || Date.now());
+        setClasses(normalizedLocalClasses);
+        setActiveClassId(local!.activeClassId || normalizedLocalClasses[0].id);
+        setExpert(Boolean(local!.expert));
+        setRoomTemplates(Array.isArray(local!.roomTemplates) ? local!.roomTemplates : []);
+        setUpdatedAt(local!.updatedAt || Date.now());
       }
       if (!cancelled) setHydrated(true);
 
@@ -71,26 +103,48 @@ export function useSitzplanStore(authorId: string, authorName: string) {
       if (remote && remote.classes.length > 0) {
         const localTime = local?.updatedAt || 0;
         const remoteTime = remote.updatedAt || 0;
-        if (remoteTime > localTime) {
-          skipNextSyncRef.current = true;
-          const sanitized = remote.classes.map(sanitizeClassPlans);
-          setClasses(sanitized);
-          setActiveClassId(remote.activeClassId || sanitized[0].id);
-          setExpert(Boolean(remote.expert));
-          setRoomTemplates(Array.isArray(remote.roomTemplates) ? remote.roomTemplates : []);
-          setUpdatedAt(remoteTime);
-          await saveLocalTeacherWorkspace(authorId, { ...remote, classes: sanitized });
+        if (remoteTime >= localTime) {
+          const sanitized = remote.classes.map(normalizeLoadedClass);
+          if (remoteTime > localTime) {
+            skipNextSyncRef.current = true;
+            setClasses(sanitized);
+            setActiveClassId(remote.activeClassId || sanitized[0].id);
+            setExpert(Boolean(remote.expert));
+            setRoomTemplates(Array.isArray(remote.roomTemplates) ? remote.roomTemplates : []);
+            setUpdatedAt(remoteTime);
+            await saveLocalTeacherWorkspace(authorId, { ...remote, classes: sanitized });
+          }
+          setSyncState('synced');
+          setSyncError(null);
+          setLastSyncedAt(Date.now());
+        } else if (local && normalizedLocalClasses) {
+          // Local copy is newer than R2 -> upload to R2 before claiming synced
+          setSyncState('syncing');
+          const res = await syncTeacherWorkspaceToR2(authorId, {
+            ...local,
+            classes: normalizedLocalClasses,
+          });
+          if (!cancelled) {
+            setSyncState(res.ok ? 'synced' : 'local-only');
+            setSyncError(res.ok ? null : res.error || null);
+            if (res.ok) setLastSyncedAt(Date.now());
+          }
         }
-        setSyncState('synced');
-      } else if (local && local.classes.length > 0) {
+      } else if (local && normalizedLocalClasses) {
         // Push existing local data to R2 if R2 doesn't have it yet
-        const res = await syncTeacherWorkspaceToR2(authorId, local);
+        setSyncState('syncing');
+        const res = await syncTeacherWorkspaceToR2(authorId, {
+          ...local,
+          classes: normalizedLocalClasses,
+        });
         if (!cancelled) {
           setSyncState(res.ok ? 'synced' : 'local-only');
           setSyncError(res.ok ? null : res.error || null);
+          if (res.ok) setLastSyncedAt(Date.now());
         }
       } else {
         setSyncState('local-only');
+        setSyncError('Noch nicht in R2 gespeichert (erste Änderung oder Klick auf Status lädt hoch).');
       }
     })();
     return () => {
@@ -124,6 +178,7 @@ export function useSitzplanStore(authorId: string, authorName: string) {
       const res = await syncTeacherWorkspaceToR2(authorId, payload);
       setSyncState(res.ok ? 'synced' : 'local-only');
       setSyncError(res.ok ? null : res.error || null);
+      if (res.ok) setLastSyncedAt(Date.now());
     }, 1200);
 
     return () => {
@@ -220,7 +275,7 @@ export function useSitzplanStore(authorId: string, authorName: string) {
         ? remaining
         : [
             {
-              ...createDemoClass(authorId, authorName, false, genId('c'), 'Neue Klasse'),
+              ...createDemoClass(authorId, authorName, false, genId('c'), 'Neue Klasse', false),
               students: [],
               relations: [],
               plans: [],
@@ -235,7 +290,7 @@ export function useSitzplanStore(authorId: string, authorName: string) {
 
   const addDemoClass = useCallback(() => {
     const id = genId('c');
-    const demo = createDemoClass(authorId, authorName, true, id, 'Beispielklasse 4b');
+    const demo = createDemoClass(authorId, authorName, true, id, 'Klasse 4b (Musterklasse)', true);
     setClasses((prev) => [...prev, demo]);
     setActiveClassId(id);
     touch();
@@ -576,6 +631,7 @@ export function useSitzplanStore(authorId: string, authorName: string) {
     const res = await syncTeacherWorkspaceToR2(authorId, payload);
     setSyncState(res.ok ? 'synced' : 'local-only');
     setSyncError(res.ok ? null : res.error || null);
+    if (res.ok) setLastSyncedAt(Date.now());
     return res;
   }, [authorId, authorName, classes, activeClassId, expert, roomTemplates]);
 
@@ -583,6 +639,8 @@ export function useSitzplanStore(authorId: string, authorName: string) {
     hydrated,
     syncState,
     syncError,
+    lastSyncedAt,
+    r2WorkspaceKey,
     classes,
     activeClass,
     activeClassId,

@@ -263,9 +263,17 @@
   }
 
   #hbs-sitzplan-print-root {
+    page: hbs-sitzplan;
     display: block !important;
+    visibility: visible !important;
     width: 100% !important;
+    height: auto !important;
     page-break-inside: avoid;
   }
+}
+
+@page hbs-sitzplan {
+  size: A4 landscape;
+  margin: 8mm;
 }
 
