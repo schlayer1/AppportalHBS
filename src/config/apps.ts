@@ -198,6 +198,29 @@ export const SCHOOL_APPS: SchoolApp[] = [
     ]
   },
   {
+    id: "hbs-sitzplan",
+    title: "HBS Sitzplan (Raumplaner & Soziogramm)",
+    shortTitle: "HBS Sitzplan",
+    subtitle: "Klassenräume gestalten, Beziehungen prüfen & Sitzpläne freigeben",
+    description: "Pädagogischer Sitzplan- & Klassenraumplaner: Tische per Finger oder Vorlage anordnen, Schülerprofile und Beziehungsregeln (inkl. Soziogramm & Widerspruchsprüfung) festlegen, automatisch optimierte Sitzpläne berechnen, in 3D/Lehrerblick prüfen und mit Perspektive ‚Tafel im Rücken‘ drucken. Mit Kollegiums-Übersicht nach Klassen & Fachräumen (Chemie, Physik, Kunst, Biologie) in Cloudflare R2.",
+    url: "#sitzplan",
+    category: "kollegium",
+    categories: ["kollegium", "unterricht"],
+    badge: "Neu: Raumplaner & 3D",
+    badgeColor: "teal",
+    icon: "LayoutPanelTop",
+    tags: ["Sitzplan", "Klassenraum", "Soziogramm", "3D", "Fachraum", "Drucken", "Tafel im Rücken", "Cloudflare R2"],
+    isFeaturedStudentQr: false,
+    offlineReady: true,
+    privacyBadge: "DSGVO & Cloudflare R2",
+    pedagogicalValue: "Erleichtert die pädagogische Sitzplanung mit nachvollziehbarer Regelauswertung, verhindert Konflikte durch automatische Widerspruchsprüfung und ermöglicht dem Kollegium die schnelle Einsicht in Klassen- und Fachraumsitzpläne.",
+    quickGuide: [
+      "Klassenraum einrichten (Vorlage wählen, Tische ziehen oder einfach mit dem Finger umranden) und Kinderliste anlegen oder aus der Digitalen Tafel laden.",
+      "Bei Bedarf Regeln ('Nicht zusammensetzen', 'Unbedingt zusammen' etc.) setzen und per 'Sitzplan erstellen' optimale Varianten berechnen lassen.",
+      "Fertigen Sitzplan in der Lehrerperspektive ('Tafel im Rücken') drucken oder für Fachkollegen nach Klassen freigeben."
+    ]
+  },
+  {
     id: "digitaler-museumsrundgang",
     title: "Digitaler Museumsrundgang (3D-Saal)",
     shortTitle: "Museumsrundgang",

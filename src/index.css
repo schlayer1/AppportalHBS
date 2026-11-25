@@ -257,5 +257,15 @@
     box-shadow: none !important;
     border: none !important;
   }
+
+  .sitzplan-app-ui {
+    display: none !important;
+  }
+
+  #hbs-sitzplan-print-root {
+    display: block !important;
+    width: 100% !important;
+    page-break-inside: avoid;
+  }
 }
 

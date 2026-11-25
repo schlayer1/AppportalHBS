@@ -51,6 +51,7 @@ const GeminiSettingsModal = lazy(() => import('./components/gemini/GeminiSetting
 const ChangelogModal = lazy(() => import('./components/ChangelogModal').then(m => ({ default: m.ChangelogModal })));
 const RequestModal = lazy(() => import('./components/RequestModal').then(m => ({ default: m.RequestModal })));
 const FileStorageDashboard = lazy(() => import('./components/storage/FileStorageDashboard').then(m => ({ default: m.FileStorageDashboard })));
+const SitzplanDashboard = lazy(() => import('./components/sitzplan/SitzplanDashboard').then(m => ({ default: m.SitzplanDashboard })));
 import { EmptyState } from './components/ui/empty-state';
 import { CardTilt } from './components/ui/card-tilt';
 import { AuroraBackground } from './components/ui/aurora-background';
@@ -77,6 +78,7 @@ const VIEW_TO_HASH: Partial<Record<ViewMode, string>> = {
   kahoot: '#kahoot',
   oncoo: '#oncoo',
   gruppen: '#gruppen',
+  sitzplan: '#sitzplan',
   ablage: '#ablage',
 };
 
@@ -139,6 +141,7 @@ export default function App() {
       if (hash === '#kahoot' || hash.startsWith('#kahoot/')) return 'kahoot';
       if (hash === '#oncoo' || hash.startsWith('#oncoo/')) return 'oncoo';
       if (hash === '#gruppen' || hash.startsWith('#gruppen/')) return 'gruppen';
+      if (hash === '#sitzplan' || hash.startsWith('#sitzplan/')) return 'sitzplan';
       if (hash === '#tafel') return 'tafel';
       if (hash === '#ablage' || hash === '#files') return 'ablage';
       if (localStorage.getItem('hbs_guest_portal_mode_v1') === 'true') {
@@ -158,7 +161,7 @@ export default function App() {
 
   // Track app usage when dedicated tool view is active (100% cookie-free & anonymized)
   useEffect(() => {
-    if (viewMode === 'tafel' || viewMode === 'kahoot' || viewMode === 'menti' || viewMode === 'oncoo' || viewMode === 'gruppen' || viewMode === 'ablage') {
+    if (viewMode === 'tafel' || viewMode === 'kahoot' || viewMode === 'menti' || viewMode === 'oncoo' || viewMode === 'gruppen' || viewMode === 'sitzplan' || viewMode === 'ablage') {
       recordAppLaunch(viewMode);
     }
   }, [viewMode]);
@@ -214,7 +217,7 @@ export default function App() {
       viewMode === 'smartboard' &&
       currentUser &&
       !isGuest &&
-      (newMode === 'bento' || newMode === 'compact' || newMode === 'ablage');
+      (newMode === 'bento' || newMode === 'compact' || newMode === 'ablage' || newMode === 'sitzplan');
 
     if (isProtectedExitFromSmartboard) {
       setPendingSmartboardTargetView(newMode);
@@ -321,6 +324,13 @@ export default function App() {
         }
       } else if (hash === '#gruppen' || hash.startsWith('#gruppen/')) {
         setViewMode('gruppen');
+      } else if (hash === '#sitzplan' || hash.startsWith('#sitzplan/')) {
+        if (preferredPortalView === 'smartboard' && currentUser && !isGuest) {
+          setPendingSmartboardTargetView('sitzplan');
+          pushPortalHash('');
+          return;
+        }
+        setViewMode('sitzplan');
       } else if (hash === '#tafel') {
         setViewMode('tafel');
       } else if (hash === '#ablage' || hash === '#files') {
@@ -363,7 +373,7 @@ export default function App() {
         setKahootSubView('dashboard');
         setOncooSubView('dashboard');
         setViewMode((prev) => {
-          if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo' || prev === 'gruppen' || prev === 'tafel' || prev === 'ablage') {
+          if (prev === 'menti' || prev === 'kahoot' || prev === 'oncoo' || prev === 'gruppen' || prev === 'sitzplan' || prev === 'tafel' || prev === 'ablage') {
             return preferredPortalView;
           }
           return prev;
@@ -773,6 +783,17 @@ export default function App() {
               setIsTableTentOpen(true);
             }}
           />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  // Fullscreen / Dedicated HBS Sitzplan (Room Planner & Seating Plan Replica + R2 Cloud)
+  if (viewMode === 'sitzplan' && !isGuest) {
+    return (
+      <ErrorBoundary fallbackTitle="Fehler beim Laden von HBS Sitzplan" onReset={handleExitToPortal}>
+        <Suspense fallback={<LoadingSpinner message="HBS Sitzplan wird geladen..." />}>
+          <SitzplanDashboard onBackToPortal={handleExitToPortal} />
         </Suspense>
       </ErrorBoundary>
     );

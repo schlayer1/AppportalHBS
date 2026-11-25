@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const MAX_FILE_SIZE_BYTES = 30 * 1024 * 1024; // 30 MB pro Einzeldatei
@@ -160,7 +160,34 @@ export default async function handler(req: any, res: any) {
     }
     body = body || {};
 
-    const { action = 'upload', key, contentType = 'application/octet-stream', fileSize } = body;
+    const { action = 'upload', key, prefix, contentType = 'application/octet-stream', fileSize } = body;
+
+    if (action === 'list') {
+      const rawPrefix = typeof prefix === 'string' ? prefix.replace(/\.\./g, '').replace(/^\/+/, '') : '';
+      if (!rawPrefix || !rawPrefix.startsWith('sitzplan/')) {
+        return res.status(400).json({ error: 'Ungültiges Prefix für R2-Listing.' });
+      }
+      const command = new ListObjectsV2Command({
+        Bucket: bucketName,
+        Prefix: rawPrefix,
+        MaxKeys: 500,
+      });
+      const listed = await s3.send(command);
+      const objects = (listed.Contents || [])
+        .filter((obj) => obj.Key)
+        .map((obj) => ({
+          key: obj.Key!,
+          size: obj.Size ?? 0,
+          etag: obj.ETag ? obj.ETag.replace(/"/g, '') : '',
+          lastModified: obj.LastModified ? obj.LastModified.getTime() : 0,
+        }));
+      return res.status(200).json({
+        success: true,
+        action: 'list',
+        prefix: rawPrefix,
+        objects,
+      });
+    }
 
     if (!key || typeof key !== 'string') {
       return res.status(400).json({ error: 'Dateischlüssel (key) fehlt oder ist ungültig.' });
